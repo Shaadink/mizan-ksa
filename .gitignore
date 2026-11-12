@@ -1,0 +1,50 @@
+# Secrets - NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Generated data (reproducible from the fixed-seed generator)
+data/generated/
+data/out/
+*.duckdb
+*.duckdb.wal
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+logs/
+
+# Spark / Delta local
+spark-warehouse/
+metastore_db/
+derby.log
+tmp/
+
+# Airflow local
+airflow/logs/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Source spec (kept locally, not redistributed)
+*.pdf
