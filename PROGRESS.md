@@ -7,7 +7,7 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 0 | Scaffold | DONE | 7 |
 | 1 | Deterministic generator | DONE | 48 |
 | 2 | ZATCA engine (M1-2) | DONE | 93 |
-| 3 | Bronze + Silver (PySpark) | TODO — needs Java (ask owner) | |
+| 3 | Bronze + Silver (PySpark) | DONE | 133 |
 | 4 | Gold (dbt) | TODO | |
 | 5 | MDM (M4) | TODO | |
 | 6 | PDPL + NDMO (M5-6) | TODO | |
@@ -22,7 +22,8 @@ Read this first every session. Resume from the first phase that is not DONE.
 - Windows 11, Python 3.12.10, project venv `.venv` (call `.\.venv\Scripts\python.exe` directly).
 - git 2.56. Repo-local author is a **placeholder** (`MIZAN Builder <mizan@localhost>`): the owner will supply
   their GitHub noreply identity; rewrite all commit authors before any push (no remote exists yet).
-- **Java: not installed. Docker: not installed.**
+- Java: portable Temurin JDK 17.0.21 + community winutils in `.tools/` (git-ignored; owner chose portable).
+  Spark 3.5.9 + delta-spark 3.2.1 in the venv (`[spark]` extra). **Docker: not installed** (owner installs before Phase 7).
 
 ## Phase 0 — Scaffold (DONE)
 
@@ -88,11 +89,37 @@ posted despite timeout, 8 eight concurrent lanes on one EGS -> ICV 1..240 gaples
 
 Tests: 93 passed. Ruff: clean.
 
+## Phase 3 — Bronze + Silver, PySpark (DONE)
+
+Run: `.\.venv\Scripts\python.exe -m mizan.spark.pipeline --data data/generated --lake data/lake [--demo-breaks]`
+(about 6 min locally, ZATCA included). Dev keys: `scripts/init_local_env.py` writes them to `.env`.
+
+Built: `spark/session.py` (one factory local|fabric, Asia/Riyadh, TableLocator), `spark/lake.py` (Delta helpers,
+`rows_to_df` staging without Python workers), `spark/contracts.py` (7 source contracts), `spark/bronze.py`
+(Python adapter: sha256 vs _control.json, decode, CP1256 repair, HMAC token, AES-GCM PII, ciphertext-only staging;
+Spark: contracts -> quarantine.schema_rejections (idempotent), ctl.applied_event_ledger dedup + corrections,
+ctl.ingestion_watermarks, security.pii_vault_metadata with zero file retention), `spark/silver.py`
+(slv.payment_lifecycle, slv.settlement_lines with IN_TRANSIT estimates + QUARANTINED breaks ->
+quarantine.settlement_breaks, slv.erp_gl_journal_lines; Delta CHECK constraints), `spark/zatca_land.py`
+(ctl.egs_chain_state, ctl.invoice_outbox, audit.zatca_chain_journal BINARY XML, slv.zatca_invoice_documents,
+quarantine.zatca_chain_violations; reruns continue the chain), `privacy/crypto.py`, `ingest/cp1256.py`,
+`mdm/arabic_norm_and_privacy.py` (spec reference code for Modules 4-6), ADR-007, ADR-008.
+
+Full-run result: every file sha256 matches; RESEND file ALL_DUPLICATE (995 rows); 15 '?????' rows quarantined;
+41 mojibake repaired; slv.settlement_lines 17,000 PAID_BANK + 1,000 IN_TRANSIT, 0 QUARANTINED on main data;
+bank leg closes to 0.00 per MID-day in Spark; ZATCA 25,001 docs, 0 violations. Demo overlay: orphan ->
+QUARANTINED + ORPHAN_BANK_LINE; float-bug GL line lands as a correction (0.01 lower).
+
+Decisions taken without asking (veto-able): added `brz.crm_party_raw` and `brz.spl_address_raw` (spec names no
+Bronze table for CRM/SPL); ADR-007 sign convention; ADR-008 adapter design. All in HONESTY.md.
+
+Tests: 133 passed (full suite about 12 min; `-m "not spark"` skips the Spark module). Ruff: clean.
+
 ## Open issues
 
-1. Java (Phase 3 local PySpark) and Docker (Phases 7-8) are global installs: ask owner.
+1. Docker Desktop (+ WSL2) needed before Phase 7: owner will install when asked.
 2. Owner to supply GitHub noreply identity; then rewrite commit authors.
 
 ## Next step
 
-Phase 3: Bronze + Silver in PySpark. BLOCKED on Java (owner decision).
+Phase 4: Gold in dbt (dbt-fabric target for WH_MIZAN + local DuckDB target), recon mart + circuit breaker.

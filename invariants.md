@@ -19,6 +19,6 @@ order the spec lists them in and the IDs its reference code cites (I-02 = hash, 
 | I-09 | M4 MDM | Zero false merges on conflicting National IDs (Hard-Negative Brother Test); an ambiguous ID-less match never auto-merges (steward queue). | 04 | Phase 5 |
 | I-10 | M4 MDM | Every merge is reversible in `slv.entity_merge_ledger`; Umm al-Qura dates verified against the versioned calendar. | 04 | Phase 5 |
 | I-11 | M7 Skew | Salted join output row count and SAR checksum match the unsalted baseline 100%. | 05 | Phase 7 |
-| I-12 | M7 Skew | Replay of a duplicate batch is idempotent (`ctl.applied_event_ledger`). | 05 | Phase 3/7 |
+| I-12 | M7 Skew | Replay of a duplicate batch is idempotent (`ctl.applied_event_ledger`). | 05 | `test_bronze_silver.py::test_replay_is_idempotent`, `test_duplicate_settlement_file_is_deduplicated` (Phase 7 adds skew replay) |
 | I-13 | M6 Lineage | 100% of Gold columns traced in lineage with `run_id` + `git_sha` (`audit.run_manifests`). | 06 | Phase 8 |
 | I-14 | M6 NDMO | CI policy gate fails the build if a Secret/Top Secret column targets an open (unapproved) schema/sink. | 06 | Phase 6/8 |
