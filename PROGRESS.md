@@ -6,7 +6,7 @@ Read this first every session. Resume from the first phase that is not DONE.
 |-------|------|--------|--------------------|
 | 0 | Scaffold | DONE | 7 |
 | 1 | Deterministic generator | DONE | 48 |
-| 2 | ZATCA engine (M1-2) | TODO | |
+| 2 | ZATCA engine (M1-2) | DONE | 93 |
 | 3 | Bronze + Silver (PySpark) | TODO — needs Java (ask owner) | |
 | 4 | Gold (dbt) | TODO | |
 | 5 | MDM (M4) | TODO | |
@@ -65,6 +65,29 @@ Key design facts for later phases:
 
 Tests: 48 passed. Ruff: clean.
 
+## Phase 2 — ZATCA engine, Modules 1-2 (DONE)
+
+Run: `.\.venv\Scripts\python.exe -m mizan.clearance --data data/generated --out data/out/zatca` (~45 s).
+
+Built in `src/mizan/clearance/`: `tlv_qr_and_state_machine.py` (spec reference code: GENESIS_PIH, hash, TLV,
+state machine, gl_action + hardened DOCTYPE-refusing parser, QR builder/decoder), `ubl.py` (two-step UBL builder:
+unsigned -> hash -> sign -> attach UBLExtensions/Signature/QR), `signing.py` (ECDSA secp256k1 deterministic test
+key per EGS + generation, self-signed cert for tags 8/9), `engine.py` (ChainStore = ctl.egs_chain_state /
+ctl.invoice_outbox / audit.zatca_chain_journal; per-EGS lock sequencer; worker with SUBMITTING-before-HTTP,
+restart recovery, AUTH_HOLD CSID renewal, corrections as new docs; idempotent GL sink keyed on sale uuid),
+`mock_fatoora.py` (verifies QR hash, signature, VAT sums; scripted faults), `chain_verifier.py`, `__main__.py`.
+
+Full-run result: 25,001 docs (1 correction), 23,913 REPORTED / 1,087 CLEARED / 1 CONFIRMED_REJECTION, 1 worker
+restart, 0 chain violations, 25,000 GL postings with max 1 call per sale; tamper demo -> 2 violations
+(ICV_GAP + PIH_MISMATCH at EGS-03 ICV 501). Artifact 1 source table: `data/out/zatca/chain_tape.md`.
+
+Chaos tests (tests/test_zatca_chaos.py): 1 timeout retry identical bytes, 2 crash in SUBMITTING -> recover,
+3 rejection retained + correction chains from it, 4 verify from genesis (+ tamper, + XML edit), 5 non-definitive
+statuses (408/409/429/500/502/503/504/302), 6 401/403 AUTH_HOLD -> renew -> identical bytes, 7 B2B held / B2C
+posted despite timeout, 8 eight concurrent lanes on one EGS -> ICV 1..240 gapless.
+
+Tests: 93 passed. Ruff: clean.
+
 ## Open issues
 
 1. Java (Phase 3 local PySpark) and Docker (Phases 7-8) are global installs: ask owner.
@@ -72,4 +95,4 @@ Tests: 48 passed. Ruff: clean.
 
 ## Next step
 
-Phase 2: ZATCA engine (Modules 1-2) — pure Python, needs `lxml` + `cryptography` in the venv.
+Phase 3: Bronze + Silver in PySpark. BLOCKED on Java (owner decision).

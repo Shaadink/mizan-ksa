@@ -8,10 +8,10 @@ order the spec lists them in and the IDs its reference code cites (I-02 = hash, 
 
 | ID | Module | Invariant (pass criterion) | Artifact | Test |
 |----|--------|----------------------------|----------|------|
-| I-01 | M2 ZATCA | Per EGS, ICVs are strictly sequential with **zero gaps**, and ICV 1 chains from the genesis PIH `base64(hex(sha256("0")))`. | 01 | Phase 2 |
-| I-02 | M2 ZATCA | `PIH[n] == invoice_hash[n-1]`, where `invoice_hash` = base64(SHA-256(C14N XML minus UBLExtensions, cac:Signature and QR reference)), computed once at signing. | 01 | Phase 2 |
-| I-03 | M2 ZATCA | Only HTTP 200/202/400/401/403 are definitive; every other outcome is `UNKNOWN_OUTCOME` and retries the identical UUID and bytes. `accounting_postings == 1` per `invoice_uuid`. | 01 | Phase 2 |
-| I-04 | M2 ZATCA | QR TLV length byte == UTF-8 byte length of the value (tags 1-7 text, tags 8-9 raw bytes), property-tested over random Arabic strings. | 01 | Phase 2 |
+| I-01 | M2 ZATCA | Per EGS, ICVs are strictly sequential with **zero gaps**, and ICV 1 chains from the genesis PIH `base64(hex(sha256("0")))`. | 01 | `test_zatca_chaos.py::test_chaos4_chain_verifies_from_genesis`, `test_planted_icv_gap_tamper_detected` |
+| I-02 | M2 ZATCA | `PIH[n] == invoice_hash[n-1]`, where `invoice_hash` = base64(SHA-256(C14N XML minus UBLExtensions, cac:Signature and QR reference)), computed once at signing. | 01 | `test_zatca_core.py::test_hash_*`, `test_chaos3_*`, `test_tampered_xml_detected` |
+| I-03 | M2 ZATCA | Only HTTP 200/202/400/401/403 are definitive; every other outcome is `UNKNOWN_OUTCOME` and retries the identical UUID and bytes. `accounting_postings == 1` per `invoice_uuid`. | 01 | `test_zatca_chaos.py::test_chaos1/2/5/6/7/8_*`, `test_zatca_core.py::test_every_other_status_is_unknown_outcome` |
+| I-04 | M2 ZATCA | QR TLV length byte == UTF-8 byte length of the value (tags 1-7 text, tags 8-9 raw bytes), property-tested over random Arabic strings. | 01 | `test_zatca_core.py::test_tlv_length_is_utf8_bytes_property`, `test_tags_8_9_are_raw_bytes` |
 | I-05 | M3 Recon | Per MID x business day: Expected Net (captures - refunds/disputes - bank fees) == Bank Paid + In-Transit + Quarantined, and `unclassified_events == 0`. | 02 | Phase 4 |
 | I-06 | M3 Recon | Net Sales == GL card clearing (GL variance 0.00); **zero FLOAT/DOUBLE** columns in financial schemas. | 02 | Phase 4 |
 | I-07 | M5 PDPL | A shredded identity is unrecoverable in Bronze, Silver, Gold and AI chunks — **including via vault time travel**. | 03 | Phase 6 |

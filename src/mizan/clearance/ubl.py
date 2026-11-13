@@ -1,0 +1,149 @@
+"""UBL 2.1 invoice XML builder (ZATCA Phase-2 shape, simplified; see HONESTY.md).
+
+Two-step build so the hash can be computed BEFORE the signature exists:
+  1. build_unsigned_xml(): invoice with ICV + PIH references, no UBLExtensions / cac:Signature / QR;
+  2. attach_signature_and_qr(): adds exactly the three parts zatca_invoice_hash() removes, so
+     hash(unsigned) == hash(signed) by construction (tested).
+Built with the lxml element API (values are escaped, nothing is string-spliced).
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta, timezone
+from decimal import Decimal
+
+from lxml import etree
+
+from mizan.clearance.tlv_qr_and_state_machine import parse_invoice_xml
+
+INV = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+CAC = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+EXT = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+DS = "http://www.w3.org/2000/09/xmldsig#"
+NSMAP = {None: INV, "cac": CAC, "cbc": CBC, "ext": EXT}
+KSA = timezone(timedelta(hours=3))
+
+TYPE_CODE = {"INVOICE": "388", "CREDIT_NOTE": "381"}
+TYPE_NAME = {"CLEARANCE": "0100000", "REPORTING": "0200000"}  # standard (B2B) / simplified (B2C)
+
+
+def _el(parent, ns: str, tag: str, text: str | None = None, **attrib):
+    e = etree.SubElement(parent, f"{{{ns}}}{tag}", attrib)
+    if text is not None:
+        e.text = text
+    return e
+
+
+def issue_ts_ksa(issue_ts_utc: str) -> datetime:
+    return datetime.strptime(issue_ts_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone(KSA)
+
+
+def build_unsigned_xml(req: dict, *, icv: int, pih: str) -> bytes:
+    flow, doc = req["invoice_flow"], req["document_type"]
+    if flow not in TYPE_NAME or doc not in TYPE_CODE:
+        raise ValueError(f"unknown flow/document {flow!r}/{doc!r}")
+    ts = issue_ts_ksa(req["issue_ts_utc"])
+    root = etree.Element(f"{{{INV}}}Invoice", nsmap=NSMAP)
+    _el(root, CBC, "ProfileID", "reporting:1.0")
+    _el(root, CBC, "ID", req["request_id"])
+    _el(root, CBC, "UUID", req["invoice_uuid"])
+    _el(root, CBC, "IssueDate", ts.strftime("%Y-%m-%d"))
+    _el(root, CBC, "IssueTime", ts.strftime("%H:%M:%S"))
+    _el(root, CBC, "InvoiceTypeCode", TYPE_CODE[doc], name=TYPE_NAME[flow])
+    _el(root, CBC, "DocumentCurrencyCode", "SAR")
+    _el(root, CBC, "TaxCurrencyCode", "SAR")
+    if req.get("billing_reference_uuid"):
+        br = _el(root, CAC, "BillingReference")
+        _el(_el(br, CAC, "InvoiceDocumentReference"), CBC, "ID", req["billing_reference_uuid"])
+    icv_ref = _el(root, CAC, "AdditionalDocumentReference")
+    _el(icv_ref, CBC, "ID", "ICV")
+    _el(icv_ref, CBC, "UUID", str(icv))
+    pih_ref = _el(root, CAC, "AdditionalDocumentReference")
+    _el(pih_ref, CBC, "ID", "PIH")
+    _el(_el(pih_ref, CAC, "Attachment"), CBC, "EmbeddedDocumentBinaryObject", pih, mimeCode="text/plain")
+
+    seller = req["seller"]
+    sp = _el(_el(root, CAC, "AccountingSupplierParty"), CAC, "Party")
+    _el(_el(sp, CAC, "PartyIdentification"), CBC, "ID", seller["cr_number"], schemeID="CRN")
+    pts = _el(sp, CAC, "PartyTaxScheme")
+    _el(pts, CBC, "CompanyID", seller["vat_number"])
+    _el(_el(pts, CAC, "TaxScheme"), CBC, "ID", "VAT")
+    _el(_el(sp, CAC, "PartyLegalEntity"), CBC, "RegistrationName", seller["name_ar"])
+
+    cp = _el(_el(root, CAC, "AccountingCustomerParty"), CAC, "Party")
+    buyer = req.get("buyer")
+    if buyer:
+        bts = _el(cp, CAC, "PartyTaxScheme")
+        _el(bts, CBC, "CompanyID", buyer["vat_number"])
+        _el(_el(bts, CAC, "TaxScheme"), CBC, "ID", "VAT")
+        _el(_el(cp, CAC, "PartyLegalEntity"), CBC, "RegistrationName", buyer["name_ar"])
+
+    tt = _el(root, CAC, "TaxTotal")
+    _el(tt, CBC, "TaxAmount", req["vat_total_sar"], currencyID="SAR")
+    lmt = _el(root, CAC, "LegalMonetaryTotal")
+    _el(lmt, CBC, "LineExtensionAmount", req["total_excl_vat_sar"], currencyID="SAR")
+    _el(lmt, CBC, "TaxExclusiveAmount", req["total_excl_vat_sar"], currencyID="SAR")
+    _el(lmt, CBC, "TaxInclusiveAmount", req["total_incl_vat_sar"], currencyID="SAR")
+    _el(lmt, CBC, "PayableAmount", req["total_incl_vat_sar"], currencyID="SAR")
+    for ln in req["lines"]:
+        il = _el(root, CAC, "InvoiceLine")
+        _el(il, CBC, "ID", str(ln["line_id"]))
+        _el(il, CBC, "InvoicedQuantity", str(ln["qty"]), unitCode="PCE")
+        _el(il, CBC, "LineExtensionAmount", ln["line_net_sar"], currencyID="SAR")
+        ltt = _el(il, CAC, "TaxTotal")
+        _el(ltt, CBC, "TaxAmount", ln["line_vat_sar"], currencyID="SAR")
+        line_total = Decimal(ln["line_net_sar"]) + Decimal(ln["line_vat_sar"])
+        _el(ltt, CBC, "RoundingAmount", f"{line_total:.2f}", currencyID="SAR")
+        item = _el(il, CAC, "Item")
+        _el(item, CBC, "Name", ln["item_ar"])
+        ctc = _el(item, CAC, "ClassifiedTaxCategory")
+        _el(ctc, CBC, "ID", "S")
+        _el(ctc, CBC, "Percent", ln["vat_rate"])
+        _el(_el(ctc, CAC, "TaxScheme"), CBC, "ID", "VAT")
+        _el(_el(il, CAC, "Price"), CBC, "PriceAmount", ln["unit_price_sar"], currencyID="SAR")
+    return etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+
+
+def attach_signature_and_qr(unsigned_xml: bytes, *, signature_b64: str, certificate_b64: str, qr_b64: str) -> bytes:
+    """Add UBLExtensions (signature value + cert), cac:Signature, and the QR reference."""
+    root = parse_invoice_xml(unsigned_xml)
+    exts = etree.Element(f"{{{EXT}}}UBLExtensions")
+    ext = _el(exts, EXT, "UBLExtension")
+    _el(ext, EXT, "ExtensionURI", "urn:oasis:names:specification:ubl:dsig:enveloped:xades")
+    content = _el(ext, EXT, "ExtensionContent")
+    sig = etree.SubElement(content, f"{{{DS}}}Signature", nsmap={"ds": DS})
+    _el(sig, DS, "SignatureValue", signature_b64)
+    _el(_el(_el(sig, DS, "KeyInfo"), DS, "X509Data"), DS, "X509Certificate", certificate_b64)
+    root.insert(0, exts)
+
+    # QR reference goes right after the PIH reference; cac:Signature right after it
+    pih_ref = root.xpath("cac:AdditionalDocumentReference[cbc:ID='PIH']", namespaces={"cac": CAC, "cbc": CBC})[0]
+    qr_ref = etree.Element(f"{{{CAC}}}AdditionalDocumentReference")
+    _el(qr_ref, CBC, "ID", "QR")
+    _el(_el(qr_ref, CAC, "Attachment"), CBC, "EmbeddedDocumentBinaryObject", qr_b64, mimeCode="text/plain")
+    pih_ref.addnext(qr_ref)
+    s = etree.Element(f"{{{CAC}}}Signature")
+    _el(s, CBC, "ID", "urn:oasis:names:specification:ubl:signature:Invoice")
+    _el(s, CBC, "SignatureMethod", "urn:oasis:names:specification:ubl:dsig:enveloped:xades")
+    qr_ref.addnext(s)
+    return etree.tostring(root, xml_declaration=True, encoding="UTF-8")
+
+
+def read_refs(xml_bytes: bytes) -> dict:
+    """Extract ICV, PIH, UUID and the QR payload from a signed invoice (for the verifier and mock)."""
+    root = parse_invoice_xml(xml_bytes)
+    ns = {"cac": CAC, "cbc": CBC}
+
+    def one(xp: str) -> str | None:
+        r = root.xpath(xp, namespaces=ns)
+        return r[0] if r else None
+
+    att = "cac:Attachment/cbc:EmbeddedDocumentBinaryObject/text()"
+    return {"uuid": one("cbc:UUID/text()"),
+            "icv": one("cac:AdditionalDocumentReference[cbc:ID='ICV']/cbc:UUID/text()"),
+            "pih": one(f"cac:AdditionalDocumentReference[cbc:ID='PIH']/{att}"),
+            "qr": one(f"cac:AdditionalDocumentReference[cbc:ID='QR']/{att}"),
+            "vat_total": one("cac:TaxTotal/cbc:TaxAmount/text()"),
+            "line_vats": [str(v) for v in
+                          root.xpath("cac:InvoiceLine/cac:TaxTotal/cbc:TaxAmount/text()", namespaces=ns)]}
