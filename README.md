@@ -28,6 +28,7 @@ Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub Act
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m mizan.generator --out data/generated   # ~100K rows, fixed seed
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m ruff check src tests
 ```

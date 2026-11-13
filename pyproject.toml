@@ -26,13 +26,16 @@ testpaths = ["tests"]
 addopts = "-ra"
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "RUF"]
-ignore = ["S101"]  # assert is the pytest idiom
+ignore = ["S101", "RUF005"]  # assert is the pytest idiom; list concat is fine
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]
+"src/mizan/generator/**" = ["S311"]  # seeded, deterministic synthetic data - not crypto
+"src/mizan/generator/catalog.py" = ["S311", "E501"]  # escaped Arabic literals are long
+"src/mizan/common/saudi_ids.py" = ["S311"]

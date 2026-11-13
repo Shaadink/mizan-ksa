@@ -23,4 +23,9 @@ This file states the boundaries of every claim. It is updated as each phase land
 | Phase | Item | Status |
 |-------|------|--------|
 | 0 | Invariant one-per-ID numbering is derived from the spec's grouped ranges (see `invariants.md`). | Stated |
+| 1 | Fee rates (MADA 0.80% capped 200, VISA/MC 1.95%, BNPL 4%, SADAD 0.5% capped 10, chargeback fee 50) are synthetic, not any acquirer's tariff. | Stated |
+| 1 | Ramadan start 2026-02-18 is used only to shape traffic; calendar truth comes from the versioned Umm al-Qura table (Phase 5). | Stated |
+| 1 | ACDOCA-shaped GL keeps `HSL` positive with `DRCRK` (S/H) carrying direction, to honour the project's positive-amount rule; real ACDOCA stores signed HSL. GL covers the daily sales journal only (no settlement clearing postings). | Stated |
+| 1 | The spec names 6 of the 12 planted defects; D03/D04/D06/D07/D09/D11 are taken from the Section 9 artifact descriptions. "ICV gap" is modelled as a post-signing journal deletion (tamper), since MIZAN mints ICVs itself (ADR-001). | Stated |
+| 1 | Byte-identical reruns are guaranteed for the same Python minor version (stdlib `random` stream). | Stated |
 | 2 | C14N hash validated against a ZATCA SDK sample invoice, or a self-consistent hash if no sample is available (spec Day-3 kill switch). | Pending |

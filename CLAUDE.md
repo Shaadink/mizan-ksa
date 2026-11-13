@@ -69,4 +69,6 @@ The project owner is learning: explain decisions plainly.
 - Stop only for credentials, an account action, or a decision the spec does not settle.
 - Windows: edit files with the Edit/Write tools or Python, never PowerShell `Get-Content`/`Set-Content`
   (they corrupt UTF-8). Use `git commit -F <file>` for messages with quotes.
+- The Write/Edit tools turn backslash-u escapes into raw characters. After writing any file with Arabic, run
+  `.\.venv\Scripts\python.exe scripts\escape_non_ascii.py src tests` (guard test: `test_no_raw_non_ascii_in_source`).
 - Determinism: generators use a fixed seed and must produce byte-identical output on rerun.
