@@ -16,7 +16,7 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 9 | Governed AI (M8) | DONE | 220 (all phases so far) |
 | 10 | Fabric deployment | DONE (2 portal checks left: docs/PORTAL_STEPS.md) | 221 |
 | 9b | Streaming (replay, KQL, docs) | DONE (local; send needs ES_MIZAN) | 220 |
-| 11 | Packaging | TODO | |
+| 11 | Packaging (artifacts, README, ADRs, HONESTY) | DONE | 221 |
 
 ## Environment (checked 2026-11-13)
 
@@ -195,8 +195,9 @@ HOLD=600 keeps the Spark UI on http://localhost:4040 for screenshots). Image `mi
 Built: `spark/skew.py` (WALK_IN/NULL isolation, deterministic xxhash64 salt mod 16 with dimension replication, hash-based
 skewed generator, three-mode benchmark with task stats from the Spark REST API, Delta OPTIMIZE compaction,
 `record_benchmarks` -> audit.benchmarks), `docker/spark/Dockerfile`, `docker/docker-compose.skew.yml`.
-Result (20M rows): identical rows + SAR checksum in all three modes; straggler factor AQE off 20.3x, AQE skew-join 3.4x,
-salted slowest task 2.1 s vs 6.1 s; compaction 400 -> 1 file. JSON: `docs/artifacts/05_skew_benchmark_20m.json`.
+Result (20M rows, screenshot run): identical rows + SAR checksum in all three modes; straggler factor AQE off 61.8x
+(15.3 s vs 0.25 s median), AQE skew-join 6.0x, salted slowest task 3.2 s; compaction 400 -> 1 file (first, quieter run:
+20.3x / 3.4x / 2.1 s). JSON: `docs/artifacts/05_skew_benchmark_20m.json`.
 
 ## Phase 8 — Airflow + OpenLineage + Marquez (DONE)
 
@@ -238,6 +239,16 @@ bank + GL variance 0.00; Power BI model answers DAX with the same totals; 91,513
 Not done by API (docs/PORTAL_STEPS.md): Eventstream -> Eventhouse delivery check (rows not arriving yet); Data Agent
 (trial SKU unsupported).
 
+## Phase 11 — Proof artifacts + packaging (DONE)
+
+`scripts/build_artifacts.py boards|shots|ui` builds HTML boards from real runs on scratch lake copies and screenshots
+them with Playwright (venv): 01 ZATCA chain tape, 02 halala recon board (+ demo breaks, breaker FAIL), 03 PDPL
+shred/restore (3 panels), 04 Arabic MDM board; live UIs: 05 Spark UI (jobs + AQE off / AQE skew-join / salted stage
+pages, from a 20M Docker run held open with HOLD=900), 06 Airflow DAG, 07 Marquez lineage. All in `docs/artifacts/`,
+embedded in README. README rewritten (artifacts first, Fabric results, architecture, run instructions). ADR-001..010.
+HONESTY.md covers every phase. Not produced: the spec's animated GIF of the Power BI Control Tower (the report lives in
+the owner's Fabric tenant behind their login; PNGs of the local UIs are provided instead).
+
 ## Open issues
 
 1. 2026-11-14: installed via winget — GitHub CLI 2.104, WSL2 (`wsl --install --no-distribution`), Docker Desktop
@@ -245,16 +256,14 @@ Not done by API (docs/PORTAL_STEPS.md): Eventstream -> Eventhouse delivery check
 2. GitHub: signed in as Shaadink (2026-11-14); repo-local identity `Shadin K <207139190+Shaadink@users.noreply.github.com>`;
    `gh auth setup-git` done. Commit authors rewritten before the first push.
 
-## Next step
+## Left for the owner (everything else is done)
 
-Owner's end-to-end plan (2026-11-14), in order:
-1. After reboot: start Docker Desktop once (accept its terms), check `docker run hello-world`.
-2. Step C: `gh auth login --web` -> git identity -> rewrite commit authors -> create PRIVATE repo `mizan-ksa`,
-   add GitHub Actions CI, push, confirm CI green. Push after every phase.
-3. Step D: Phases 5 MDM -> 6 PDPL+NDMO -> 7 Skew (Docker) -> 8 Airflow+OpenLineage/Marquez (Docker) -> 9 Governed AI
-   -> 9b Streaming. Add tests if missing: CREDIT_NOTE posts to GL under its own uuid and replays post nothing;
-   slv.zatca_invoice_documents holds no cleartext buyer PII.
-4. Step E: `az login`; Fabric REST: workspace mizan-ksa-dev (trial capacity), LH_MIZAN (schemas enabled), WH_MIZAN,
-   EH_MIZAN, ES_MIZAN; service principal values only in .env; Phase 10 deploy + dbt build on WH_MIZAN + stream replay;
-   Power BI Control Tower (3 pages, PBIP/TMDL) + Fabric Data Agent; portal-only parts -> docs/PORTAL_STEPS.md.
-5. Step F / Phase 11: Playwright screenshots into docs/artifacts/, README, 10 ADRs, HONESTY.md, final list for owner.
+1. **Eventstream -> Eventhouse delivery** (3 min, portal): docs/PORTAL_STEPS.md section 1. Events reach ES_MIZAN but rows
+   had not landed in EH_MIZAN.MizanEvents; open ES_MIZAN, check the destination, publish, then
+   `scripts/fabric_streaming.py conn` + `replay` + `check`.
+2. **Fabric Data Agent** (optional, needs a paid F2+ capacity): docs/PORTAL_STEPS.md section 2. Not possible on the trial.
+3. **Optional polish**: restyle the generated Power BI report in the portal; record the 60-second GIF / walkthrough video
+   (spec Day 10) from the portal.
+4. **Housekeeping**: the Fabric trial ends after 60 days and lives in the college tenant (can be disabled by the
+   college); rebuild anywhere with the four `scripts/fabric_*.py` scripts. Rotate the service principal secret (1 year).
+   Stop Docker when not demoing: `docker compose -f docker/docker-compose.airflow.yml down`.
