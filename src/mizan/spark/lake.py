@@ -8,7 +8,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from mizan.spark.session import REPO, TableLocator
+from mizan.spark.session import TableLocator, staging_root, staging_spark_path
 
 
 def rows_to_df(spark, columns: list[str], rows: list[dict], casts: dict[str, str] | None = None):
@@ -18,7 +18,7 @@ def rows_to_df(spark, columns: list[str], rows: list[dict], casts: dict[str, str
     build-up); call cleanup_staging() once the run has written everything."""
     from pyspark.sql import functions as F
     from pyspark.sql import types as T
-    base = REPO / "tmp" / "staging"
+    base = staging_root()
     base.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(dir=base))
     f_path = stage / "rows.csv"
@@ -28,7 +28,7 @@ def rows_to_df(spark, columns: list[str], rows: list[dict], casts: dict[str, str
         w.writerows(rows)
     schema = T.StructType([T.StructField(c, T.StringType()) for c in columns])
     df = (spark.read.option("header", "true").option("multiLine", "true").option("escape", '"')
-          .schema(schema).csv(f_path.as_posix()))
+          .schema(schema).csv(staging_spark_path(f_path)))
     casts = casts or {}
     cols = []
     for c in columns:
@@ -46,7 +46,7 @@ def cleanup_staging(spark=None) -> None:
     """Remove staging files and drop cached data (end of a landing step / pipeline run)."""
     if spark is not None:
         spark.catalog.clearCache()
-    shutil.rmtree(REPO / "tmp" / "staging", ignore_errors=True)
+    shutil.rmtree(staging_root(), ignore_errors=True)
 
 
 @dataclass

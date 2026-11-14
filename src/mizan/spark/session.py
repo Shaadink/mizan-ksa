@@ -65,6 +65,30 @@ def get_spark(mode: str = "local", *, app: str = "mizan-ksa", shuffle_partitions
     return spark
 
 
+def staging_root() -> Path:
+    """Where Python writes staging CSVs: local tmp/staging, or the mounted Lakehouse Files/_staging on Fabric."""
+    return Path(os.environ.get("MIZAN_STAGING_DIR", str(REPO / "tmp" / "staging")))
+
+
+def spark_file_uri(local: Path) -> str:
+    """A file Python sees on a local mount, as Spark executors must address it. On Fabric the Lakehouse Files area
+    is mounted at /lakehouse/default/Files for Python only; executors need abfss://. Locally: unchanged."""
+    mount, uri = os.environ.get("MIZAN_FILES_MOUNT"), os.environ.get("MIZAN_FILES_URI")
+    posix = Path(local).as_posix()
+    if mount and uri and posix.startswith(mount.rstrip("/") + "/"):
+        return uri.rstrip("/") + posix[len(mount.rstrip("/")):]
+    return posix
+
+
+def staging_spark_path(local: Path) -> str:
+    """The same staging file as Spark executors must address it (on Fabric: an abfss:// OneLake URI)."""
+    prefix = os.environ.get("MIZAN_STAGING_SPARK_PREFIX")
+    if not prefix:
+        return Path(local).as_posix()
+    rel = Path(local).resolve().relative_to(staging_root().resolve()).as_posix()
+    return f"{prefix.rstrip('/')}/{rel}"
+
+
 @dataclass(frozen=True)
 class TableLocator:
     """Resolve schema.table to a Delta location (local) or a Lakehouse table name (Fabric)."""
@@ -86,7 +110,8 @@ class TableLocator:
     def path(self, schema: str, table: str) -> str:
         self._check(schema)
         if self.mode == "fabric":
-            return f"Tables/{schema}/{table}"
+            root = os.environ.get("MIZAN_ONELAKE_ROOT")    # abfss://<ws>@onelake.dfs.fabric.microsoft.com/<lakehouse>
+            return f"{root.rstrip('/')}/Tables/{schema}/{table}" if root else f"Tables/{schema}/{table}"
         return (self.root / LAKEHOUSE / schema / table).as_posix()
 
     def name(self, schema: str, table: str) -> str:

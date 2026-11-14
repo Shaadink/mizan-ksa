@@ -23,14 +23,10 @@ from mizan.spark.session import TableLocator, get_spark
 from mizan.spark.silver import build_erp_gl_journal_lines, build_payment_lifecycle, build_settlement_lines
 from mizan.spark.zatca_land import run_zatca
 
+STEPS = ("bronze_land", "silver_build", "mdm_resolve", "zatca_chain", "restore_guard", "ai_index", "ndmo_catalog")
 
-def run_pipeline(data_dir: Path | str, lake_root: Path | str | None = None, *, mode: str = "local",
-                 include_demo: bool = False, zatca: bool = True, mdm: bool = True, spark=None,
-                 keys: Keys | None = None) -> dict:
-    data = Path(data_dir)
-    spark = spark or get_spark(mode)
-    lake = Lake(spark, TableLocator(mode, Path(lake_root) if lake_root else None))
-    keys = keys or Keys.from_env()
+
+def landing_plan(data: Path, include_demo: bool = False) -> list:
     plan = [(C.COMMERCE, [data / "orders/commerce_events.csv"]),
             (C.PAYMENTS, [data / "payments/payment_events.csv"]),
             (C.SETTLEMENT, sorted((data / "settlement").glob("*.csv"))),
@@ -40,24 +36,56 @@ def run_pipeline(data_dir: Path | str, lake_root: Path | str | None = None, *, m
                  (C.ERP_GL, [data / "demo/erp_gl_demo_float_bug.csv"])]
     plan += [(C.CRM_POS, [data / "crm/crm_pos_cp1256.csv"]), (C.CRM_ECOM, [data / "crm/crm_ecom_utf8.csv"]),
              (C.SPL, [data / "crm/spl_address_observations.csv"])]
-    stats = [land_invoice_requests(lake, keys, data / "zatca/invoice_requests.jsonl", data)]
-    cleanup_staging(spark)
-    for contract, files in plan:
-        stats += land_files(lake, keys, contract, files, data)
+    return plan
+
+
+def run_step(step: str, lake: Lake, keys: Keys, data: Path, *, include_demo: bool = False):
+    """One Fabric job = one step (the Airflow DAG calls them in order). Every step cleans its staging files."""
+    if step not in STEPS:
+        raise ValueError(f"unknown step {step!r}; expected one of {STEPS}")
+    spark = lake.spark
+    try:
+        if step == "bronze_land":
+            stats = [land_invoice_requests(lake, keys, data / "zatca/invoice_requests.jsonl", data)]
+            cleanup_staging(spark)
+            for contract, files in landing_plan(data, include_demo):
+                stats += land_files(lake, keys, contract, files, data)
+                cleanup_staging(spark)
+            return stats
+        if step == "silver_build":
+            for build in (build_payment_lifecycle, lambda lk: build_settlement_lines(lk, data),
+                          lambda lk: build_erp_gl_journal_lines(lk, data)):
+                build(lake)
+                cleanup_staging(spark)
+            return {"silver": "built"}
+        if step == "mdm_resolve":
+            return run_mdm(lake, keys)
+        if step == "zatca_chain":
+            return run_zatca(lake, data / "zatca/fatoora_fault_plan.json")
+        if step == "restore_guard":
+            from mizan.privacy.pdpl import restore_guard
+            return restore_guard(lake, keys)
+        if step == "ai_index":
+            return build_index(lake)                   # policies + case notes, tombstoned subjects skipped
+        return run_governance(lake)                    # ndmo_catalog: last, so it sees every table the run wrote
+    finally:
         cleanup_staging(spark)
-    for build in (build_payment_lifecycle, lambda lk: build_settlement_lines(lk, data),
-                  lambda lk: build_erp_gl_journal_lines(lk, data)):
-        build(lake)
-        cleanup_staging(spark)
-    m = run_mdm(lake, keys) if mdm else None
-    cleanup_staging(spark)
-    z = run_zatca(lake, data / "zatca/fatoora_fault_plan.json") if zatca else None
-    cleanup_staging(spark)
-    ai = build_index(lake)                   # governed AI chunks (policies + case notes, tombstones skipped)
-    cleanup_staging(spark)
-    g = run_governance(lake)                 # NDMO catalog last: it must see every table the run wrote
-    cleanup_staging(spark)
-    return {"files": stats, "zatca": z, "mdm": m, "ai": ai, "governance": g}
+
+
+def run_pipeline(data_dir: Path | str, lake_root: Path | str | None = None, *, mode: str = "local",
+                 include_demo: bool = False, zatca: bool = True, mdm: bool = True, spark=None,
+                 keys: Keys | None = None) -> dict:
+    data = Path(data_dir)
+    spark = spark or get_spark(mode)
+    lake = Lake(spark, TableLocator(mode, Path(lake_root) if lake_root else None))
+    keys = keys or Keys.from_env()
+    out = {"files": run_step("bronze_land", lake, keys, data, include_demo=include_demo)}
+    run_step("silver_build", lake, keys, data)
+    out["mdm"] = run_step("mdm_resolve", lake, keys, data) if mdm else None
+    out["zatca"] = run_step("zatca_chain", lake, keys, data) if zatca else None
+    out["ai"] = run_step("ai_index", lake, keys, data)
+    out["governance"] = run_step("ndmo_catalog", lake, keys, data)
+    return out
 
 
 def main() -> None:

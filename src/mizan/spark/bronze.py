@@ -34,6 +34,7 @@ from mizan.mdm.arabic_norm_and_privacy import ARABIC_INDIC_MAP
 from mizan.privacy import crypto
 from mizan.spark.contracts import Contract
 from mizan.spark.lake import Lake, rows_to_df
+from mizan.spark.session import staging_root, staging_spark_path
 
 VAULT_PROPS = {"delta.deletedFileRetentionDuration": "interval 0 hours"}  # spec Patch E
 UNIT_SEP = chr(31)
@@ -58,7 +59,7 @@ def _control(data_dir: Path) -> dict:
 
 
 def _stage_dir() -> Path:
-    base = Path(__file__).resolve().parents[3] / "tmp" / "staging"
+    base = staging_root()
     base.mkdir(parents=True, exist_ok=True)
     return Path(tempfile.mkdtemp(dir=base))
 
@@ -73,7 +74,7 @@ def _write_stage(path: Path, columns: list[str], rows: list[dict]) -> None:
 def _read_stage(spark, path: Path, columns: list[str]):
     schema = T.StructType([T.StructField(c, T.StringType()) for c in columns])
     return (spark.read.option("header", "true").option("multiLine", "true").option("escape", '"')
-            .option("encoding", "UTF-8").schema(schema).csv(path.as_posix()))
+            .option("encoding", "UTF-8").schema(schema).csv(staging_spark_path(path)))
 
 
 # ----------------------------------------------------------------------------- vault (Phase 3 part)

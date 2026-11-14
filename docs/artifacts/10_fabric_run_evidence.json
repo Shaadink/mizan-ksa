@@ -1,0 +1,24 @@
+{
+  "run_date": "2026-11-14",
+  "capacity": "Fabric trial FTL64, UAE North",
+  "workspace": "mizan-ksa-dev",
+  "notebook_jobs": {
+    "bronze_land": {"status": "Completed", "seconds": 489, "files_sha_match": "all", "resend": "ALL_DUPLICATE"},
+    "silver_build": {"status": "Completed", "seconds": 143},
+    "mdm_resolve": {"status": "Completed", "seconds": 82, "records": 3985, "goldens": 2552, "open_conflicts": 1},
+    "zatca_chain": {"status": "Completed", "seconds": 143, "documents": 25001, "violations": 0, "restarts": 1},
+    "ai_index": {"status": "Completed", "seconds": 61, "policy_chunks": 11, "case_note_chunks": 1355},
+    "ndmo_catalog": {"status": "Completed", "seconds": 61, "columns": 350, "tables": 27}
+  },
+  "dbt_build_WH_MIZAN": {"pass": 65, "warn": 0, "error": 0, "skip": 0},
+  "gold_checks_WH_MIZAN": {
+    "fact_merchant_settlement_recon": {"rows": 2233, "gross_captures_sar": "22390730.16",
+                                       "sum_abs_bank_variance_sar": "0.00", "sum_abs_gl_variance_sar": "0.00"},
+    "fact_zatca_clearance_ledger": {"CLEARED": 1087, "REPORTED": 23913},
+    "dim_party_golden": {"rows": 2552, "max_member_count": 5},
+    "dim_date_saudi": {"1_ramadan_1447": "2026-02-18"},
+    "mart_ndmo_scorecard": {"ACCURACY": "100.00", "COMPLETENESS": "100.00", "CONSISTENCY": "100.00",
+                            "TIMELINESS": "94.44", "UNIQUENESS": "100.00", "VALIDITY": "100.00"}
+  },
+  "streaming": {"events_sent_to_ES_MIZAN": 91513}
+}

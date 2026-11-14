@@ -14,6 +14,7 @@ from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
 from mizan.spark.lake import Lake
+from mizan.spark.session import spark_file_uri
 
 MONEY = T.DecimalType(18, 2)
 SETTLEMENT_STATUSES = ("PAID_BANK", "IN_TRANSIT", "QUARANTINED")
@@ -31,7 +32,7 @@ def _latest(df, keys: list[str]):
 
 def _ref_csv(spark, path: Path, schema: T.StructType):
     return (spark.read.option("header", "true").schema(
-        T.StructType([T.StructField(c.name, T.StringType()) for c in schema.fields])).csv(path.as_posix()))
+        T.StructType([T.StructField(c.name, T.StringType()) for c in schema.fields])).csv(spark_file_uri(path)))
 
 
 # ----------------------------------------------------------------------------- payment lifecycle

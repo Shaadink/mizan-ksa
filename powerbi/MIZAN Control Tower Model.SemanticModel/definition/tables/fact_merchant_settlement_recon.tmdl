@@ -1,0 +1,133 @@
+table fact_merchant_settlement_recon
+	lineageTag: a936d443-6ea9-59c9-bb6e-d2f1ff7414b1
+
+	measure 'Gross Captures SAR' = SUM(fact_merchant_settlement_recon[gross_captures_sar])
+		formatString: #,0.00
+		lineageTag: 71ef3696-49e6-5361-9704-ca8b2f490566
+
+	measure 'Refunds and Disputes SAR' = SUM(fact_merchant_settlement_recon[refunds_and_disputes_sar])
+		formatString: #,0.00
+		lineageTag: 66ebe215-6255-57b2-ac65-b1f71fe578c0
+
+	measure 'Acquirer Fees SAR' = SUM(fact_merchant_settlement_recon[acquirer_fees_sar])
+		formatString: #,0.00
+		lineageTag: cbecd6fb-114a-53bd-87da-c7ba8baeb7ab
+
+	measure 'Bank Paid SAR' = SUM(fact_merchant_settlement_recon[bank_paid_sar])
+		formatString: #,0.00
+		lineageTag: 9ba4e20c-1425-52de-bdb1-3f4553677604
+
+	measure 'In Transit SAR' = SUM(fact_merchant_settlement_recon[in_transit_sar])
+		formatString: #,0.00
+		lineageTag: b3e97285-7f4e-563d-8c28-23a6367d034f
+
+	measure 'GL Card Clearing SAR' = SUM(fact_merchant_settlement_recon[gl_card_clearing_sar])
+		formatString: #,0.00
+		lineageTag: 9c8b2a73-9334-56f8-8f59-307b48f28869
+
+	measure 'Unexplained Bank Variance SAR' = SUM(fact_merchant_settlement_recon[unexplained_bank_variance_sar])
+		formatString: #,0.00
+		lineageTag: e1dbe3ac-eac1-53ef-9384-c783e9f669e6
+
+	measure 'Unexplained GL Variance SAR' = SUM(fact_merchant_settlement_recon[unexplained_gl_variance_sar])
+		formatString: #,0.00
+		lineageTag: fcef89ac-ca0e-5682-a61e-0bb10b4604d0
+
+	measure 'Halala Breaks' = COUNTROWS(FILTER(fact_merchant_settlement_recon, fact_merchant_settlement_recon[unexplained_bank_variance_sar] <> 0 || fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0))
+		formatString: 0
+		lineageTag: 48956889-54fe-5776-b43e-f2b18563c241
+
+	column merchant_id
+		dataType: string
+		lineageTag: 914e9a5a-a180-5cbf-b682-bcf94f37f8c8
+		summarizeBy: none
+		sourceColumn: merchant_id
+
+	column business_date_ksa
+		dataType: dateTime
+		lineageTag: 425590c3-4788-5dc3-a080-90cb5d942ad3
+		summarizeBy: none
+		sourceColumn: business_date_ksa
+
+	column gross_captures_sar
+		dataType: decimal
+		lineageTag: beb59a79-f8f4-5f26-8d14-50a2ce2cd92b
+		summarizeBy: none
+		sourceColumn: gross_captures_sar
+		formatString: #,0.00
+
+	column refunds_and_disputes_sar
+		dataType: decimal
+		lineageTag: e78c1491-0d99-53b3-a4c9-bd26c7972a3f
+		summarizeBy: none
+		sourceColumn: refunds_and_disputes_sar
+		formatString: #,0.00
+
+	column acquirer_fees_sar
+		dataType: decimal
+		lineageTag: bd08fff4-b680-5dea-bf0e-47c1738962ba
+		summarizeBy: none
+		sourceColumn: acquirer_fees_sar
+		formatString: #,0.00
+
+	column expected_net_payable_sar
+		dataType: decimal
+		lineageTag: 6a835c82-87c1-57d5-9c9e-9caae86b6be3
+		summarizeBy: none
+		sourceColumn: expected_net_payable_sar
+		formatString: #,0.00
+
+	column bank_paid_sar
+		dataType: decimal
+		lineageTag: f4a59d64-e2be-5771-9fb3-b242ff5bedc1
+		summarizeBy: none
+		sourceColumn: bank_paid_sar
+		formatString: #,0.00
+
+	column in_transit_sar
+		dataType: decimal
+		lineageTag: 49ae3c5c-0e2d-5fff-8457-2c280c046e90
+		summarizeBy: none
+		sourceColumn: in_transit_sar
+		formatString: #,0.00
+
+	column quarantined_sar
+		dataType: decimal
+		lineageTag: 59474e29-0708-5669-9d3e-904d2872937c
+		summarizeBy: none
+		sourceColumn: quarantined_sar
+		formatString: #,0.00
+
+	column gl_card_clearing_sar
+		dataType: decimal
+		lineageTag: 018613c3-9c6e-5d12-964e-8c2fce03482e
+		summarizeBy: none
+		sourceColumn: gl_card_clearing_sar
+		formatString: #,0.00
+
+	column unexplained_bank_variance_sar
+		dataType: decimal
+		lineageTag: 6eaaf403-276f-5b29-a0a3-1339d8d70e7a
+		summarizeBy: none
+		sourceColumn: unexplained_bank_variance_sar
+		formatString: #,0.00
+
+	column unexplained_gl_variance_sar
+		dataType: decimal
+		lineageTag: 120142a7-5ee0-5668-b5fd-a40f9bb490e4
+		summarizeBy: none
+		sourceColumn: unexplained_gl_variance_sar
+		formatString: #,0.00
+
+	column unclassified_events
+		dataType: int64
+		lineageTag: 8cf089f8-1416-5d36-afc1-99b8b8a9dcc7
+		summarizeBy: none
+		sourceColumn: unclassified_events
+
+	partition fact_merchant_settlement_recon = entity
+		mode: directLake
+		source
+			entityName: fact_merchant_settlement_recon
+			schemaName: gld
+			expressionSource: DatabaseQuery

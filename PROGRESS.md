@@ -14,7 +14,7 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 7 | Skew (M7) | DONE | 221 |
 | 8 | Orchestration (Airflow + OpenLineage/Marquez) | DONE | 221 |
 | 9 | Governed AI (M8) | DONE | 220 (all phases so far) |
-| 10 | Fabric deployment | TODO — needs tenant credentials in .env | |
+| 10 | Fabric deployment | DONE (2 portal checks left: docs/PORTAL_STEPS.md) | 221 |
 | 9b | Streaming (replay, KQL, docs) | DONE (local; send needs ES_MIZAN) | 220 |
 | 11 | Packaging | TODO | |
 
@@ -215,6 +215,28 @@ AIRFLOW_ADMIN_PASSWORD.
 Result: DAG run all 11 tasks success (mock mode); Marquez has the job graph and the Bronze -> Silver -> Gold dataset graph
 (22 nodes); column lineage for gld.fact_merchant_settlement_recon shows 28 nodes / 37 edges; run manifest carries the
 real git sha.
+
+## Phase 10 — Fabric deployment (DONE, with 2 portal items)
+
+Where: workspace `mizan-ksa-dev` on Fabric trial FTL64 (UAE North), tenant hinducollege.ac.in (owner's college work
+account). Azure CLI profiles: `%USERPROFILE%\.azure-college` (workspace owner, used for items owned by the user),
+service principal `mizan-ksa-automation` (FABRIC_CLIENT_ID / SECRET in .env, workspace Contributor) for jobs and dbt.
+The owner's personal tenant `shadinkarangadangmail.onmicrosoft.com` (profile `.azure-fabric`) holds an unused workspace;
+Microsoft refused a Fabric trial there.
+
+Scripts (all idempotent): `scripts/fabric_provision.py` (capacity + workspace + LH_MIZAN schemas + WH_MIZAN + EH_MIZAN +
+ES_MIZAN, ids into .env), `scripts/fabric_deploy.py upload|notebook|run [steps]` (OneLake upload of code/policies/data
++ dev keys; notebook `nb_mizan_step`; runs `mizan.spark.pipeline.run_step` per step as Fabric jobs with the SP; reads
+`Files/_logs/<step>.txt`), `scripts/fabric_streaming.py setup|conn|replay|check`, `scripts/fabric_powerbi.py`
+(TMDL Direct Lake model + PBIR 3-page report; definitions saved in `powerbi/`).
+Code changes for Fabric: `run_step` per pipeline step; env-driven paths (`MIZAN_ONELAKE_ROOT`, `MIZAN_FILES_MOUNT/URI`,
+`MIZAN_STAGING_DIR/SPARK_PREFIX`) so Spark executors read OneLake while Python uses the mount.
+
+Result (`docs/artifacts/10_fabric_run_evidence.json`): all 6 notebook steps Completed; same numbers as local (2,552
+goldens, 25,001 ZATCA docs, 0 violations); `dbt build --target fabric` 65/65 PASS on WH_MIZAN; Gold recon 2,233 rows,
+bank + GL variance 0.00; Power BI model answers DAX with the same totals; 91,513 events accepted by ES_MIZAN.
+Not done by API (docs/PORTAL_STEPS.md): Eventstream -> Eventhouse delivery check (rows not arriving yet); Data Agent
+(trial SKU unsupported).
 
 ## Open issues
 

@@ -1,0 +1,14 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+
+ref table fact_merchant_settlement_recon
+ref table fact_zatca_clearance_ledger
+ref table mart_ndmo_scorecard
+ref table dim_date_saudi
+
+relationship e1ac79b0-8d85-59f9-85f2-95c2b97ed4df
+	fromColumn: fact_merchant_settlement_recon.business_date_ksa
+	toColumn: dim_date_saudi.calendar_date
+

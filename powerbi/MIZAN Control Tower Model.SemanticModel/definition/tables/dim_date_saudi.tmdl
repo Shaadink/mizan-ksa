@@ -1,0 +1,111 @@
+table dim_date_saudi
+	lineageTag: cac3be0a-21ef-53aa-979b-46bf7577ce45
+
+	column date_key
+		dataType: int64
+		lineageTag: 6758579f-3e17-533b-a845-31928252abc9
+		summarizeBy: none
+		sourceColumn: date_key
+
+	column calendar_date
+		dataType: dateTime
+		lineageTag: b48055f2-3d1e-5c28-89b3-e42d12fbd93e
+		summarizeBy: none
+		sourceColumn: calendar_date
+
+	column gregorian_year
+		dataType: int64
+		lineageTag: ea56d71c-4832-5026-9019-4246409691c8
+		summarizeBy: none
+		sourceColumn: gregorian_year
+
+	column gregorian_month
+		dataType: int64
+		lineageTag: a342bd02-daba-54db-aa87-ff66a1f20532
+		summarizeBy: none
+		sourceColumn: gregorian_month
+
+	column gregorian_day
+		dataType: int64
+		lineageTag: f7a293f0-5118-5b65-9b00-53a7c0cac342
+		summarizeBy: none
+		sourceColumn: gregorian_day
+
+	column gregorian_quarter
+		dataType: int64
+		lineageTag: 85aaa356-90cf-5b97-9bb5-e06f8b2ac996
+		summarizeBy: none
+		sourceColumn: gregorian_quarter
+
+	column iso_day_of_week
+		dataType: int64
+		lineageTag: d38cb86b-3165-58f2-aa94-dff939922dbb
+		summarizeBy: none
+		sourceColumn: iso_day_of_week
+
+	column is_saudi_weekend
+		dataType: int64
+		lineageTag: 680a05e1-d047-5c5a-abae-8ea4cd69b5da
+		summarizeBy: none
+		sourceColumn: is_saudi_weekend
+
+	column hijri_year
+		dataType: int64
+		lineageTag: 442af56a-1060-56dd-8ce5-f8e4f6f2ec90
+		summarizeBy: none
+		sourceColumn: hijri_year
+
+	column hijri_month
+		dataType: int64
+		lineageTag: 146824b4-73f5-5dbf-8dae-bf35a11a9244
+		summarizeBy: none
+		sourceColumn: hijri_month
+
+	column hijri_day
+		dataType: int64
+		lineageTag: b824cfdf-a057-58f1-8e07-0f3a5756d60c
+		summarizeBy: none
+		sourceColumn: hijri_day
+
+	column hijri_date_key
+		dataType: int64
+		lineageTag: cfea98ab-0b6b-510b-88f5-d2b81217e84f
+		summarizeBy: none
+		sourceColumn: hijri_date_key
+
+	column hijri_month_name
+		dataType: string
+		lineageTag: aa864217-9d98-5b39-85dc-81fa9c0195c9
+		summarizeBy: none
+		sourceColumn: hijri_month_name
+
+	column is_ramadan
+		dataType: int64
+		lineageTag: 60388775-1e48-5b34-9d2f-a1fee1a6f0a2
+		summarizeBy: none
+		sourceColumn: is_ramadan
+
+	column ramadan_day
+		dataType: int64
+		lineageTag: 97486c0a-6f84-5c60-b34e-a156f063faa9
+		summarizeBy: none
+		sourceColumn: ramadan_day
+
+	column is_override_adjusted
+		dataType: int64
+		lineageTag: 414a0521-11ff-5f27-9422-ee1581cfb314
+		summarizeBy: none
+		sourceColumn: is_override_adjusted
+
+	column calendar_version
+		dataType: string
+		lineageTag: b9953e35-ebee-57b1-894b-f5e8ea2a965c
+		summarizeBy: none
+		sourceColumn: calendar_version
+
+	partition dim_date_saudi = entity
+		mode: directLake
+		source
+			entityName: dim_date_saudi
+			schemaName: gld
+			expressionSource: DatabaseQuery

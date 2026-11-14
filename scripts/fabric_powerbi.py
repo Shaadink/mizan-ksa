@@ -1,0 +1,249 @@
+"""Phase 10: Power BI Control Tower as code. Direct Lake semantic model (TMDL) over WH_MIZAN gld tables, and a
+3-page report (PBIR): CFO Settlement, Tax ZATCA Health, CDO Data Trust. Created through the Fabric REST API.
+
+    .\\.venv\\Scripts\\python.exe scripts\\fabric_powerbi.py          # (re)create model + report
+Definitions are also written to powerbi/ so the model and report are versioned in git.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
+import os
+import sys
+import time
+import uuid
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(REPO / "scripts"))
+
+import fabric_provision as P  # noqa: E402
+from fabric_deploy import API, _req, env  # noqa: E402
+
+from mizan.privacy.crypto import load_dotenv  # noqa: E402
+
+MODEL, REPORT = "MIZAN Control Tower Model", "MIZAN Control Tower"
+TABLES = ("fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard", "dim_date_saudi")
+OUT = REPO / "powerbi"
+MEASURES = {
+    "fact_merchant_settlement_recon": [
+        ("Gross Captures SAR", "SUM(fact_merchant_settlement_recon[gross_captures_sar])", "#,0.00"),
+        ("Refunds and Disputes SAR", "SUM(fact_merchant_settlement_recon[refunds_and_disputes_sar])", "#,0.00"),
+        ("Acquirer Fees SAR", "SUM(fact_merchant_settlement_recon[acquirer_fees_sar])", "#,0.00"),
+        ("Bank Paid SAR", "SUM(fact_merchant_settlement_recon[bank_paid_sar])", "#,0.00"),
+        ("In Transit SAR", "SUM(fact_merchant_settlement_recon[in_transit_sar])", "#,0.00"),
+        ("GL Card Clearing SAR", "SUM(fact_merchant_settlement_recon[gl_card_clearing_sar])", "#,0.00"),
+        ("Unexplained Bank Variance SAR", "SUM(fact_merchant_settlement_recon[unexplained_bank_variance_sar])",
+         "#,0.00"),
+        ("Unexplained GL Variance SAR", "SUM(fact_merchant_settlement_recon[unexplained_gl_variance_sar])", "#,0.00"),
+        ("Halala Breaks", "COUNTROWS(FILTER(fact_merchant_settlement_recon, "
+                          "fact_merchant_settlement_recon[unexplained_bank_variance_sar] <> 0 || "
+                          "fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0))", "0")],
+    "fact_zatca_clearance_ledger": [
+        ("Accepted Documents", "COUNTROWS(fact_zatca_clearance_ledger)", "#,0"),
+        ("Documents Total SAR", "SUM(fact_zatca_clearance_ledger[total_incl_vat_sar])", "#,0.00"),
+        ("Corrections", "COUNTROWS(FILTER(fact_zatca_clearance_ledger, "
+                        "NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid])))", "0")],
+    "mart_ndmo_scorecard": [
+        ("Quality Checks Passing", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), mart_ndmo_scorecard[status] = \"PASS\", "
+                                   "mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\")", "0"),
+        ("Tables Needing Split", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
+                                 "mart_ndmo_scorecard[status] = \"SPLIT_RECOMMENDED\")", "0")],
+}
+PAGES = [
+    ("cfo_settlement", "CFO Settlement", [
+        ("card", "Gross Captures SAR"), ("card", "Bank Paid SAR"), ("card", "In Transit SAR"),
+        ("card", "Unexplained Bank Variance SAR"), ("card", "Unexplained GL Variance SAR"), ("card", "Halala Breaks"),
+        ("table", ("fact_merchant_settlement_recon", ["merchant_id", "business_date_ksa", "gross_captures_sar",
+                                                       "acquirer_fees_sar", "bank_paid_sar", "in_transit_sar",
+                                                       "gl_card_clearing_sar", "unexplained_bank_variance_sar",
+                                                       "unexplained_gl_variance_sar"]))]),
+    ("tax_zatca_health", "Tax ZATCA Health", [
+        ("card", "Accepted Documents"), ("card", "Documents Total SAR"), ("card", "Corrections"),
+        ("table", ("fact_zatca_clearance_ledger", ["egs_id", "invoice_flow", "document_type", "state", "icv",
+                                                    "issue_date_ksa", "total_incl_vat_sar"]))]),
+    ("cdo_data_trust", "CDO Data Trust", [
+        ("card", "Quality Checks Passing"), ("card", "Tables Needing Split"),
+        ("table", ("mart_ndmo_scorecard", ["metric_family", "dimension", "subject_table", "score_pct",
+                                            "threshold_pct", "status", "table_classification"]))]),
+]
+MEASURE_TABLE = {m: t for t, ms in MEASURES.items() for m, _, _ in ms}
+TYPE_MAP = {"varchar": "string", "char": "string", "nvarchar": "string", "int": "int64", "bigint": "int64",
+            "smallint": "int64", "bit": "boolean", "decimal": "decimal", "numeric": "decimal", "date": "dateTime",
+            "datetime2": "dateTime", "float": "double", "real": "double"}
+
+
+def warehouse_columns() -> dict[str, list[tuple[str, str]]]:
+    import pyodbc
+    e = os.environ
+    cs = (f"Driver={{ODBC Driver 18 for SQL Server}};Server={e['FABRIC_SQL_ENDPOINT']},1433;Database=WH_MIZAN;"
+          f"Authentication=ActiveDirectoryServicePrincipal;UID={e['FABRIC_CLIENT_ID']};PWD={e['FABRIC_CLIENT_SECRET']};"
+          "Encrypt=yes")
+    con = pyodbc.connect(cs, timeout=60)
+    out: dict[str, list[tuple[str, str]]] = {}
+    for t, c, typ in con.cursor().execute(
+            "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'gld' "
+            "ORDER BY TABLE_NAME, ORDINAL_POSITION").fetchall():
+        if t in TABLES:
+            out.setdefault(t, []).append((c, TYPE_MAP.get(typ.lower(), "string")))
+    return out
+
+
+def tag(*parts: str) -> str:
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "mizan-ksa/" + "/".join(parts)))
+
+
+def model_parts(cols: dict[str, list[tuple[str, str]]]) -> dict[str, str]:
+    endpoint, wh = os.environ["FABRIC_SQL_ENDPOINT"], os.environ["WH_MIZAN_ID"]
+    parts = {"definition.pbism": json.dumps({"version": "4.0", "settings": {}}),
+             "definition/database.tmdl": "database\n\tcompatibilityLevel: 1604\n",
+             "definition/expressions.tmdl": (
+                 "expression DatabaseQuery =\n\t\tlet\n"
+                 f"\t\t\tdatabase = Sql.Database(\"{endpoint}\", \"{wh}\")\n\t\tin\n\t\t\tdatabase\n"
+                 f"\tlineageTag: {tag('expr')}\n")}
+    model = ["model Model", "\tculture: en-US", "\tdefaultPowerBIDataSourceVersion: powerBI_V3",
+             "\tsourceQueryCulture: en-US", ""]
+    model += [f"ref table {t}" for t in TABLES]
+    model += ["", "relationship " + tag("rel-recon-date"),
+              "\tfromColumn: fact_merchant_settlement_recon.business_date_ksa",
+              "\ttoColumn: dim_date_saudi.calendar_date", ""]
+    parts["definition/model.tmdl"] = "\n".join(model) + "\n"
+    for t in TABLES:
+        lines = [f"table {t}", f"\tlineageTag: {tag(t)}", ""]
+        for m, expr, fmt in MEASURES.get(t, []):
+            lines += [f"\tmeasure '{m}' = {expr}", f"\t\tformatString: {fmt}", f"\t\tlineageTag: {tag(t, m)}", ""]
+        for c, dt in cols[t]:
+            lines += [f"\tcolumn {c}", f"\t\tdataType: {dt}", f"\t\tlineageTag: {tag(t, c)}",
+                      "\t\tsummarizeBy: none", f"\t\tsourceColumn: {c}", ""]
+            if dt == "decimal":
+                lines.insert(-1, "\t\tformatString: #,0.00")
+        lines += [f"\tpartition {t} = entity", "\t\tmode: directLake", "\t\tsource",
+                  f"\t\t\tentityName: {t}", "\t\t\tschemaName: gld", "\t\t\texpressionSource: DatabaseQuery", ""]
+        parts[f"definition/tables/{t}.tmdl"] = "\n".join(lines)
+    return parts
+
+
+def _field_measure(m: str) -> dict:
+    t = MEASURE_TABLE[m]
+    return {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": t}}, "Property": m}},
+            "queryRef": f"{t}.{m}", "nativeQueryRef": m}
+
+
+def _field_column(t: str, c: str) -> dict:
+    return {"field": {"Column": {"Expression": {"SourceRef": {"Entity": t}}, "Property": c}},
+            "queryRef": f"{t}.{c}", "nativeQueryRef": c}
+
+
+VIS = "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.3.0/schema.json"
+PAGE = "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/1.3.0/schema.json"
+
+
+def report_parts(model_id: str) -> dict[str, str]:
+    parts = {
+        "definition.pbir": json.dumps({"version": "4.0", "datasetReference": {"byConnection": {
+            "connectionString": (f'Data Source="powerbi://api.powerbi.com/v1.0/myorg/mizan-ksa-dev";'
+                                 f"initial catalog={MODEL};access mode=readonly;integrated security=ClaimsToken;"
+                                 f"semanticmodelid={model_id}"),
+            "pbiServiceModelId": None, "pbiModelVirtualServerName": "sobe_wowvirtualserver",
+            "pbiModelDatabaseName": model_id, "name": "EntityDataSource",
+            "connectionType": "pbiServiceXmlaStyleLive"}}}),
+        "definition/version.json": json.dumps({
+            "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/"
+                       "1.0.0/schema.json", "version": "2.0.0"}),
+        "definition/report.json": json.dumps({
+            "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/1.2.0/"
+                       "schema.json",
+            "themeCollection": {"baseTheme": {"name": "CY24SU10", "reportVersionAtImport": "5.59",
+                                              "type": "SharedResources"}},
+            "layoutOptimization": "None",
+            "settings": {"useStylableVisualContainerHeader": True, "defaultDrillFilterOtherVisuals": True}}),
+        "definition/pages/pages.json": json.dumps({
+            "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/"
+                       "1.0.0/schema.json", "pageOrder": [p[0] for p in PAGES], "activePageName": PAGES[0][0]}),
+    }
+    for pid, title, visuals in PAGES:
+        parts[f"definition/pages/{pid}/page.json"] = json.dumps({
+            "$schema": PAGE, "name": pid, "displayName": title, "displayOption": "FitToPage",
+            "height": 720, "width": 1280})
+        x = 0
+        for i, (kind, spec) in enumerate(visuals):
+            vid = f"{pid}_v{i}"
+            if kind == "card":
+                pos = {"x": 20 + x, "y": 60, "z": i, "width": 195, "height": 110}
+                x += 205
+                visual = {"visualType": "card", "query": {"queryState": {
+                    "Values": {"projections": [_field_measure(spec)]}}}, "drillFilterOtherVisuals": True}
+            else:
+                t, columns = spec
+                pos = {"x": 20, "y": 190, "z": i, "width": 1240, "height": 510}
+                visual = {"visualType": "tableEx", "query": {"queryState": {
+                    "Values": {"projections": [_field_column(t, c) for c in columns]}}},
+                    "drillFilterOtherVisuals": True}
+            parts[f"definition/pages/{pid}/visuals/{vid}/visual.json"] = json.dumps(
+                {"$schema": VIS, "name": vid, "position": pos, "visual": visual})
+        parts[f"definition/pages/{pid}/visuals/{pid}_title/visual.json"] = json.dumps({
+            "$schema": VIS, "name": f"{pid}_title", "position": {"x": 20, "y": 8, "z": 99, "width": 900, "height": 44},
+            "visual": {"visualType": "textbox", "objects": {"general": [{"properties": {"paragraphs": [{
+                "textRuns": [{"value": f"MIZAN-KSA Control Tower: {title}",
+                              "textStyle": {"fontSize": "18pt", "fontWeight": "bold"}}]}]}}]}}})
+    return parts
+
+
+def upsert(kind: str, name: str, parts: dict[str, str], fmt: str | None = None) -> str:
+    ws = env("FABRIC_WORKSPACE_ID")
+    defn = {"parts": [{"path": p, "payloadType": "InlineBase64",
+                       "payload": base64.b64encode(c.encode("utf-8")).decode()} for p, c in parts.items()]}
+    if fmt:
+        defn["format"] = fmt
+    st, _, raw = _req("GET", f"{API}/workspaces/{ws}/{kind}", P.TOKEN)
+    existing = next((i for i in json.loads(raw).get("value", []) if i["displayName"] == name), None)
+    if existing:
+        url, body = f"{API}/workspaces/{ws}/{kind}/{existing['id']}/updateDefinition", {"definition": defn}
+    else:
+        url, body = f"{API}/workspaces/{ws}/{kind}", {"displayName": name, "definition": defn}
+    st, headers, raw = _req("POST", url, P.TOKEN, json.dumps(body).encode(), {"Content-Type": "application/json"})
+    if st == 202:
+        loc = headers.get("Location")
+        for _ in range(120):
+            time.sleep(4)
+            _, _, r2 = _req("GET", loc, P.TOKEN)
+            js = json.loads(r2 or b"{}")
+            if js.get("status") in ("Succeeded", "Failed"):
+                if js["status"] == "Failed":
+                    raise RuntimeError(f"{kind} {name}: {json.dumps(js)[:1500]}")
+                break
+    elif st not in (200, 201):
+        raise RuntimeError(f"{kind} {name} ({st}): {raw[:1500]!r}")
+    st, _, raw = _req("GET", f"{API}/workspaces/{ws}/{kind}", P.TOKEN)
+    iid = next(i["id"] for i in json.loads(raw)["value"] if i["displayName"] == name)
+    print(f"{kind[:-1]:<14} {name:<28} {'updated' if existing else 'created'} {iid}")
+    return iid
+
+
+def save(folder: str, parts: dict[str, str]) -> None:
+    for p, c in parts.items():
+        f = OUT / folder / p
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(c.replace(os.environ["FABRIC_SQL_ENDPOINT"], "<WH_MIZAN_SQL_ENDPOINT>")
+                     .replace(os.environ["WH_MIZAN_ID"], "<WH_MIZAN_ID>"), encoding="utf-8", newline="\n")
+
+
+def main() -> None:
+    load_dotenv()
+    os.environ.setdefault("MIZAN_AZ_PROFILE", ".azure-college")
+    P.TOKEN = P.token()                                   # owned by the signed-in user, visible in the portal
+    cols = warehouse_columns()
+    mparts = model_parts(cols)
+    save("MIZAN Control Tower Model.SemanticModel", mparts)
+    mid = upsert("semanticModels", MODEL, mparts)
+    rparts = report_parts(mid)
+    save("MIZAN Control Tower.Report", {k: v.replace(mid, "<SEMANTIC_MODEL_ID>") for k, v in rparts.items()})
+    rid = upsert("reports", REPORT, rparts)
+    ws = env("FABRIC_WORKSPACE_ID")
+    print(f"open: https://app.fabric.microsoft.com/groups/{ws}/reports/{rid}")
+
+
+if __name__ == "__main__":
+    main()

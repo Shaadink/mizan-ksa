@@ -1,0 +1,100 @@
+table fact_zatca_clearance_ledger
+	lineageTag: ffbcb044-a4ff-51eb-bcdc-dc3a4d109577
+
+	measure 'Accepted Documents' = COUNTROWS(fact_zatca_clearance_ledger)
+		formatString: #,0
+		lineageTag: 098eef0d-e1f4-5d8e-b54b-f3161b0e148a
+
+	measure 'Documents Total SAR' = SUM(fact_zatca_clearance_ledger[total_incl_vat_sar])
+		formatString: #,0.00
+		lineageTag: cacc862e-8969-5e53-856d-471c817aee3c
+
+	measure 'Corrections' = COUNTROWS(FILTER(fact_zatca_clearance_ledger, NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid])))
+		formatString: 0
+		lineageTag: 4671fc9e-7724-5414-859c-977265dbde8d
+
+	column invoice_uuid
+		dataType: string
+		lineageTag: 4e92a0a4-ce3e-5c27-832c-601136796bcb
+		summarizeBy: none
+		sourceColumn: invoice_uuid
+
+	column request_id
+		dataType: string
+		lineageTag: 7afabec2-7564-5552-a476-bd61f583aba5
+		summarizeBy: none
+		sourceColumn: request_id
+
+	column order_id
+		dataType: string
+		lineageTag: d62192c2-4932-5f08-9353-502f0c856b3c
+		summarizeBy: none
+		sourceColumn: order_id
+
+	column egs_id
+		dataType: string
+		lineageTag: 907a711e-dd69-5a5b-89d0-9e5b78e41709
+		summarizeBy: none
+		sourceColumn: egs_id
+
+	column icv
+		dataType: int64
+		lineageTag: adb8e6c5-f0c5-5f97-aa65-e0a20dead4fe
+		summarizeBy: none
+		sourceColumn: icv
+
+	column invoice_flow
+		dataType: string
+		lineageTag: 627a5d2f-171d-5714-93b0-36e30ec82770
+		summarizeBy: none
+		sourceColumn: invoice_flow
+
+	column document_type
+		dataType: string
+		lineageTag: 05bd6750-fa92-533e-a89d-e5d9e19c10ee
+		summarizeBy: none
+		sourceColumn: document_type
+
+	column state
+		dataType: string
+		lineageTag: e9962792-d10c-5de6-ba28-8076346dd2c5
+		summarizeBy: none
+		sourceColumn: state
+
+	column issue_date_ksa
+		dataType: dateTime
+		lineageTag: 80a860c0-968b-5efe-8a45-03d614724b57
+		summarizeBy: none
+		sourceColumn: issue_date_ksa
+
+	column gl_key
+		dataType: string
+		lineageTag: f27bc37b-f6a5-5094-9603-da64fed48c05
+		summarizeBy: none
+		sourceColumn: gl_key
+
+	column corrects_invoice_uuid
+		dataType: string
+		lineageTag: 1cf68420-fdbd-505b-8e7e-4ba700036ac7
+		summarizeBy: none
+		sourceColumn: corrects_invoice_uuid
+
+	column attempts
+		dataType: int64
+		lineageTag: 214f05ee-ec08-50dd-9e15-9a2784e9d41b
+		summarizeBy: none
+		sourceColumn: attempts
+
+	column total_incl_vat_sar
+		dataType: decimal
+		lineageTag: ba9182e0-22e1-5cb5-b7ce-cb0084edc976
+		summarizeBy: none
+		sourceColumn: total_incl_vat_sar
+		formatString: #,0.00
+
+	partition fact_zatca_clearance_ledger = entity
+		mode: directLake
+		source
+			entityName: fact_zatca_clearance_ledger
+			schemaName: gld
+			expressionSource: DatabaseQuery

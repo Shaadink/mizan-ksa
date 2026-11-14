@@ -1,0 +1,73 @@
+table mart_ndmo_scorecard
+	lineageTag: 69fde750-5760-5067-b71e-362b1d8af421
+
+	measure 'Quality Checks Passing' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), mart_ndmo_scorecard[status] = "PASS", mart_ndmo_scorecard[metric_family] = "DATA_QUALITY")
+		formatString: 0
+		lineageTag: b6660c02-4635-53a6-bea9-a5af7cd496e7
+
+	measure 'Tables Needing Split' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), mart_ndmo_scorecard[status] = "SPLIT_RECOMMENDED")
+		formatString: 0
+		lineageTag: 72a02a13-d36e-5b81-84eb-5799730b778e
+
+	column metric_family
+		dataType: string
+		lineageTag: 02dc0ead-a182-5302-b449-45a1f07f7675
+		summarizeBy: none
+		sourceColumn: metric_family
+
+	column dimension
+		dataType: string
+		lineageTag: 61a61d5f-6423-5fed-a576-f2af644f4035
+		summarizeBy: none
+		sourceColumn: dimension
+
+	column subject_table
+		dataType: string
+		lineageTag: d9788a1c-1542-5290-b5c7-9cb89212690b
+		summarizeBy: none
+		sourceColumn: subject_table
+
+	column numerator
+		dataType: int64
+		lineageTag: 98b4c878-0f26-505e-ad34-a064719bf2c2
+		summarizeBy: none
+		sourceColumn: numerator
+
+	column denominator
+		dataType: int64
+		lineageTag: 621493ca-e5c3-534c-985b-ab4559fc8d00
+		summarizeBy: none
+		sourceColumn: denominator
+
+	column score_pct
+		dataType: decimal
+		lineageTag: 365b541a-a41e-5dd0-a065-27f6f981d1b1
+		summarizeBy: none
+		sourceColumn: score_pct
+		formatString: #,0.00
+
+	column threshold_pct
+		dataType: decimal
+		lineageTag: 2b453277-54dc-5dc7-9640-70816812ab0e
+		summarizeBy: none
+		sourceColumn: threshold_pct
+		formatString: #,0.00
+
+	column status
+		dataType: string
+		lineageTag: f901f759-5830-511d-bae9-0e95d337816d
+		summarizeBy: none
+		sourceColumn: status
+
+	column table_classification
+		dataType: string
+		lineageTag: 75fb5168-32c5-5c11-837d-ccf89c623d6d
+		summarizeBy: none
+		sourceColumn: table_classification
+
+	partition mart_ndmo_scorecard = entity
+		mode: directLake
+		source
+			entityName: mart_ndmo_scorecard
+			schemaName: gld
+			expressionSource: DatabaseQuery
