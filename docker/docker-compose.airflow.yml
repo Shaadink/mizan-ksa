@@ -1,0 +1,51 @@
+# Outer orchestration + lineage, local:  docker compose -f docker/docker-compose.airflow.yml up -d --build
+#   Airflow UI  http://localhost:8080   (user admin, password = AIRFLOW_ADMIN_PASSWORD in the git-ignored .env)
+#   Marquez UI  http://localhost:3000   (lineage graph)    Marquez API http://localhost:5000
+services:
+  airflow-db:
+    image: postgres:14
+    environment: {POSTGRES_USER: airflow, POSTGRES_PASSWORD: airflow, POSTGRES_DB: airflow}
+    healthcheck: {test: ["CMD", "pg_isready", "-U", "airflow"], interval: 5s, retries: 20}
+
+  marquez-db:
+    image: postgres:14
+    environment: {POSTGRES_USER: marquez, POSTGRES_PASSWORD: marquez, POSTGRES_DB: marquez}
+    healthcheck: {test: ["CMD", "pg_isready", "-U", "marquez"], interval: 5s, retries: 20}
+
+  marquez:
+    image: marquezproject/marquez:0.50.0
+    depends_on: {marquez-db: {condition: service_healthy}}
+    environment:
+      MARQUEZ_PORT: 5000
+      MARQUEZ_ADMIN_PORT: 5001
+      POSTGRES_HOST: marquez-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: marquez
+      POSTGRES_USER: marquez
+      POSTGRES_PASSWORD: marquez
+    ports: ["5000:5000", "5001:5001"]
+
+  marquez-web:
+    image: marquezproject/marquez-web:0.50.0
+    depends_on: [marquez]
+    environment: {MARQUEZ_HOST: marquez, MARQUEZ_PORT: 5000, WEB_PORT: 3000}
+    ports: ["3000:3000"]
+
+  airflow:
+    build: ./airflow
+    image: mizan-airflow:2.10.5
+    depends_on: {airflow-db: {condition: service_healthy}, marquez: {condition: service_started}}
+    env_file: [../.env]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/mizan/airflow/dags
+      AIRFLOW__OPENLINEAGE__NAMESPACE: mizan-ksa
+      AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "http", "url": "http://marquez:5000", "endpoint": "api/v1/lineage"}'
+      MIZAN_FABRIC_MODE: mock
+      MIZAN_MARQUEZ_URL: http://marquez:5000/api/v1/lineage
+    volumes:
+      - ..:/opt/mizan
+    ports: ["8080:8080"]
+    entrypoint: ["bash", "/opt/mizan/docker/airflow/start.sh"]

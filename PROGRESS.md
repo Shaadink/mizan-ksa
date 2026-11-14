@@ -11,8 +11,8 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 4 | Gold (dbt) | DONE | 140 |
 | 5 | MDM (M4) | DONE | 177 (with 6) |
 | 6 | PDPL + NDMO (M5-6) | DONE | 177 |
-| 7 | Skew (M7) | TODO (Docker installed; reboot pending) | |
-| 8 | Orchestration | TODO | |
+| 7 | Skew (M7) | DONE | 221 |
+| 8 | Orchestration (Airflow + OpenLineage/Marquez) | DONE | 221 |
 | 9 | Governed AI (M8) | DONE | 220 (all phases so far) |
 | 10 | Fabric deployment | TODO — needs tenant credentials in .env | |
 | 9b | Streaming (replay, KQL, docs) | DONE (local; send needs ES_MIZAN) | 220 |
@@ -185,6 +185,36 @@ from `EVENTSTREAM_CONNECTION` in .env, batches < 1 MB, `--dry-run`, `--inject-ve
 IR-0000103 rejected); quiet without injection. Sending into ES_MIZAN happens in Phase 10.
 
 Tests: 220 passed (full suite ~14 min). Ruff: clean.
+
+## Phase 7 — Skew, Module 7 (DONE)
+
+Run: `docker compose -f docker/docker-compose.skew.yml run --rm --service-ports spark-bench` (ROWS=20000000 default;
+HOLD=600 keeps the Spark UI on http://localhost:4040 for screenshots). Image `mizan-spark-bench:3.5.3` = apache/spark
+3.5.3 + delta-spark 3.2.1, repo mounted at /work.
+
+Built: `spark/skew.py` (WALK_IN/NULL isolation, deterministic xxhash64 salt mod 16 with dimension replication, hash-based
+skewed generator, three-mode benchmark with task stats from the Spark REST API, Delta OPTIMIZE compaction,
+`record_benchmarks` -> audit.benchmarks), `docker/spark/Dockerfile`, `docker/docker-compose.skew.yml`.
+Result (20M rows): identical rows + SAR checksum in all three modes; straggler factor AQE off 20.3x, AQE skew-join 3.4x,
+salted slowest task 2.1 s vs 6.1 s; compaction 400 -> 1 file. JSON: `docs/artifacts/05_skew_benchmark_20m.json`.
+
+## Phase 8 — Airflow + OpenLineage + Marquez (DONE)
+
+Run: `docker compose -f docker/docker-compose.airflow.yml up -d --build` -> Airflow http://localhost:8080 (admin /
+AIRFLOW_ADMIN_PASSWORD from .env), Marquez UI http://localhost:3000, API :5000.
+Prereqs for a meaningful run: `data/lake` current (pipeline), `tmp/mizan_gold.duckdb` (dbt build), and
+`data/out/lineage/gold_column_lineage.json` (`python -m mizan.lineage.openlineage --duckdb tmp/mizan_gold.duckdb
+--lake data/lake`).
+
+Built: `airflow/dags/mizan_daily.py` (4 Fabric jobs -> restore guard -> freshness gate -> dbt build -> AI index + NDMO
+catalog -> residency gate -> lineage + run manifest), `orchestration/fabric_client.py` (REST: submit RunNotebook, poll
+Location; SP token; mock), `orchestration/freshness.py`, `lineage/openlineage.py` (Gold column lineage 100% from the
+dbt manifest + `dbt/lineage_overrides.json`, typed schema facets, run facet with git_sha + snapshot versions, HTTP POST),
+`docker/airflow/*`, `docker/docker-compose.airflow.yml`. `scripts/init_local_env.py` now also writes
+AIRFLOW_ADMIN_PASSWORD.
+Result: DAG run all 11 tasks success (mock mode); Marquez has the job graph and the Bronze -> Silver -> Gold dataset graph
+(22 nodes); column lineage for gld.fact_merchant_settlement_recon shows 28 nodes / 37 edges; run manifest carries the
+real git sha.
 
 ## Open issues
 

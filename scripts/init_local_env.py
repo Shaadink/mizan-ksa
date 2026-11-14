@@ -7,7 +7,7 @@ import secrets
 from pathlib import Path
 
 ENV = Path(__file__).resolve().parents[1] / ".env"
-WANTED = ("MIZAN_HMAC_KEY_B64", "MIZAN_KEK_B64")
+WANTED = ("MIZAN_HMAC_KEY_B64", "MIZAN_KEK_B64", "AIRFLOW_ADMIN_PASSWORD")
 
 existing = ENV.read_text(encoding="utf-8") if ENV.exists() else ""
 present = {line.split("=", 1)[0].strip() for line in existing.splitlines() if "=" in line}

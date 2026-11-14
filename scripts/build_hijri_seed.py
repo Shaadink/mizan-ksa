@@ -24,8 +24,8 @@ while ($d -le $e) {{
 
 
 def main() -> None:
-    out = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", PS],
-                         capture_output=True, text=True, check=True).stdout
+    cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", PS]
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout  # noqa: S603 (fixed argv)
     rows = [line.strip() for line in out.splitlines() if line.strip()]
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", encoding="ascii", newline="\n") as f:

@@ -212,3 +212,37 @@ def test_residency_gate_passes_on_real_lake_and_gold(gold_main, lake_run, capsys
     assert main(["--lake", str(lake_run["root"]), "--duckdb", str(gold_main["duck"])]) == 0
     out = capsys.readouterr().out
     assert "0 violations" in out
+
+
+# ---------------------------------------------------------------- Phase 9: agent answers money questions from Gold
+
+def test_agent_money_answers_come_from_gold_sql(gold_main):
+    from mizan.ai.governed import User, answer
+    from mizan.spark.ai_land import duckdb_runner
+    run = duckdb_runner(gold_main["duck"])
+    cfo = User("cfo", frozenset({"CFO_OFFICE"}), "CONFIDENTIAL")
+    a = answer("What is the total unexplained variance?", cfo, [], set(), run)
+    assert a.route == "SQL" and a.rows == [(Decimal("0.00"), Decimal("0.00"), 0)]
+    z = answer("How many invoices were cleared or reported, and the total amount?", cfo, [], set(), run)
+    states = {r[0]: r[1] for r in z.rows}
+    assert z.template == "ZATCA_TOTALS" and sum(states.values()) == 25_000
+    junior = User("junior", frozenset({"ALL_STAFF"}), "PUBLIC")
+    assert answer("What is the total unexplained variance?", junior, [], set(), run).refusal == "NOT_ENTITLED"
+
+
+# ---------------------------------------------------------------- Phase 8: Gold column lineage, 100% (I-13)
+
+def test_gold_column_lineage_is_complete(gold_main, lake_run, tmp_path):
+    from mizan.lineage.openlineage import build, gold_events
+    manifest = gold_main["duck"].parent / "target" / "manifest.json"
+    doc = build(manifest, gold_main["duck"], lake_run["root"], tmp_path / "lineage.json")
+    models = {"fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "dim_date_saudi", "dim_party_golden",
+              "mart_ndmo_scorecard"}
+    assert set(doc["column_lineage"]) == models
+    for m in models:
+        assert set(doc["column_lineage"][m]) == set(doc["columns"][f"gld.{m}"])        # every column covered
+        assert all(doc["column_lineage"][m].values())
+    recon = doc["column_lineage"]["fact_merchant_settlement_recon"]
+    assert "slv.settlement_lines.acquirer_mdr_fee_sar" in recon["acquirer_fees_sar"]
+    ev = gold_events(doc, "33333333-3333-3333-3333-333333333333")
+    assert len(ev) == 2 * len(models) and all(e["run"]["facets"]["mizan_run"]["git_sha"] for e in ev)
