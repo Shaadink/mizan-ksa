@@ -1,0 +1,22 @@
+// EH_MIZAN (Eventhouse, KQL database MIZAN_RT). Operational telemetry only: never the financial ledger.
+// Eventstream ES_MIZAN routes the replay (src/mizan/streaming/replay.py) into MizanEvents with this mapping.
+.create-merge table MizanEvents (
+    event_kind: string, event_id: string, event_ts: datetime, event_source: string,
+    order_id: string, merchant_id: string, channel: string, customer_token: string, mobile_token: string,
+    payment_means: string, payment_type: string, payment_scheme: string, amount_sar: decimal,
+    invoice_uuid: string, request_id: string, egs_id: string, invoice_flow: string, document_type: string,
+    issue_ts: datetime, invoice_event: string)
+
+.create-or-alter table MizanEvents ingestion json mapping "MizanEventsMapping"
+```[
+  {"column": "event_kind", "path": "$.event_kind"}, {"column": "event_id", "path": "$.event_id"},
+  {"column": "event_ts", "path": "$.event_ts"}, {"column": "event_source", "path": "$.event_source"},
+  {"column": "order_id", "path": "$.order_id"}, {"column": "merchant_id", "path": "$.merchant_id"},
+  {"column": "channel", "path": "$.channel"}, {"column": "customer_token", "path": "$.customer_token"},
+  {"column": "mobile_token", "path": "$.mobile_token"}, {"column": "payment_means", "path": "$.payment_means"},
+  {"column": "payment_type", "path": "$.payment_type"}, {"column": "payment_scheme", "path": "$.payment_scheme"},
+  {"column": "amount_sar", "path": "$.amount_sar"}, {"column": "invoice_uuid", "path": "$.invoice_uuid"},
+  {"column": "request_id", "path": "$.request_id"}, {"column": "egs_id", "path": "$.egs_id"},
+  {"column": "invoice_flow", "path": "$.invoice_flow"}, {"column": "document_type", "path": "$.document_type"},
+  {"column": "issue_ts", "path": "$.issue_ts"}, {"column": "invoice_event", "path": "$.invoice_event"}
+]```

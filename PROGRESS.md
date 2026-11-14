@@ -13,9 +13,9 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 6 | PDPL + NDMO (M5-6) | DONE | 177 |
 | 7 | Skew (M7) | TODO (Docker installed; reboot pending) | |
 | 8 | Orchestration | TODO | |
-| 9 | Governed AI (M8) | IN PROGRESS (unit layer done, 18 tests) | |
+| 9 | Governed AI (M8) | DONE | 220 (all phases so far) |
 | 10 | Fabric deployment | TODO — needs tenant credentials in .env | |
-| 9b | Streaming (replay, KQL, docs) | TODO | |
+| 9b | Streaming (replay, KQL, docs) | DONE (local; send needs ES_MIZAN) | 220 |
 | 11 | Packaging | TODO | |
 
 ## Environment (checked 2026-11-13)
@@ -164,6 +164,27 @@ vault time travel cannot return the key; restoring a pre-erasure vault backup + 
 guard; demo dbt build fails only the circuit breaker and SKIPS the downstream scorecard. Residency gate: 0 violations.
 
 Tests: 177 passed (full ~11 min). Ruff: clean.
+
+## Phase 9 — Governed AI, Module 8 (DONE)
+
+Built: `ai/governed.py` (policy chunker with tier/ACL inheritance, section markers only raise; entitlement filter BEFORE
+TF-IDF ranking; tombstone suppression; money questions only via allow-listed read-only Gold SQL templates guarded by
+`validate_readonly_sql`; refusals NOT_ENTITLED / NO_MATCH / TEXT_MATH_FORBIDDEN; audit rows store a question hash only),
+`spark/ai_land.py` (ai.policy_chunks = 4 bilingual policies + ~1,350 case notes from RETURN_REQUESTED events keyed by
+subject token; ai.agent_audit_log; DuckDB runner for Gold), `docs/policies/*.md`. Deterministic stand-in, no LLM (HONESTY).
+Proof: junior refused MDR negotiation, finance answered; DPO never ranked the SECRET section; CFO's variance answer comes
+from gld.fact_merchant_settlement_recon (0.00 / 0.00 / 0); a care agent sees a case note, the subject is erased via the
+token map, and the note is no longer served (query time) and gone from the rebuilt index.
+
+## Phase 9b — Streaming (DONE locally)
+
+Built: `streaming/replay.py` (CHECKOUT / PAYMENT / INVOICE events, HMAC tokens only, deterministic, Event Hubs REST + SAS
+from `EVENTSTREAM_CONNECTION` in .env, batches < 1 MB, `--dry-run`, `--inject-velocity-burst`), `streaming/rules.py`
+(reference velocity / mule-ring / 24 h reporting SLA), `kql/01..04` (table + JSON mapping + rule functions + lag tile),
+`docs/STREAMING.md`. Proof: rules catch exactly the injected customer + mobile and the two SLA cases (IR-0000102 late,
+IR-0000103 rejected); quiet without injection. Sending into ES_MIZAN happens in Phase 10.
+
+Tests: 220 passed (full suite ~14 min). Ruff: clean.
 
 ## Open issues
 

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from mizan.privacy.crypto import Keys
 from mizan.spark import contracts as C
+from mizan.spark.ai_land import build_index
 from mizan.spark.bronze import land_files, land_invoice_requests
 from mizan.spark.governance_land import run_governance
 from mizan.spark.lake import Lake, cleanup_staging
@@ -52,9 +53,11 @@ def run_pipeline(data_dir: Path | str, lake_root: Path | str | None = None, *, m
     cleanup_staging(spark)
     z = run_zatca(lake, data / "zatca/fatoora_fault_plan.json") if zatca else None
     cleanup_staging(spark)
+    ai = build_index(lake)                   # governed AI chunks (policies + case notes, tombstones skipped)
+    cleanup_staging(spark)
     g = run_governance(lake)                 # NDMO catalog last: it must see every table the run wrote
     cleanup_staging(spark)
-    return {"files": stats, "zatca": z, "mdm": m, "governance": g}
+    return {"files": stats, "zatca": z, "mdm": m, "ai": ai, "governance": g}
 
 
 def main() -> None:

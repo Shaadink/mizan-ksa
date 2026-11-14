@@ -1,0 +1,13 @@
+// Mule-ring rule: one mobile token used by more than 3 distinct customer tokens within 24 hours.
+// Mirrors mizan.streaming.rules.mule_ring_alerts.
+.create-or-alter function with (folder = "rules") MuleRingAlerts() {
+    let c = MizanEvents
+        | where event_kind == "CHECKOUT" and isnotempty(mobile_token) and isnotempty(customer_token)
+        | project mobile_token, customer_token, event_ts;
+    c
+    | join kind=inner (c | project mobile_token, other_customer = customer_token, other_ts = event_ts) on mobile_token
+    | where other_ts between (event_ts .. event_ts + 24h)
+    | summarize distinct_customers = dcount(other_customer) by mobile_token, event_ts
+    | where distinct_customers > 3
+    | summarize first_alert = min(event_ts), max_distinct_customers = max(distinct_customers) by mobile_token
+}

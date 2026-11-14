@@ -1,0 +1,22 @@
+// Simplified (B2C, REPORTING) invoices must be reported to ZATCA within 24 hours of issue.
+// Mirrors mizan.streaming.rules.sla_breaches. Also used as a live tile: current lag per EGS.
+.create-or-alter function with (folder = "rules") InvoiceReportingSlaBreaches() {
+    let issued = MizanEvents | where event_kind == "INVOICE" and invoice_flow == "REPORTING" and invoice_event == "ISSUED"
+        | project invoice_uuid, egs_id, issued_at = event_ts;
+    let reported = MizanEvents | where event_kind == "INVOICE" and invoice_event == "REPORTED"
+        | summarize reported_at = min(event_ts) by invoice_uuid;
+    issued
+    | join kind=leftouter reported on invoice_uuid
+    | extend lag = coalesce(reported_at, now()) - issued_at
+    | where isnull(reported_at) or lag > 24h
+    | project invoice_uuid, egs_id, issued_at, reported_at, lag_hours = round(lag / 1h, 1)
+}
+
+.create-or-alter function with (folder = "tiles") ReportingLagByEgs() {
+    MizanEvents
+    | where event_kind == "INVOICE" and invoice_flow == "REPORTING" and invoice_event in ("ISSUED", "REPORTED")
+    | summarize issued_at = minif(event_ts, invoice_event == "ISSUED"),
+                reported_at = minif(event_ts, invoice_event == "REPORTED") by invoice_uuid, egs_id
+    | extend lag_s = datetime_diff("second", reported_at, issued_at)
+    | summarize invoices = count(), p95_lag_s = percentile(lag_s, 95), max_lag_s = max(lag_s) by egs_id
+}

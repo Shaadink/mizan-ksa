@@ -168,3 +168,34 @@ def test_ndmo_catalog_covers_every_table(lake_run):
     assert tiers[("slv", "settlement_lines")] == "CONFIDENTIAL"
     assert cat.filter("is_over_classified").count() > 0
     assert cat.filter("legal_hold_class NOT IN ('TAX', 'SAMA', 'CONSENT')").count() == 0
+
+
+# ---------------------------------------------------------------- Phase 9: governed AI on the lake (I-07 for AI)
+
+def test_ai_case_notes_entitled_then_suppressed_after_erasure(dsr, test_keys):
+    from mizan.ai.governed import User
+    from mizan.privacy.pdpl import execute_dsr
+    from mizan.spark.ai_land import ask, build_index, load_chunks, tombstones
+    from mizan.spark.lake import cleanup_staging
+    lk = dsr["lake"]
+    chunks = load_chunks(lk)
+    assert sum(1 for c in chunks if not c.subject_token_id) > 5 and sum(1 for c in chunks if c.subject_token_id) > 1000
+    dead = tombstones(lk)
+    c0 = next(c for c in chunks if c.subject_token_id and c.subject_token_id not in dead)
+    rid = c0.doc_id.removeprefix("CASE-")
+    care = User("care.agent", frozenset({"CUSTOMER_CARE"}), "CONFIDENTIAL")
+    junior = User("junior.analyst", frozenset({"ALL_STAFF"}), "PUBLIC")
+    a = ask(lk, f"return case {rid} refund", care)
+    assert a.route == "RAG" and a.chunks[0] == c0.chunk_id
+    assert c0.chunk_id not in ask(lk, f"return case {rid} refund", junior).chunks   # public policy at most
+
+    link = lk.read("security", "subject_token_map").filter(f"subject_token_id = '{c0.subject_token_id}'").first()
+    ref = crypto.decrypt_with_kek(test_keys, f"TOKEN_MAP|{c0.subject_token_id}", link["source_ref_enc"])
+    execute_dsr(lk, test_keys, source_ref=ref, requested_by="dpo.test")
+    after = ask(lk, f"return case {rid} refund", care)
+    assert c0.chunk_id not in after.chunks                      # suppressed at question time, before any rebuild
+    build_index(lk)
+    assert c0.chunk_id not in {c.chunk_id for c in load_chunks(lk)}
+    log = lk.read("ai", "agent_audit_log").collect()
+    assert len(log) == 3 and all(f"return case {rid}" not in str(r.asDict().values()) for r in log)
+    cleanup_staging(lk.spark)

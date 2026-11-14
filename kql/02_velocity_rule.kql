@@ -1,0 +1,17 @@
+// Velocity rule (not a regulatory control): more than 5 checkouts by one customer token within 10 minutes.
+// Mirrors mizan.streaming.rules.velocity_alerts.
+.create-or-alter function with (folder = "rules") VelocityAlerts() {
+    MizanEvents
+    | where event_kind == "CHECKOUT" and isnotempty(customer_token)
+    | project customer_token, event_ts
+    | order by customer_token asc, event_ts asc
+    | extend window_start = event_ts - 10m
+    | join kind=inner (
+        MizanEvents | where event_kind == "CHECKOUT" and isnotempty(customer_token)
+        | project customer_token, other_ts = event_ts
+      ) on customer_token
+    | where other_ts between (window_start .. event_ts)
+    | summarize checkouts_in_window = count() by customer_token, event_ts
+    | where checkouts_in_window > 5
+    | summarize first_alert = min(event_ts), max_in_window = max(checkouts_in_window) by customer_token
+}
