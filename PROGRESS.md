@@ -14,8 +14,8 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 7 | Skew (M7) | DONE | 221 |
 | 8 | Orchestration (Airflow + OpenLineage/Marquez) | DONE | 221 |
 | 9 | Governed AI (M8) | DONE | 220 (all phases so far) |
-| 10 | Fabric deployment | DONE (2 portal checks left: docs/PORTAL_STEPS.md) | 221 |
-| 9b | Streaming (replay, KQL, docs) | DONE (local; send needs ES_MIZAN) | 220 |
+| 10 | Fabric deployment | DONE (Data Agent needs paid capacity: docs/PORTAL_STEPS.md) | 222 |
+| 9b | Streaming (replay, KQL, docs) | DONE (local + Fabric: rows in EH_MIZAN, rules 1/1/2) | 222 |
 | 11 | Packaging (artifacts, README, ADRs, HONESTY) | DONE | 221 |
 
 ## Environment (checked 2026-11-13)
@@ -236,8 +236,11 @@ Code changes for Fabric: `run_step` per pipeline step; env-driven paths (`MIZAN_
 Result (`docs/artifacts/10_fabric_run_evidence.json`): all 6 notebook steps Completed; same numbers as local (2,552
 goldens, 25,001 ZATCA docs, 0 violations); `dbt build --target fabric` 65/65 PASS on WH_MIZAN; Gold recon 2,233 rows,
 bank + GL variance 0.00; Power BI model answers DAX with the same totals; 91,513 events accepted by ES_MIZAN.
-Not done by API (docs/PORTAL_STEPS.md): Eventstream -> Eventhouse delivery check (rows not arriving yet); Data Agent
-(trial SKU unsupported).
+Not done by API (docs/PORTAL_STEPS.md): Data Agent (trial SKU unsupported).
+2026-11-15: Eventstream -> Eventhouse fixed. Destination runtime logs showed the Kusto writer cannot write a KQL
+`decimal` column; `MizanEvents.amount_sar` is now `string` (exact text) with `MizanEventsTyped()` doing `todecimal()`.
+After `fabric_streaming.py setup` (republish) + `conn` + `replay`: CHECKOUT 23,511, INVOICE 50,002, PAYMENT 18,000;
+VelocityAlerts 1, MuleRingAlerts 1, InvoiceReportingSlaBreaches 2; typed payment total SAR 23,782,562.35 (decimal).
 
 ## Phase 11 — Proof artifacts + packaging (DONE)
 
@@ -258,9 +261,7 @@ the owner's Fabric tenant behind their login; PNGs of the local UIs are provided
 
 ## Left for the owner (everything else is done)
 
-1. **Eventstream -> Eventhouse delivery** (3 min, portal): docs/PORTAL_STEPS.md section 1. Events reach ES_MIZAN but rows
-   had not landed in EH_MIZAN.MizanEvents; open ES_MIZAN, check the destination, publish, then
-   `scripts/fabric_streaming.py conn` + `replay` + `check`.
+1. ~~Eventstream -> Eventhouse delivery~~ DONE 2026-11-15 (see Phase 10).
 2. **Fabric Data Agent** (optional, needs a paid F2+ capacity): docs/PORTAL_STEPS.md section 2. Not possible on the trial.
 3. **Optional polish**: restyle the generated Power BI report in the portal; record the 60-second GIF / walkthrough video
    (spec Day 10) from the portal.

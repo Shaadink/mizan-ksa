@@ -5,23 +5,13 @@ ES_MIZAN, the service principal, all notebook jobs, `dbt build` on WH_MIZAN, the
 topology, the Direct Lake semantic model and the 3-page report. Sign in at https://app.fabric.microsoft.com with the
 account that owns the workspace `mizan-ksa-dev`.
 
-## 1. Eventstream -> Eventhouse delivery (about 3 minutes)
+## 1. Eventstream -> Eventhouse delivery (resolved 2026-11-15)
 
-Status when written: ES_MIZAN accepted all 91,513 replayed events (custom endpoint), the topology reports source,
-stream and Eventhouse destination as Running, and `EH_MIZAN.MizanEvents` exists with its JSON mapping, but no rows had
-arrived after several probes. The portal shows destination errors and a data preview that the API does not expose.
-
-1. Workspaces -> `mizan-ksa-dev` -> open **ES_MIZAN**.
-2. Click the stream node **ES_MIZAN-stream** -> **Data preview**. You should see the replay events (JSON). If the
-   preview is empty, re-send: `.\.venv\Scripts\python.exe scripts\fabric_streaming.py replay`.
-3. Click the destination **eh-mizan**. If it shows a warning/error, open it and read the message. The usual fixes:
-   - **Edit** -> keep workspace `mizan-ksa-dev`, Eventhouse `EH_MIZAN`, KQL database `EH_MIZAN`, table
-     **MizanEvents**, input format **JSON** -> **Save**, then **Publish** (top right).
-   - If it asks to approve a connection to the KQL database, approve it.
-4. After publishing, the custom endpoint keys may change: run
-   `.\.venv\Scripts\python.exe scripts\fabric_streaming.py conn` then `... replay`.
-5. Check: `.\.venv\Scripts\python.exe scripts\fabric_streaming.py check`. Expected: CHECKOUT 23,511, INVOICE 50,002,
-   PAYMENT 18,000; `VelocityAlerts()` 1, `MuleRingAlerts()` 1, `InvoiceReportingSlaBreaches()` 2.
+Rows did not arrive at first. The destination's **Runtime logs** (ES_MIZAN -> destination **eh-mizan** -> Runtime logs)
+showed `Kusto output data error: Column amount_sar has invalid KQL Database column type decimal`: the Eventstream writer
+cannot write KQL `decimal`. `amount_sar` now lands as exact text and `MizanEventsTyped()` converts it with `todecimal()`
+(never float). After `fabric_streaming.py setup` + `conn` + `replay`, `check` returns CHECKOUT 23,511, INVOICE 50,002,
+PAYMENT 18,000 and rule counts 1 / 1 / 2. If delivery ever stops again, read those runtime logs first.
 
 ## 2. Fabric Data Agent (needs a paid capacity, about 3 minutes)
 

@@ -1,9 +1,11 @@
 // EH_MIZAN (Eventhouse, KQL database MIZAN_RT). Operational telemetry only: never the financial ledger.
 // Eventstream ES_MIZAN routes the replay (src/mizan/streaming/replay.py) into MizanEvents with this mapping.
+// amount_sar lands as the exact decimal text ("499.00"): the Eventstream Kusto writer cannot write a KQL
+// decimal column, and real/double is forbidden for money. MizanEventsTyped() converts with todecimal().
 .create-merge table MizanEvents (
     event_kind: string, event_id: string, event_ts: datetime, event_source: string,
     order_id: string, merchant_id: string, channel: string, customer_token: string, mobile_token: string,
-    payment_means: string, payment_type: string, payment_scheme: string, amount_sar: decimal,
+    payment_means: string, payment_type: string, payment_scheme: string, amount_sar: string,
     invoice_uuid: string, request_id: string, egs_id: string, invoice_flow: string, document_type: string,
     issue_ts: datetime, invoice_event: string)
 
@@ -20,3 +22,7 @@
   {"column": "invoice_flow", "path": "$.invoice_flow"}, {"column": "document_type", "path": "$.document_type"},
   {"column": "issue_ts", "path": "$.issue_ts"}, {"column": "invoice_event", "path": "$.invoice_event"}
 ]```
+
+.create-or-alter function with (folder = "views") MizanEventsTyped() {
+    MizanEvents | extend amount_sar = todecimal(amount_sar)
+}

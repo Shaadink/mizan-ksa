@@ -9,7 +9,7 @@ and can be erased under PDPL without touching signed tax evidence. It runs local
 
 **Stack:** Microsoft Fabric (OneLake Delta `LH_MIZAN`, PySpark notebooks, Warehouse `WH_MIZAN`, Eventhouse/Eventstream,
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
-Actions as the control plane. 221 automated tests; CI runs the full PySpark + dbt suite on every push.
+Actions as the control plane. 222 automated tests; CI runs the full PySpark + dbt suite on every push.
 
 > Scope and limits are stated in [HONESTY.md](HONESTY.md). It is a standards-informed engineering reference
 > architecture on synthetic data, not a regulator-certified tax product.
@@ -67,10 +67,10 @@ Workspace `mizan-ksa-dev`, Fabric trial capacity (UAE North). Evidence: [docs/ar
 | ZATCA chain | 25,001 documents, 0 chain violations, 1 worker restart recovered |
 | MDM | 3,985 records into 2,552 golden profiles, 1 steward conflict |
 | Power BI Control Tower (Direct Lake TMDL model + 3-page PBIR report, created by API) | DAX returns the same totals |
-| Streaming replay into Eventstream ES_MIZAN | 91,513 events accepted |
+| Streaming replay: Eventstream ES_MIZAN -> Eventhouse EH_MIZAN | 91,513 events landed (23,511 checkout, 50,002 invoice, 18,000 payment); KQL rules fire exactly as local: velocity 1, mule ring 1, reporting-SLA breaches 2 |
 
-Two portal-only items are listed in [docs/PORTAL_STEPS.md](docs/PORTAL_STEPS.md): the Eventstream to Eventhouse
-delivery check, and the Fabric Data Agent, which Microsoft does not allow on trial capacities.
+One portal-only item is listed in [docs/PORTAL_STEPS.md](docs/PORTAL_STEPS.md): the Fabric Data Agent, which
+Microsoft does not allow on trial capacities.
 
 ## Architecture
 
@@ -101,7 +101,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m mizan.generator --out data/generated      # ~100K rows, fixed seed, byte-identical reruns
 .\.venv\Scripts\python.exe -m mizan.spark.pipeline --lake data/lake      # Bronze, Silver, MDM, ZATCA, AI index, NDMO catalog
 cd dbt; $env:MIZAN_LAKE_ROOT="../data/lake"; ..\.venv\Scripts\dbt.exe build --profiles-dir . --target duckdb; cd ..
-.\.venv\Scripts\python.exe -m pytest -q                                  # 221 tests, ~15 min; -m "not spark" for ~30 s
+.\.venv\Scripts\python.exe -m pytest -q                                  # 222 tests, ~15 min; -m "not spark" for ~30 s
 ```
 
 ### Docker
@@ -133,5 +133,5 @@ Credentials come only from the git-ignored `.env` (see `.env.example`).
 | `kql/` | EH_MIZAN table, mapping and rule functions |
 | `powerbi/` | TMDL semantic model and PBIR report definitions |
 | `scripts/` | Fabric provisioning/deploy/streaming/Power BI, artifact builder, seed builders |
-| `tests/` | 221 tests, one or more per invariant |
+| `tests/` | 222 tests, one or more per invariant |
 | `docs/` | ADRs, policies, streaming guide, portal steps, artifacts |

@@ -48,6 +48,7 @@ VelocityAlerts()                 // 1 row: the injected customer token
 MuleRingAlerts()                 // 1 row: the injected mobile token
 InvoiceReportingSlaBreaches()    // 2 rows: IR-0000102 (26 h late) and IR-0000103 (rejected, never reported)
 ReportingLagByEgs()              // live tile: p95 / max reporting lag per EGS
+MizanEventsTyped()               // amount_sar as decimal (lands as exact text; Eventstream cannot write KQL decimal)
 ```
 
 The same thresholds are implemented in `src/mizan/streaming/rules.py`, and `tests/test_streaming.py` proves which

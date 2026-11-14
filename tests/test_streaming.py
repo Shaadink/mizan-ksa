@@ -89,3 +89,16 @@ def test_kql_functions_exist_for_every_rule():
         assert "function with (folder" in text and fn in text
     assert "> 5" in text and "> 3" in text and "24h" in text and "10m" in text   # same thresholds as rules.py
     assert "MizanEventsMapping" in text
+
+
+def test_stream_amount_lands_as_exact_text_never_float(events):
+    """The Eventstream Kusto writer cannot write a KQL decimal column (it failed with
+    OutputDataConversionError.TypeConversionError), and real/double is forbidden for money. So amount_sar lands as the
+    exact decimal text and MizanEventsTyped() converts it with todecimal()."""
+    ddl = (KQL / "01_tables.kql").read_text(encoding="utf-8")
+    assert "amount_sar: string" in ddl
+    assert "amount_sar: decimal" not in ddl and "amount_sar: real" not in ddl
+    assert "todecimal(amount_sar)" in ddl
+    amounts = [e["amount_sar"] for e in events if e.get("amount_sar") is not None]
+    assert amounts and all(isinstance(a, str) and a.count(".") == 1 and len(a.split(".")[1]) == 2 for a in amounts)
+
