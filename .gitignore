@@ -52,3 +52,6 @@ Thumbs.db
 
 # Portable toolchain (JDK, winutils, ivy cache) - local only
 .tools/
+
+# dbt per-machine id
+dbt/.user.yml
