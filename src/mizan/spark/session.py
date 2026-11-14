@@ -24,17 +24,17 @@ TOOLS = REPO / ".tools"
 
 def _local_env() -> None:
     jdks = sorted(TOOLS.glob("jdk-17*"))
-    if jdks and "JAVA_HOME" not in os.environ:
+    if os.name == "nt" and jdks and "JAVA_HOME" not in os.environ:
         os.environ["JAVA_HOME"] = str(jdks[-1])
     hadoop = TOOLS / "hadoop"
-    if (hadoop / "bin" / "winutils.exe").exists():
+    if os.name == "nt" and (hadoop / "bin" / "winutils.exe").exists():   # Windows only (not in Docker)
         os.environ.setdefault("HADOOP_HOME", str(hadoop))
         os.environ["PATH"] = str(hadoop / "bin") + os.pathsep + os.environ.get("PATH", "")
     os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
 
 
-def get_spark(mode: str = "local", *, app: str = "mizan-ksa", shuffle_partitions: int = 8):
+def get_spark(mode: str = "local", *, app: str = "mizan-ksa", shuffle_partitions: int = 8, ui: bool = False):
     from pyspark.sql import SparkSession
 
     mode = mode.strip().lower()
@@ -50,11 +50,11 @@ def get_spark(mode: str = "local", *, app: str = "mizan-ksa", shuffle_partitions
                    .config("spark.jars.ivy", str(TOOLS / "ivy"))
                    # pin the driver to loopback: virtual adapters (WSL2/Docker) otherwise break hostname resolution
                    .config("spark.driver.host", "127.0.0.1")
-                   .config("spark.driver.bindAddress", "127.0.0.1")
+                   .config("spark.driver.bindAddress", os.environ.get("MIZAN_SPARK_BIND", "127.0.0.1"))
                    .config("spark.sql.shuffle.partitions", str(shuffle_partitions))
-                   .config("spark.ui.enabled", "false")
+                   .config("spark.ui.enabled", "true" if ui else "false")
                    .config("spark.ui.showConsoleProgress", "false")
-                   .config("spark.driver.memory", "3g")
+                   .config("spark.driver.memory", os.environ.get("MIZAN_DRIVER_MEMORY", "3g"))
                    .config("spark.sql.warehouse.dir", str(REPO / "tmp" / "spark-warehouse"))
                    .config("spark.databricks.delta.retentionDurationCheck.enabled", "false"))
         spark = configure_spark_with_delta_pip(builder).getOrCreate()

@@ -1,0 +1,13 @@
+# 20M-row skew benchmark in local Docker Spark:  docker compose -f docker/docker-compose.skew.yml up --build
+# Spark UI: http://localhost:4040 while it runs (HOLD keeps it up for screenshots after the three runs).
+services:
+  spark-bench:
+    build: ./spark
+    image: mizan-spark-bench:3.5.3
+    volumes:
+      - ..:/work
+    ports:
+      - "4040:4040"
+    command: >
+      python3 -m mizan.spark.skew --rows ${ROWS:-20000000} --out /work/data/bench
+      --partitions ${PARTITIONS:-64} --hold ${HOLD:-0}

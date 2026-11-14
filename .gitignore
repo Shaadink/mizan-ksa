@@ -55,3 +55,4 @@ Thumbs.db
 
 # dbt per-machine id
 dbt/.user.yml
+data/bench/

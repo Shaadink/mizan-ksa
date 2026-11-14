@@ -1,0 +1,46 @@
+[
+  {
+    "run_type": "AQE_OFF",
+    "rows": 20000000,
+    "duration_s": 13.82,
+    "output_rows": 20000000,
+    "sar_checksum": "50020661413.78",
+    "stage_id": 2,
+    "tasks": 64,
+    "skew_ratio": 20.3,
+    "max_task_ms": 6088,
+    "median_task_ms": 300,
+    "spill_bytes": 0
+  },
+  {
+    "run_type": "AQE_SKEW_JOIN",
+    "rows": 20000000,
+    "duration_s": 9.48,
+    "output_rows": 20000000,
+    "sar_checksum": "50020661413.78",
+    "stage_id": 8,
+    "tasks": 5,
+    "skew_ratio": 3.4,
+    "max_task_ms": 5099,
+    "median_task_ms": 1482,
+    "spill_bytes": 0
+  },
+  {
+    "run_type": "SALTED_16",
+    "rows": 20000000,
+    "duration_s": 10.19,
+    "output_rows": 20000000,
+    "sar_checksum": "50020661413.78",
+    "stage_id": 15,
+    "tasks": 72,
+    "skew_ratio": 9.9,
+    "max_task_ms": 2054,
+    "median_task_ms": 208,
+    "spill_bytes": 0
+  },
+  {
+    "run_type": "COMPACTION",
+    "files_before": 400,
+    "files_after": 1
+  }
+]
