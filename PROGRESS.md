@@ -8,13 +8,14 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 1 | Deterministic generator | DONE | 48 |
 | 2 | ZATCA engine (M1-2) | DONE | 93 |
 | 3 | Bronze + Silver (PySpark) | DONE | 133 |
-| 4 | Gold (dbt) | TODO | |
+| 4 | Gold (dbt) | DONE | 140 |
 | 5 | MDM (M4) | TODO | |
 | 6 | PDPL + NDMO (M5-6) | TODO | |
-| 7 | Skew (M7) | TODO — needs Docker | |
-| 8 | Orchestration | TODO — needs Docker | |
+| 7 | Skew (M7) | TODO (Docker installed; reboot pending) | |
+| 8 | Orchestration | TODO | |
 | 9 | Governed AI (M8) | TODO | |
 | 10 | Fabric deployment | TODO — needs tenant credentials in .env | |
+| 9b | Streaming (replay, KQL, docs) | TODO | |
 | 11 | Packaging | TODO | |
 
 ## Environment (checked 2026-11-13)
@@ -115,11 +116,40 @@ Bronze table for CRM/SPL); ADR-007 sign convention; ADR-008 adapter design. All 
 
 Tests: 133 passed (full suite about 12 min; `-m "not spark"` skips the Spark module). Ruff: clean.
 
+## Phase 4 — Gold in dbt (DONE)
+
+Run: `cd dbt; $env:MIZAN_LAKE_ROOT="../data/lake"; ..\.venv\Scripts\dbt.exe build --profiles-dir . --target duckdb`.
+
+Built in `dbt/`: one project, two targets (`duckdb` local/CI reading Silver Delta via `delta_scan`; `fabric` = WH_MIZAN
+via service principal from env vars). Models (all `table`, schema `gld`): `fact_merchant_settlement_recon` (key spine
+UNION of payments/settlement/GL keys, IN_TRANSIT + QUARANTINED legs, bank AND GL variance, unclassified_events),
+`fact_zatca_clearance_ledger`, `dim_date_saudi` (Fri+Sat weekend; Hijri added in Phase 5). ONE recon SQL file for both
+adapters (only `date_spine` dispatches per dialect). Generic tests `unique_combination`, `no_float_columns`; singular
+circuit breaker `assert_zero_unexplained_halala_variance`; source tests with accepted_values on every enum.
+`tests/test_gold_dbt.py` runs dbt in a child process (dbt-duckdb holds its file open in-process).
+
+Tests: 140 passed (full suite ~7 min). Ruff: clean. Local Spark pins the driver to 127.0.0.1 (WSL2 adapter broke hostname resolution).
+
+Result: main build green, recon closes to 0.00 on every MID-day; demo overlay fails ONLY the circuit breaker, on exactly
+the two planted MID-days (D05 orphan bank line, D06 0.01 GL drift).
+
 ## Open issues
 
-1. Docker Desktop (+ WSL2) needed before Phase 7: owner will install when asked.
-2. Owner to supply GitHub noreply identity; then rewrite commit authors.
+1. 2026-11-14: installed via winget — GitHub CLI 2.104, WSL2 (`wsl --install --no-distribution`), Docker Desktop
+   4.99, Azure CLI 2.92. **Windows reboot was pending** after WSL2.
+2. GitHub identity: after `gh auth login --web`, set user.name/email from `gh api user`
+   (`<id>+<login>@users.noreply.github.com`) and rewrite all commit authors BEFORE the first push.
 
 ## Next step
 
-Phase 4: Gold in dbt (dbt-fabric target for WH_MIZAN + local DuckDB target), recon mart + circuit breaker.
+Owner's end-to-end plan (2026-11-14), in order:
+1. After reboot: start Docker Desktop once (accept its terms), check `docker run hello-world`.
+2. Step C: `gh auth login --web` -> git identity -> rewrite commit authors -> create PRIVATE repo `mizan-ksa`,
+   add GitHub Actions CI, push, confirm CI green. Push after every phase.
+3. Step D: Phases 5 MDM -> 6 PDPL+NDMO -> 7 Skew (Docker) -> 8 Airflow+OpenLineage/Marquez (Docker) -> 9 Governed AI
+   -> 9b Streaming. Add tests if missing: CREDIT_NOTE posts to GL under its own uuid and replays post nothing;
+   slv.zatca_invoice_documents holds no cleartext buyer PII.
+4. Step E: `az login`; Fabric REST: workspace mizan-ksa-dev (trial capacity), LH_MIZAN (schemas enabled), WH_MIZAN,
+   EH_MIZAN, ES_MIZAN; service principal values only in .env; Phase 10 deploy + dbt build on WH_MIZAN + stream replay;
+   Power BI Control Tower (3 pages, PBIP/TMDL) + Fabric Data Agent; portal-only parts -> docs/PORTAL_STEPS.md.
+5. Step F / Phase 11: Playwright screenshots into docs/artifacts/, README, 10 ADRs, HONESTY.md, final list for owner.

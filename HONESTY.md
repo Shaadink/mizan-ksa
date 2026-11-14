@@ -36,3 +36,6 @@ This file states the boundaries of every claim. It is updated as each phase land
 | 3 | `brz.crm_party_raw` and `brz.spl_address_raw` are **added** Bronze tables. The spec lists CRM/SPL as sources but names no Bronze table for them. All spec-named tables are unchanged. | Stated |
 | 3 | Fee estimates on IN_TRANSIT rows use the same synthetic schedule the bank applies, so the estimate equals the eventual bank line. In reality the estimate would carry a tolerance until the file arrives. | Stated |
 | 3 | `subject_token_id` is keyed on the source customer reference (one token per source record). Linking several tokens to one person is MDM's job (Phase 5); erasure must then shred every linked token. | Stated |
+| 4 | Gold is proven on the **local DuckDB target** (reading the Silver Delta tables with `delta_scan`). The same dbt models target WH_MIZAN through dbt-fabric, but that run needs the tenant (Phase 10) and the Microsoft ODBC Driver 18 on the machine running dbt. | Stated |
+| 4 | The Gold recon SQL is the spec reference except the GL leg, which signs `amount_sar` by `debit_credit` (ADR-007). | Stated |
+| 4 | The "demo flag" is a separate overlay of two source files (orphan bank line, 0.01 float-drift GL line). The main build never loads them, so it stays green; loading them makes the circuit breaker fail on exactly those two MID-days (tested). | Stated |

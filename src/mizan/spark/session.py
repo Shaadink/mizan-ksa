@@ -48,6 +48,9 @@ def get_spark(mode: str = "local", *, app: str = "mizan-ksa", shuffle_partitions
                    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
                    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
                    .config("spark.jars.ivy", str(TOOLS / "ivy"))
+                   # pin the driver to loopback: virtual adapters (WSL2/Docker) otherwise break hostname resolution
+                   .config("spark.driver.host", "127.0.0.1")
+                   .config("spark.driver.bindAddress", "127.0.0.1")
                    .config("spark.sql.shuffle.partitions", str(shuffle_partitions))
                    .config("spark.ui.enabled", "false")
                    .config("spark.ui.showConsoleProgress", "false")

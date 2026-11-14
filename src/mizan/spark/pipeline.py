@@ -15,7 +15,7 @@ from pathlib import Path
 from mizan.privacy.crypto import Keys
 from mizan.spark import contracts as C
 from mizan.spark.bronze import land_files, land_invoice_requests
-from mizan.spark.lake import Lake
+from mizan.spark.lake import Lake, cleanup_staging
 from mizan.spark.session import TableLocator, get_spark
 from mizan.spark.silver import build_erp_gl_journal_lines, build_payment_lifecycle, build_settlement_lines
 from mizan.spark.zatca_land import run_zatca
@@ -27,23 +27,26 @@ def run_pipeline(data_dir: Path | str, lake_root: Path | str | None = None, *, m
     spark = spark or get_spark(mode)
     lake = Lake(spark, TableLocator(mode, Path(lake_root) if lake_root else None))
     keys = keys or Keys.from_env()
-    stats = []
-    stats += land_files(lake, keys, C.COMMERCE, [data / "orders/commerce_events.csv"], data)
-    stats.append(land_invoice_requests(lake, keys, data / "zatca/invoice_requests.jsonl", data))
-    stats += land_files(lake, keys, C.PAYMENTS, [data / "payments/payment_events.csv"], data)
-    stats += land_files(lake, keys, C.SETTLEMENT, sorted((data / "settlement").glob("*.csv")), data)
-    stats += land_files(lake, keys, C.ERP_GL, [data / "erp/erp_gl_acdoca.csv"], data)
+    plan = [(C.COMMERCE, [data / "orders/commerce_events.csv"]),
+            (C.PAYMENTS, [data / "payments/payment_events.csv"]),
+            (C.SETTLEMENT, sorted((data / "settlement").glob("*.csv"))),
+            (C.ERP_GL, [data / "erp/erp_gl_acdoca.csv"])]
     if include_demo:
-        stats += land_files(lake, keys, C.SETTLEMENT, [data / "demo/settlement_demo_orphan.csv"], data)
-        stats += land_files(lake, keys, C.ERP_GL, [data / "demo/erp_gl_demo_float_bug.csv"], data)
-    stats += land_files(lake, keys, C.CRM_POS, [data / "crm/crm_pos_cp1256.csv"], data)
-    stats += land_files(lake, keys, C.CRM_ECOM, [data / "crm/crm_ecom_utf8.csv"], data)
-    stats += land_files(lake, keys, C.SPL, [data / "crm/spl_address_observations.csv"], data)
-
-    build_payment_lifecycle(lake)
-    build_settlement_lines(lake, data)
-    build_erp_gl_journal_lines(lake, data)
+        plan += [(C.SETTLEMENT, [data / "demo/settlement_demo_orphan.csv"]),
+                 (C.ERP_GL, [data / "demo/erp_gl_demo_float_bug.csv"])]
+    plan += [(C.CRM_POS, [data / "crm/crm_pos_cp1256.csv"]), (C.CRM_ECOM, [data / "crm/crm_ecom_utf8.csv"]),
+             (C.SPL, [data / "crm/spl_address_observations.csv"])]
+    stats = [land_invoice_requests(lake, keys, data / "zatca/invoice_requests.jsonl", data)]
+    cleanup_staging(spark)
+    for contract, files in plan:
+        stats += land_files(lake, keys, contract, files, data)
+        cleanup_staging(spark)
+    for build in (build_payment_lifecycle, lambda lk: build_settlement_lines(lk, data),
+                  lambda lk: build_erp_gl_journal_lines(lk, data)):
+        build(lake)
+        cleanup_staging(spark)
     z = run_zatca(lake, data / "zatca/fatoora_fault_plan.json") if zatca else None
+    cleanup_staging(spark)
     return {"files": stats, "zatca": z}
 
 

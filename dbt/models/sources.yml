@@ -1,0 +1,55 @@
+version: 2
+
+# Silver lives in the Lakehouse. On Fabric, dbt reads it by three-part name LH_MIZAN.slv.<table> from WH_MIZAN.
+# Locally, dbt-duckdb reads the same Delta tables through delta_scan(external_location).
+sources:
+  - name: slv_lakehouse
+    database: "{{ 'LH_MIZAN' if target.type == 'fabric' else target.database }}"
+    schema: slv
+    meta:
+      external_location: "delta_scan('{{ env_var('MIZAN_LAKE_ROOT', '../data/lake') }}/LH_MIZAN/slv/{name}')"
+    tables:
+      - name: payment_lifecycle
+        columns:
+          - name: payment_event_id
+            data_tests: [not_null, unique]
+          - name: event_type
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["CAPTURE", "REFUND", "CHARGEBACK"]}
+          - name: merchant_id
+            data_tests: [not_null]
+          - name: business_date_ksa
+            data_tests: [not_null]
+      - name: settlement_lines
+        columns:
+          - name: payment_event_id
+            data_tests: [not_null, unique]          # contract: ONE row per payment_event_id
+          - name: settlement_status
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["PAID_BANK", "IN_TRANSIT", "QUARANTINED"]}
+      - name: erp_gl_journal_lines
+        columns:
+          - name: gl_account_role
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["CASH_ON_HAND", "CARD_CLEARING", "REVENUE", "VAT_OUTPUT", "CHARGEBACK_LOSS"]}
+          - name: debit_credit
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["S", "H"]}
+      - name: zatca_invoice_documents
+        columns:
+          - name: invoice_uuid
+            data_tests: [not_null, unique]
+          - name: invoice_flow
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["CLEARANCE", "REPORTING"]}
+          - name: state
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS", "CONFIRMED_REJECTION",
+                             "AUTH_HOLD", "UNKNOWN_OUTCOME", "SUBMITTING", "SIGNED"]

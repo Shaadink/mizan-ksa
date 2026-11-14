@@ -6,8 +6,6 @@ IN_TRANSIT expectation rows, zero bank variance on main data, orphan quarantine 
 """
 
 import json
-import secrets
-import shutil
 from collections import Counter
 
 import pytest
@@ -18,40 +16,6 @@ pytestmark = pytest.mark.spark
 from mizan.privacy import crypto  # noqa: E402
 
 GOLDEN_AR = "\u0645\u062D\u0645\u062F \u0628\u0644\u0627\u0644 \u0627\u0644\u0639\u062A\u064A\u0628\u064A"
-
-
-@pytest.fixture(scope="session")
-def spark():
-    from mizan.spark.session import get_spark
-    s = get_spark("local", shuffle_partitions=4)
-    yield s
-
-
-@pytest.fixture(scope="session")
-def test_keys():
-    return crypto.Keys(secrets.token_bytes(32), secrets.token_bytes(32))
-
-
-@pytest.fixture(scope="session")
-def lake_run(spark, gen_dir, test_keys, tmp_path_factory):
-    from mizan.spark.lake import Lake
-    from mizan.spark.pipeline import run_pipeline
-    from mizan.spark.session import TableLocator
-    root = tmp_path_factory.mktemp("lake")
-    first = run_pipeline(gen_dir, root, spark=spark, keys=test_keys)
-    snapshot = {t: Lake(spark, TableLocator("local", root)).read(*t.split(".")).count()
-                for t in ("brz.settlement_batches_raw", "brz.payment_events_raw", "brz.crm_party_raw",
-                          "slv.settlement_lines", "slv.payment_lifecycle", "ctl.invoice_outbox")}
-    demo_root = tmp_path_factory.mktemp("lake_demo")
-    shutil.copytree(root, demo_root, dirs_exist_ok=True)
-    replay = run_pipeline(gen_dir, root, spark=spark, keys=test_keys)      # I-12: replay everything
-    return {"root": root, "demo_root": demo_root, "first": first, "replay": replay, "snapshot": snapshot,
-            "lake": Lake(spark, TableLocator("local", root))}
-
-
-@pytest.fixture(scope="session")
-def lake(lake_run):
-    return lake_run["lake"]
 
 
 def files_by(run, source):
@@ -269,25 +233,16 @@ def test_zatca_control_plane_landed(lake):
 
 # ---------------------------------------------------------------- demo overlay (orphan + 0.01)
 
-def test_demo_overlay_orphan_quarantined_and_gl_corrected(spark, lake_run, gen_dir, test_keys, manifest):
-    from mizan.spark import contracts as C
-    from mizan.spark.bronze import land_files
-    from mizan.spark.lake import Lake
-    from mizan.spark.session import TableLocator
-    from mizan.spark.silver import build_erp_gl_journal_lines, build_settlement_lines
-    lk = Lake(spark, TableLocator("local", lake_run["demo_root"]))
-    land_files(lk, test_keys, C.SETTLEMENT, [gen_dir / "demo/settlement_demo_orphan.csv"], gen_dir)
-    st = land_files(lk, test_keys, C.ERP_GL, [gen_dir / "demo/erp_gl_demo_float_bug.csv"], gen_dir)[0]
-    assert st["corrections"] == 1
-    build_settlement_lines(lk, gen_dir)
-    build_erp_gl_journal_lines(lk, gen_dir)
+def test_demo_overlay_orphan_quarantined_and_gl_corrected(lake_run, manifest):
+    from decimal import Decimal
+    lk = lake_run["demo_lake"]
+    assert lake_run["demo_gl_stats"]["corrections"] == 1
     orphan = lk.read("slv", "settlement_lines").filter("payment_event_id = 'PE-9900001'").first()
     assert orphan["settlement_status"] == "QUARANTINED"
     assert lk.read("quarantine", "settlement_breaks").first()["break_type"] == "ORPHAN_BANK_LINE"
     d06 = next(d for d in manifest["defects"] if d["id"] == "D06")["location"]
-    line = lk.read("slv", "erp_gl_journal_lines").filter(
-        f"document_number = '{d06['BELNR']}' AND line_item = '{d06['DOCLN']}'").first()
+    where = f"document_number = '{d06['BELNR']}' AND line_item = '{d06['DOCLN']}'"
+    line = lk.read("slv", "erp_gl_journal_lines").filter(where).first()
+    base = lake_run["lake"].read("slv", "erp_gl_journal_lines").filter(where).first()
     assert line["is_correction"] is True
-    base = lake_run["lake"].read("slv", "erp_gl_journal_lines").filter(
-        f"document_number = '{d06['BELNR']}' AND line_item = '{d06['DOCLN']}'").first()
-    assert base["amount_sar"] - line["amount_sar"] == __import__("decimal").Decimal("0.01")
+    assert base["amount_sar"] - line["amount_sar"] == Decimal("0.01")

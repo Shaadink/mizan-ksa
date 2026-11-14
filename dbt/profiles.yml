@@ -1,0 +1,22 @@
+# No secrets in this file: every credential comes from the environment / git-ignored .env.
+mizan_ksa:
+  target: "{{ env_var('MIZAN_DBT_TARGET', 'duckdb') }}"
+  outputs:
+    duckdb:            # local test / CI target (allowed by the frozen stack)
+      type: duckdb
+      path: "{{ env_var('MIZAN_DUCKDB_PATH', '../tmp/mizan_gold.duckdb') }}"
+      schema: gld
+      extensions: ["delta"]
+      threads: 4
+    fabric:            # WH_MIZAN (Fabric Warehouse) via service principal
+      type: fabric
+      driver: "ODBC Driver 18 for SQL Server"
+      server: "{{ env_var('FABRIC_SQL_ENDPOINT', 'unset') }}"
+      port: 1433
+      database: WH_MIZAN
+      schema: gld
+      authentication: ServicePrincipal
+      tenant_id: "{{ env_var('FABRIC_TENANT_ID', 'unset') }}"
+      client_id: "{{ env_var('FABRIC_CLIENT_ID', 'unset') }}"
+      client_secret: "{{ env_var('FABRIC_CLIENT_SECRET', 'unset') }}"
+      threads: 4

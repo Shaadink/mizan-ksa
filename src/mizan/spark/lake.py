@@ -14,7 +14,8 @@ from mizan.spark.session import REPO, TableLocator
 def rows_to_df(spark, columns: list[str], rows: list[dict], casts: dict[str, str] | None = None):
     """Build a DataFrame from Python rows WITHOUT spawning Python workers (fragile + slow on Windows):
     write a UTF-8 staging CSV, read it natively, then cast. Binary values must be passed base64-encoded and
-    declared as 'binary_b64' in casts. Returns a cached, materialised DataFrame; the staging file is removed."""
+    declared as 'binary_b64' in casts. The DataFrame reads the staging file lazily (no cache, so no memory
+    build-up); call cleanup_staging() once the run has written everything."""
     from pyspark.sql import functions as F
     from pyspark.sql import types as T
     base = REPO / "tmp" / "staging"
@@ -38,10 +39,14 @@ def rows_to_df(spark, columns: list[str], rows: list[dict], casts: dict[str, str
             cols.append(F.col(c).cast(t).alias(c))
         else:
             cols.append(F.col(c))
-    df = df.select(*cols).cache()
-    df.count()
-    shutil.rmtree(stage, ignore_errors=True)
-    return df
+    return df.select(*cols)
+
+
+def cleanup_staging(spark=None) -> None:
+    """Remove staging files and drop cached data (end of a landing step / pipeline run)."""
+    if spark is not None:
+        spark.catalog.clearCache()
+    shutil.rmtree(REPO / "tmp" / "staging", ignore_errors=True)
 
 
 @dataclass

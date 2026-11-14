@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: fact_merchant_settlement_recon
+    description: "Halala-exact 3-way reconciliation at MID x business_date_ksa (spec Module 3)."
+    data_tests:
+      - unique_combination:
+          arguments: {columns: ["merchant_id", "business_date_ksa"]}
+      - no_float_columns
+    columns:
+      - name: merchant_id
+        data_tests: [not_null]
+      - name: business_date_ksa
+        data_tests: [not_null]
+  - name: fact_zatca_clearance_ledger
+    data_tests: [no_float_columns]
+    columns:
+      - name: invoice_uuid
+        data_tests: [not_null, unique]
+      - name: state
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS"]}
+      - name: invoice_flow
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["CLEARANCE", "REPORTING"]}
+  - name: dim_date_saudi
+    columns:
+      - name: date_key
+        data_tests: [not_null, unique]
+      - name: is_saudi_weekend
+        data_tests:
+          - accepted_values:
+              arguments: {values: [0, 1]}

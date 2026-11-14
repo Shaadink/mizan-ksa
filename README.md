@@ -27,8 +27,12 @@ Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub Act
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,spark,dbt]"
+.\.venv\Scripts\python.exe scripts\init_local_env.py              # local dev keys into .env
 .\.venv\Scripts\python.exe -m mizan.generator --out data/generated   # ~100K rows, fixed seed
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m mizan.clearance                           # ZATCA chain over all requests
+.\.venv\Scripts\python.exe -m mizan.spark.pipeline --lake data/lake       # Bronze + Silver (Delta)
+cd dbt; $env:MIZAN_LAKE_ROOT="../data/lake"; ..\.venv\Scripts\dbt.exe build --profiles-dir . --target duckdb; cd ..
+.\.venv\Scripts\python.exe -m pytest -q                                  # ~15 min; add -m "not spark" for ~1 min
 .\.venv\Scripts\python.exe -m ruff check src tests
 ```

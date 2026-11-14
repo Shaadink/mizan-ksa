@@ -1,0 +1,20 @@
+name: mizan_ksa
+version: "1.0.0"
+config-version: 2
+profile: mizan_ksa
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "logs"]
+
+models:
+  mizan_ksa:
+    gold:
+      +materialized: table   # Gold as tables so Direct Lake never falls back to DirectQuery (spec 5 / rule 3)
+      +schema: gld
+
+data_tests:
+  mizan_ksa:
+    +severity: error
