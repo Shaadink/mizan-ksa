@@ -83,9 +83,14 @@ def ensure_deks(lake: Lake, keys: crypto.Keys, tokens) -> dict[str, bytes]:
     (zero deleted-file retention). Shredded subjects get no DEK at all, so nothing new can be landed for them."""
     spark = lake.spark
     existing: dict[str, bytes | None] = {}
+    if lake.exists("ctl", "deletion_tombstones"):      # Restore Guard: an erased subject never gets a key again
+        for r in lake.read("ctl", "deletion_tombstones").select("subject_token_id").collect():
+            existing[r["subject_token_id"]] = None
     if lake.exists("security", "pii_vault_metadata"):
         for r in lake.read("security", "pii_vault_metadata").select(
                 "subject_token_id", "wrapped_dek", "dek_status").collect():
+            if r["subject_token_id"] in existing and existing[r["subject_token_id"]] is None:
+                continue                                 # tombstoned: ignore any (restored) key
             existing[r["subject_token_id"]] = (bytes(r["wrapped_dek"]) if r["dek_status"] == "ACTIVE"
                                                and r["wrapped_dek"] is not None else None)
     out: dict[str, bytes] = {}
@@ -112,6 +117,26 @@ def ensure_deks(lake: Lake, keys: crypto.Keys, tokens) -> dict[str, bytes]:
     return out
 
 
+def ensure_token_map(lake: Lake, keys: crypto.Keys, refs: dict[str, tuple[str, str]]) -> int:
+    """security.subject_token_map: token -> source identity, encrypted under the KEK (purpose-bound). This is the
+    re-identification link; PDPL erasure DELETES the row. Tombstoned subjects are never re-linked."""
+    if not refs:
+        return 0
+    known: set[str] = set()
+    for schema, table in (("security", "subject_token_map"), ("ctl", "deletion_tombstones")):
+        if lake.exists(schema, table):
+            known |= {r[0] for r in lake.read(schema, table).select("subject_token_id").collect()}
+    rows = [{"subject_token_id": t, "source_system": src,
+             "source_ref_enc": crypto.encrypt_with_kek(keys, f"TOKEN_MAP|{t}", ref)}
+            for t, (src, ref) in sorted(refs.items()) if t not in known]
+    if rows:
+        df = rows_to_df(lake.spark, ["subject_token_id", "source_system", "source_ref_enc"], rows)
+        df = df.withColumn("created_at", F.current_timestamp())
+        first = not lake.exists("security", "subject_token_map")
+        lake.write(df, "security", "subject_token_map", "append", props=VAULT_PROPS if first else None)
+    return len(rows)
+
+
 # ----------------------------------------------------------------------------- python adapter
 
 def _prepare_rows(lake: Lake, keys: crypto.Keys, c: Contract, rows: list[dict]) -> tuple[list[str], list[dict]]:
@@ -129,6 +154,9 @@ def _prepare_rows(lake: Lake, keys: crypto.Keys, c: Contract, rows: list[dict]) 
     tokens = {crypto.token_for(keys.hmac_key, r.get(c.subject_col)) for r in rows} if c.subject_col else set()
     tokens.discard(None)
     deks = ensure_deks(lake, keys, tokens) if tokens else {}
+    if c.subject_col:
+        ensure_token_map(lake, keys, {crypto.token_for(keys.hmac_key, r[c.subject_col]): (c.source, r[c.subject_col])
+                                      for r in rows if r.get(c.subject_col)})
     clean_status = "DECODED_CP1256" if c.encoding == "cp1256" else "CLEAN"
     hash_key = c.subject_col is not None  # rows that carried PII get an HMAC'd payload hash
 
@@ -314,6 +342,9 @@ def land_invoice_requests(lake: Lake, keys: crypto.Keys, path: Path, data_dir: P
                        "subject_token_id": crypto.token_for(keys.hmac_key, q.get("customer_ref")),
                        "payload_json": payload_json,
                        "_payload_hash": hashlib.sha256(payload_json.encode()).hexdigest()})
+    ensure_token_map(lake, keys, {crypto.token_for(keys.hmac_key, q["customer_ref"]): ("zatca_requests",
+                                                                                      q["customer_ref"])
+                                  for q in reqs if q.get("customer_ref")})
     stage = _stage_dir()
     _write_stage(stage / "zatca.csv", cols, staged)
     df = _read_stage(spark, stage / "zatca.csv", cols)

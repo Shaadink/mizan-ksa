@@ -53,3 +53,78 @@ sources:
                   arguments:
                     values: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS", "CONFIRMED_REJECTION",
                              "AUTH_HOLD", "UNKNOWN_OUTCOME", "SUBMITTING", "SIGNED"]
+      - name: golden_party_scd2
+        columns:
+          - name: golden_id
+            data_tests: [not_null]
+          - name: party_type
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["PERSON", "ORGANIZATION"]}
+          - name: status
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["ACTIVE", "RETIRED"]}
+      - name: identifier_registry
+        columns:
+          - name: id_type
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["NATIONAL_ID", "IQAMA", "VAT", "UNIFIED_700"]}
+          - name: validation_status
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["VALID_CHECKSUM", "INVALID_CHECKSUM", "VALID_FORMAT", "FORMAT_ONLY",
+                                       "INVALID_FORMAT"]}
+      - name: entity_merge_ledger
+        columns:
+          - name: merge_event_id
+            data_tests: [not_null, unique]
+          - name: action
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["MERGE", "UNMERGE"]}
+      - name: address_observations
+        columns:
+          - name: observation_id
+            data_tests: [not_null, unique]
+          - name: format_status
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["VALID_4L4D", "INVALID_FORMAT"]}
+
+  - name: quarantine_lakehouse
+    database: "{{ 'LH_MIZAN' if target.type == 'fabric' else target.database }}"
+    schema: quarantine
+    meta:
+      external_location: "delta_scan('{{ env_var('MIZAN_LAKE_ROOT', '../data/lake') }}/LH_MIZAN/quarantine/{name}')"
+    tables:
+      - name: mdm_match_conflicts
+        columns:
+          - name: conflict_id
+            data_tests: [not_null, unique]
+          - name: status
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["OPEN", "RESOLVED"]}
+          - name: conflict_type
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["AMBIGUOUS_IDLESS_MATCH", "IDENTIFIER_COLLISION"]}
+
+  - name: meta_lakehouse
+    database: "{{ 'LH_MIZAN' if target.type == 'fabric' else target.database }}"
+    schema: meta
+    meta:
+      external_location: "delta_scan('{{ env_var('MIZAN_LAKE_ROOT', '../data/lake') }}/LH_MIZAN/meta/{name}')"
+    tables:
+      - name: column_classification
+        columns:
+          - name: classification
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["PUBLIC", "CONFIDENTIAL", "SECRET", "TOP_SECRET"]}
+          - name: legal_hold_class
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["TAX", "SAMA", "CONSENT"]}

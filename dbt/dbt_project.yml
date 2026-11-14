@@ -18,3 +18,15 @@ models:
 data_tests:
   mizan_ksa:
     +severity: error
+
+seeds:
+  mizan_ksa:
+    +schema: gld
+    umm_al_qura_calendar:
+      +column_types: {calendar_date: date, hijri_year: int, hijri_month: int, hijri_day: int,
+                      calendar_version: varchar(32)}
+    # Official moon-sighting announcements that differ from the Umm al-Qura table. Empty by default:
+    # rows are added when an announcement is published (never invented). Mechanism tested in tests/test_gold_dbt.py.
+    hijri_announcement_overrides:
+      +column_types: {hijri_year: int, hijri_month: int, announced_start_date: date,
+                      announcement_ref: varchar(200), override_version: varchar(32)}

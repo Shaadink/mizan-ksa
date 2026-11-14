@@ -9,11 +9,11 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 2 | ZATCA engine (M1-2) | DONE | 93 |
 | 3 | Bronze + Silver (PySpark) | DONE | 133 |
 | 4 | Gold (dbt) | DONE | 140 |
-| 5 | MDM (M4) | TODO | |
-| 6 | PDPL + NDMO (M5-6) | TODO | |
+| 5 | MDM (M4) | DONE | 177 (with 6) |
+| 6 | PDPL + NDMO (M5-6) | DONE | 177 |
 | 7 | Skew (M7) | TODO (Docker installed; reboot pending) | |
 | 8 | Orchestration | TODO | |
-| 9 | Governed AI (M8) | TODO | |
+| 9 | Governed AI (M8) | IN PROGRESS (unit layer done, 18 tests) | |
 | 10 | Fabric deployment | TODO — needs tenant credentials in .env | |
 | 9b | Streaming (replay, KQL, docs) | TODO | |
 | 11 | Packaging | TODO | |
@@ -133,12 +133,44 @@ Tests: 140 passed (full suite ~7 min). Ruff: clean. Local Spark pins the driver 
 Result: main build green, recon closes to 0.00 on every MID-day; demo overlay fails ONLY the circuit breaker, on exactly
 the two planted MID-days (D05 orphan bank line, D06 0.01 GL drift).
 
+## Phase 5 — MDM, Module 4 (DONE; committed together with Phase 6)
+
+Built: `mdm/engine.py` (pure Python: Typed Identifier Registry 1x/2x Modulo-10, VAT 3..3, 700 format-only;
+deterministic ladder ANCHOR -> ID-less name-compatible + shared phone with exactly ONE candidate -> else steward queue;
+append-only ledger fold = membership; steward pins; survivorship: clean source, plain spelling over tashkeel/ligature,
+full English name), `spark/mdm_land.py` (decrypts in driver memory only; writes slv.golden_party_scd2 (SCD2),
+slv.identifier_registry, slv.entity_merge_ledger, slv.address_observations (SPL 4L+4D, canonicalised),
+quarantine.mdm_match_conflicts; `apply_steward_decision`). dbt: `dim_party_golden`, `dim_date_saudi` with versioned
+Umm al-Qura seed (`scripts/build_hijri_seed.py`, .NET UmAlQuraCalendar, `UAQ_DOTNET_V1`) + announcement-override seed
+(shipped empty; mechanism tested with a test-only row). ADR-009.
+
+Result: 3,985 records -> 2,552 golden profiles; D11 five spellings -> 1 golden (anchor = IQAMA); D10 brothers separate;
+ID-less third -> 1 OPEN conflict; replay appends 0 ledger events; partition equals an independent answer key built from
+the CSVs (54 cross-script ID-less records stay separate by design: no transliteration).
+
+## Phase 6 — PDPL + NDMO, Modules 5-6 (DONE)
+
+Built: Bronze writes `security.subject_token_map` (KEK-encrypted token -> source ref) and refuses DEKs for tombstoned
+tokens; `privacy/pdpl.py` (`execute_dsr`: resolve via ID HMAC + golden membership to every token, reference decision
+fails closed, vault NULL+SHREDDED, VACUUM 0h on vault and token map, tombstones, MDM re-resolve, audit.pdpl_dsr_evidence
+with tax totals before/after; `restore_guard`), `governance/catalog.py` (NDMO 4 tiers by ordered rules, table inherits max
+tier, over-classification, fail-closed legal_hold_class per table, residency policy + gate), `governance/residency_gate.py`
+(CLI), `config/residency_policy.yml`, `spark/governance_land.py` (meta.column_classification). dbt: `mart_ndmo_scorecard`
+(6 quality dimensions + over-classification). ADR-010. Extra tests asked by the owner: CREDIT_NOTE posts under its own
+uuid and a full replay posts/sends nothing; slv.zatca_invoice_documents holds no cleartext buyer PII.
+
+Result: DSR on the D11 customer shreds 5 linked tokens, 18 journal rows LEGAL_HOLD_RETAINED, tax totals identical;
+vault time travel cannot return the key; restoring a pre-erasure vault backup + RESTORE of Silver is re-shredded by the
+guard; demo dbt build fails only the circuit breaker and SKIPS the downstream scorecard. Residency gate: 0 violations.
+
+Tests: 177 passed (full ~11 min). Ruff: clean.
+
 ## Open issues
 
 1. 2026-11-14: installed via winget — GitHub CLI 2.104, WSL2 (`wsl --install --no-distribution`), Docker Desktop
    4.99, Azure CLI 2.92. **Windows reboot was pending** after WSL2.
-2. GitHub identity: after `gh auth login --web`, set user.name/email from `gh api user`
-   (`<id>+<login>@users.noreply.github.com`) and rewrite all commit authors BEFORE the first push.
+2. GitHub: signed in as Shaadink (2026-11-14); repo-local identity `Shadin K <207139190+Shaadink@users.noreply.github.com>`;
+   `gh auth setup-git` done. Commit authors rewritten before the first push.
 
 ## Next step
 

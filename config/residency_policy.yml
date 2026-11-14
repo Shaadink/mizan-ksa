@@ -1,0 +1,37 @@
+# Residency / classification policy for the CI gate (src/mizan/governance/catalog.py, I-14).
+# A column may land in a zone only if its NDMO tier <= max_classification;
+# SECRET and TOP_SECRET data only in an approved region.
+approved_secret_regions:
+  - KSA
+
+zones:
+  - zone: LH_MIZAN.brz
+    max_classification: SECRET
+    region: KSA
+  - zone: LH_MIZAN.ctl
+    max_classification: CONFIDENTIAL
+    region: KSA
+  - zone: LH_MIZAN.slv
+    max_classification: SECRET
+    region: KSA
+  - zone: LH_MIZAN.quarantine
+    max_classification: SECRET
+    region: KSA
+  - zone: LH_MIZAN.security
+    max_classification: TOP_SECRET
+    region: KSA
+  - zone: LH_MIZAN.audit
+    max_classification: TOP_SECRET
+    region: KSA
+  - zone: LH_MIZAN.meta
+    max_classification: CONFIDENTIAL
+    region: KSA
+  - zone: LH_MIZAN.ai
+    max_classification: CONFIDENTIAL
+    region: KSA
+  - zone: WH_MIZAN.gld          # analytics: open to BI users, so nothing SECRET may land here
+    max_classification: CONFIDENTIAL
+    region: KSA
+  - zone: EXPORT.open_data
+    max_classification: PUBLIC
+    region: GLOBAL

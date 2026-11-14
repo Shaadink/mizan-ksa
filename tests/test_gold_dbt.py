@@ -8,6 +8,7 @@ Proves on generated data:
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from decimal import Decimal
@@ -27,15 +28,15 @@ class BuildResult:
         self.success, self.output = success, output
 
 
-def dbt_build(lake_root: Path, duck: Path, tmp: Path):
+def dbt_build(lake_root: Path, duck: Path, tmp: Path, project: Path = DBT_DIR, extra: tuple = ()):
     """Run `dbt build` in a child process: dbt-duckdb keeps its connection open for the life of the process,
     which would block the test's own read-only connection to the same file."""
     env = {**os.environ, "MIZAN_LAKE_ROOT": Path(lake_root).as_posix(), "MIZAN_DUCKDB_PATH": duck.as_posix(),
            "MIZAN_DBT_TARGET": "duckdb"}
     code = ("import sys; from dbt.cli.main import dbtRunner; "
             "r = dbtRunner().invoke(sys.argv[1:]); sys.exit(0 if r.success else 1)")
-    args = ["build", "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR),
-            "--target-path", str(tmp / "target"), "--log-path", str(tmp / "logs"), "--quiet"]
+    args = ["build", "--project-dir", str(project), "--profiles-dir", str(project),
+            "--target-path", str(tmp / "target"), "--log-path", str(tmp / "logs"), "--quiet", *extra]
     proc = subprocess.run([sys.executable, "-c", code, *args], env=env, capture_output=True, text=True,
                           encoding="utf-8", errors="replace", timeout=900)
     results = json.loads((tmp / "target" / "run_results.json").read_text(encoding="utf-8"))["results"]
@@ -109,8 +110,10 @@ def test_money_columns_are_decimal_18_2(gold_main):
 
 def test_demo_build_fails_only_on_the_planted_breaks(gold_demo, manifest):
     assert not gold_demo["res"].success
-    failing = {k for k, v in gold_demo["statuses"].items() if v not in ("pass", "success")}
+    failing = {k for k, v in gold_demo["statuses"].items() if v in ("fail", "error")}
     assert failing == {BREAKER}                     # every other model and test still passes
+    skipped = {k for k, v in gold_demo["statuses"].items() if v == "skipped"}
+    assert skipped and all("mart_ndmo_scorecard" in k for k in skipped)   # the breaker stops downstream marts
     d05 = next(d for d in manifest["defects"] if d["id"] == "D05")["location"]
     d06 = next(d for d in manifest["defects"] if d["id"] == "D06")["location"]
     rows = query(gold_demo["duck"], BREAK_SQL)
@@ -137,3 +140,75 @@ def test_dim_date_saudi_weekend(gold_main):
         SELECT CAST(calendar_date AS VARCHAR), is_saudi_weekend FROM gld.dim_date_saudi
         WHERE calendar_date BETWEEN DATE '2026-02-12' AND DATE '2026-02-15'"""))
     assert rows == {"2026-02-12": 0, "2026-02-13": 1, "2026-02-14": 1, "2026-02-15": 0}   # Thu, Fri, Sat, Sun
+
+
+# ---------------------------------------------------------------- Phase 5: Hijri calendar + golden parties
+
+def test_dim_date_saudi_umm_al_qura(gold_main):
+    rows = {r[0]: r[1:] for r in query(gold_main["duck"], """
+        SELECT CAST(calendar_date AS VARCHAR), hijri_year, hijri_month, hijri_day, hijri_month_name, ramadan_day,
+               is_override_adjusted
+        FROM gld.dim_date_saudi WHERE calendar_date IN (DATE '2025-03-01', DATE '2026-02-17', DATE '2026-02-18',
+                                                       DATE '2026-03-19', DATE '2026-03-20')""")}
+    assert rows["2025-03-01"][:4] == (1446, 9, 1, "RAMADAN")
+    assert rows["2026-02-17"][:3] == (1447, 8, 29)
+    assert rows["2026-02-18"] == (1447, 9, 1, "RAMADAN", 1, 0)
+    assert rows["2026-03-19"][:3] == (1447, 9, 30)
+    assert rows["2026-03-20"][:4] == (1447, 10, 1, "SHAWWAL")
+    (ramadan_days,), = query(gold_main["duck"], "SELECT COUNT(*) FROM gld.dim_date_saudi WHERE hijri_year = 1447 "
+                                                "AND is_ramadan = 1")
+    assert ramadan_days == 30
+
+
+def test_hijri_announcement_override_renumbers_days(lake_run, tmp_path_factory):
+    """Test-only override (not a real announcement): Ramadan 1447 announced one day later."""
+    tmp = tmp_path_factory.mktemp("dbt_override")
+    proj = tmp / "dbt"
+    shutil.copytree(DBT_DIR, proj, ignore=shutil.ignore_patterns("target", "logs"))
+    seed = proj / "seeds/hijri_announcement_overrides.csv"
+    seed.write_bytes(seed.read_bytes() + b"1447,9,2026-02-19,TEST-FIXTURE-NOT-REAL,ANN_TEST_1\n")
+    duck = tmp / "gold.duckdb"
+    res, _ = dbt_build(lake_run["root"], duck, tmp, proj, ("--select", "+dim_date_saudi"))
+    assert res.success, res.output[-2000:]
+    rows = {r[0]: r[1:] for r in query(duck, """
+        SELECT CAST(calendar_date AS VARCHAR), hijri_month, hijri_day, is_override_adjusted, calendar_version
+        FROM gld.dim_date_saudi WHERE calendar_date BETWEEN DATE '2026-02-18' AND DATE '2026-03-20'
+        ORDER BY 1""")}
+    assert rows["2026-02-18"] == (8, 30, 1, "UAQ_DOTNET_V1+ANNOUNCEMENT")    # Shaban grows to 30 days
+    assert rows["2026-02-19"][:3] == (9, 1, 1)
+    assert rows["2026-03-19"][:2] == (9, 29)                              # Ramadan shrinks to 29 days
+    assert rows["2026-03-20"] == (10, 1, 0, "UAQ_DOTNET_V1")              # Shawwal untouched
+
+
+def test_dim_party_golden(gold_main, lake_run):
+    (n, five, anchored, none_anchor), = query(gold_main["duck"], """
+        SELECT COUNT(*), MAX(member_count), SUM(has_verified_anchor),
+               SUM(CASE WHEN anchor_id_type = 'NONE' THEN 1 ELSE 0 END) FROM gld.dim_party_golden""")
+    assert n == lake_run["first"]["mdm"]["goldens"] and five == 5
+    assert anchored + none_anchor == n and none_anchor == lake_run["first"]["mdm"]["new_goldens_without_anchor"]
+    pii_like = query(gold_main["duck"], """
+        SELECT column_name FROM information_schema.columns WHERE table_schema = 'gld'
+          AND table_name = 'dim_party_golden' AND (column_name LIKE '%name%' OR column_name LIKE '%hmac%'
+               OR column_name LIKE '%enc' OR column_name LIKE '%mobile%' OR column_name LIKE '%token%')""")
+    assert pii_like == []
+
+
+# ---------------------------------------------------------------- Phase 6: NDMO scorecard + residency gate
+
+def test_mart_ndmo_scorecard(gold_main):
+    q = {r[0]: r[1:] for r in query(gold_main["duck"], """
+        SELECT dimension, score_pct, status FROM gld.mart_ndmo_scorecard WHERE metric_family = 'DATA_QUALITY'""")}
+    assert set(q) == {"COMPLETENESS", "UNIQUENESS", "VALIDITY", "CONSISTENCY", "TIMELINESS", "ACCURACY"}
+    assert all(status == "PASS" for _, status in q.values()), q
+    assert q["UNIQUENESS"][0] == Decimal("100.00") and q["CONSISTENCY"][0] == Decimal("100.00")
+    split = query(gold_main["duck"], """
+        SELECT subject_table, table_classification FROM gld.mart_ndmo_scorecard
+        WHERE metric_family = 'CLASSIFICATION' AND status = 'SPLIT_RECOMMENDED' ORDER BY 1""")
+    assert ("brz.crm_party_raw", "SECRET") in split
+
+
+def test_residency_gate_passes_on_real_lake_and_gold(gold_main, lake_run, capsys):
+    from mizan.governance.residency_gate import main
+    assert main(["--lake", str(lake_run["root"]), "--duckdb", str(gold_main["duck"])]) == 0
+    out = capsys.readouterr().out
+    assert "0 violations" in out

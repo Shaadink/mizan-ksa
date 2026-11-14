@@ -202,3 +202,24 @@ def test_crash_leaves_submitting_and_new_worker_recovers(requests):
     expected = "CLEARED" if r["invoice_flow"] == "CLEARANCE" else "REPORTED"
     assert w2.submit(u) == expected
     assert len(set(sent_hashes(client, r["request_id"]))) == 1
+
+
+# ---------------------------------------------------------------- credit notes + replay (GL idempotency)
+
+def test_credit_note_posts_under_its_own_uuid_and_replay_posts_nothing(requests, plan):
+    cns = [r for r in requests if r["document_type"] == "CREDIT_NOTE"][:25]
+    originals = {r["billing_reference_uuid"] for r in cns}
+    subset = sorted([r for r in requests if r["invoice_uuid"] in originals] + cns, key=lambda r: r["issue_ts_utc"])
+    client = MockFatoora(plan)
+    run = process_requests(subset, client)
+    for cn in cns:
+        row = run.store.get(cn["invoice_uuid"])
+        assert row.document_type == "CREDIT_NOTE"
+        assert row.gl_key == cn["invoice_uuid"] != cn["billing_reference_uuid"]
+        assert run.gl.accounting_postings(cn["invoice_uuid"]) == 1
+        assert run.gl.postings[cn["invoice_uuid"]]["amount_sar"] == cn["total_incl_vat_sar"]   # positive amount
+        assert run.gl.accounting_postings(cn["billing_reference_uuid"]) == 1                   # sale posted apart
+    assert_one_posting_per_sale(run)
+    calls, http = dict(run.gl.calls), len(client.log)
+    process_requests(subset, client, store=run.store, gl=run.gl)                                # full replay
+    assert run.gl.calls == calls and len(client.log) == http                                    # nothing posted/sent

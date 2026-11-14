@@ -15,14 +15,17 @@ from pathlib import Path
 from mizan.privacy.crypto import Keys
 from mizan.spark import contracts as C
 from mizan.spark.bronze import land_files, land_invoice_requests
+from mizan.spark.governance_land import run_governance
 from mizan.spark.lake import Lake, cleanup_staging
+from mizan.spark.mdm_land import run_mdm
 from mizan.spark.session import TableLocator, get_spark
 from mizan.spark.silver import build_erp_gl_journal_lines, build_payment_lifecycle, build_settlement_lines
 from mizan.spark.zatca_land import run_zatca
 
 
 def run_pipeline(data_dir: Path | str, lake_root: Path | str | None = None, *, mode: str = "local",
-                 include_demo: bool = False, zatca: bool = True, spark=None, keys: Keys | None = None) -> dict:
+                 include_demo: bool = False, zatca: bool = True, mdm: bool = True, spark=None,
+                 keys: Keys | None = None) -> dict:
     data = Path(data_dir)
     spark = spark or get_spark(mode)
     lake = Lake(spark, TableLocator(mode, Path(lake_root) if lake_root else None))
@@ -45,9 +48,13 @@ def run_pipeline(data_dir: Path | str, lake_root: Path | str | None = None, *, m
                   lambda lk: build_erp_gl_journal_lines(lk, data)):
         build(lake)
         cleanup_staging(spark)
+    m = run_mdm(lake, keys) if mdm else None
+    cleanup_staging(spark)
     z = run_zatca(lake, data / "zatca/fatoora_fault_plan.json") if zatca else None
     cleanup_staging(spark)
-    return {"files": stats, "zatca": z}
+    g = run_governance(lake)                 # NDMO catalog last: it must see every table the run wrote
+    cleanup_staging(spark)
+    return {"files": stats, "zatca": z, "mdm": m, "governance": g}
 
 
 def main() -> None:
@@ -63,6 +70,8 @@ def main() -> None:
     for s in res["files"]:
         print(f"{s['status']:>22} {s['source_file']:<52} rows={s['source_rows']:>6} landed={s['landed_rows']:>6} "
               f"dup={s['duplicate_rows']:>5} rej={s['rejected_rows']:>3} sha_ok={s['sha_match']}")
+    print(json.dumps(res["mdm"]))
+    print(json.dumps(res["governance"]))
     print(json.dumps(res["zatca"]))
 
 

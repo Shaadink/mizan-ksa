@@ -84,6 +84,16 @@ class Lake:
     def sql(self, schema: str, table: str, alter_clause: str):
         return self.spark.sql(f"ALTER TABLE delta.`{self.path(schema, table)}` {alter_clause}")
 
+    def list_tables(self, schema: str) -> list[str]:
+        """Delta tables under one schema (Hadoop FS API: same code on local disk and OneLake)."""
+        jvm, conf = self.spark._jvm, self.spark._jsc.hadoopConfiguration()
+        base = jvm.org.apache.hadoop.fs.Path(self.path(schema, "_probe").rsplit("/", 1)[0])
+        fs = base.getFileSystem(conf)
+        if not fs.exists(base):
+            return []
+        names = [st.getPath().getName() for st in fs.listStatus(base) if st.isDirectory()]
+        return sorted(n for n in names if self.exists(schema, n))
+
     def ref(self, schema: str, table: str) -> str:
         """SQL reference usable in spark.sql() for this table."""
         return f"delta.`{self.path(schema, table)}`"

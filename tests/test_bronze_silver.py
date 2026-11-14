@@ -246,3 +246,21 @@ def test_demo_overlay_orphan_quarantined_and_gl_corrected(lake_run, manifest):
     base = lake_run["lake"].read("slv", "erp_gl_journal_lines").filter(where).first()
     assert line["is_correction"] is True
     assert base["amount_sar"] - line["amount_sar"] == Decimal("0.01")
+
+
+def test_zatca_invoice_documents_hold_no_cleartext_buyer_pii(lake, gen_dir):
+    """Signed XML (which embeds buyer details) lives ONLY in audit.zatca_chain_journal under legal hold."""
+    import json as _json
+
+    from tests_helpers_pii import cleartext_probes
+    docs = lake.read("slv", "zatca_invoice_documents")
+    assert not {c for c in docs.columns if "xml" in c or "buyer" in c or c == "customer_ref"}
+    probes = set(cleartext_probes(gen_dir, limit=5000))
+    for line in (gen_dir / "zatca/invoice_requests.jsonl").read_text(encoding="utf-8").splitlines():
+        q = _json.loads(line)
+        if q["customer_ref"]:
+            probes.add(q["customer_ref"])
+    cols = [f.name for f in docs.schema.fields if f.dataType.simpleString() == "string"]
+    cells = {v for row in docs.select(*cols).collect() for v in row if v}
+    assert not cells & probes
+    assert all(not any(p in v for p in probes if len(p) >= 8) for v in list(cells)[:2000])

@@ -26,10 +26,53 @@ models:
           - accepted_values:
               arguments: {values: ["CLEARANCE", "REPORTING"]}
   - name: dim_date_saudi
+    description: "Gregorian + versioned Umm al-Qura Hijri (official-announcement overrides), Fri+Sat weekend."
     columns:
       - name: date_key
         data_tests: [not_null, unique]
+      - name: hijri_date_key
+        data_tests: [not_null, unique]
+      - name: hijri_day
+        data_tests:
+          - accepted_values:
+              arguments: {values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                                   24, 25, 26, 27, 28, 29, 30]}
+      - name: hijri_month_name
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ["MUHARRAM", "SAFAR", "RABI_AL_AWWAL", "RABI_AL_THANI", "JUMADA_AL_ULA",
+                                   "JUMADA_AL_AKHIRAH", "RAJAB", "SHABAN", "RAMADAN", "SHAWWAL", "DHU_AL_QADAH",
+                                   "DHU_AL_HIJJAH"]}
       - name: is_saudi_weekend
         data_tests:
           - accepted_values:
               arguments: {values: [0, 1]}
+  - name: dim_party_golden
+    description: "Current ACTIVE golden party profiles (Module 4). No PII columns."
+    columns:
+      - name: golden_id
+        data_tests: [not_null, unique]
+      - name: party_type
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["PERSON", "ORGANIZATION"]}
+      - name: anchor_id_type
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["NATIONAL_ID", "IQAMA", "VAT", "UNIFIED_700", "NONE"]}
+  - name: mart_ndmo_scorecard
+    description: "NDMO six quality dimensions + over-classification per Lakehouse table (Module 6)."
+    data_tests:
+      - no_float_columns
+      - unique_combination:
+          arguments: {columns: ["metric_family", "dimension", "subject_table"]}
+    columns:
+      - name: metric_family
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["DATA_QUALITY", "CLASSIFICATION"]}
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["PASS", "FAIL", "SPLIT_RECOMMENDED"]}
