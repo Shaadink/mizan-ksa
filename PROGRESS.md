@@ -310,6 +310,10 @@ Stage 2 "Fabric App foundation" DONE (2026-11-15):
   pass through `fabric-app-semantic-model-tools run-dax-query`. `npx rayfin dev --yes` created dev backend item
   `command-center` in mizan-ksa-dev; local app at http://localhost:5173 (owner signs in to see "Live").
 - Tests: `tests/test_fabric_app.py`, `tests/test_stage2_seed.py`; CI job `fabric-app` (tsc + vitest).
+- Connectors do not run under `rayfin dev`; owner approved `npx rayfin up` (dry run shown first). DEPLOYED
+  2026-11-15 to the same item `command-center` (protected asset access, no database):
+  https://fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net . Redeploy: `cd apps/command-center; npx rayfin up
+  --workspace-id <ws>` (or `npx rayfin up staticapp deploy` for frontend-only changes).
 
 ## Open issues
 

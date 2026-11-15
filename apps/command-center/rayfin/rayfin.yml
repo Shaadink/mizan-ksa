@@ -8,6 +8,10 @@ services:
       enabled: true
     allowedRedirectUris:
       - http://localhost:5173
+      - http://localhost:5174
+      - http://127.0.0.1:5174
+      - http://127.0.0.1:5173
+      - https://fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net
   data:
     enabled: false
   storage:
@@ -17,6 +21,9 @@ services:
     folder: dist
     buildCommand: npm run build:fabric
     indexDocument: index.html
+    assetAccess: protected
+  functions:
+    enabled: false
 connectors:
   - name: mizan
     type: fabric-semanticmodel

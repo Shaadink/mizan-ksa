@@ -11,7 +11,13 @@ import { CONNECTOR, loadData, type Loaded, type Runner } from "./load";
 
 function runner(): Runner | null {
     if (!(CONNECTOR in connectorConfigs)) return null;
-    const connectors = getRayfinClient().connectors as unknown as Record<string, { executeQuery(a: { query: string }): Promise<unknown> }>;
+    let client;
+    try {
+        client = getRayfinClient();           // throws without deployment settings (tests, a plain `vite` preview)
+    } catch {
+        return null;                          // -> the labelled export snapshot
+    }
+    const connectors = client.connectors as unknown as Record<string, { executeQuery(a: { query: string }): Promise<unknown> }>;
     return async (query) => (await connectors[CONNECTOR].executeQuery({ query })) as Awaited<ReturnType<Runner>>;
 }
 
