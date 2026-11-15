@@ -33,9 +33,17 @@ table fact_merchant_settlement_recon
 		formatString: #,0.00
 		lineageTag: fcef89ac-ca0e-5682-a61e-0bb10b4604d0
 
-	measure 'Halala Breaks' = COUNTROWS(FILTER(fact_merchant_settlement_recon, fact_merchant_settlement_recon[unexplained_bank_variance_sar] <> 0 || fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0))
+	measure 'Halala Breaks' = COUNTROWS(FILTER(fact_merchant_settlement_recon, fact_merchant_settlement_recon[unexplained_bank_variance_sar] <> 0 || fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0)) + 0
 		formatString: 0
 		lineageTag: 48956889-54fe-5776-b43e-f2b18563c241
+
+	measure 'Merchants' = DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id])
+		formatString: #,0
+		lineageTag: 6837b638-b926-5159-b57c-a9da6baddd6c
+
+	measure 'MID Days' = COUNTROWS(fact_merchant_settlement_recon)
+		formatString: #,0
+		lineageTag: 7730cd34-58bf-5bb5-b929-fbadbe085e61
 
 	column merchant_id
 		dataType: string

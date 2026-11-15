@@ -40,34 +40,88 @@ MEASURES = {
         ("Unexplained GL Variance SAR", "SUM(fact_merchant_settlement_recon[unexplained_gl_variance_sar])", "#,0.00"),
         ("Halala Breaks", "COUNTROWS(FILTER(fact_merchant_settlement_recon, "
                           "fact_merchant_settlement_recon[unexplained_bank_variance_sar] <> 0 || "
-                          "fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0))", "0")],
+                          "fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0)) + 0", "0"),
+        ("Merchants", "DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id])", "#,0"),
+        ("MID Days", "COUNTROWS(fact_merchant_settlement_recon)", "#,0")],
     "fact_zatca_clearance_ledger": [
         ("Accepted Documents", "COUNTROWS(fact_zatca_clearance_ledger)", "#,0"),
         ("Documents Total SAR", "SUM(fact_zatca_clearance_ledger[total_incl_vat_sar])", "#,0.00"),
         ("Corrections", "COUNTROWS(FILTER(fact_zatca_clearance_ledger, "
-                        "NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid])))", "0")],
+                        "NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid])))", "0"),
+        ("Retried Documents", "COUNTROWS(FILTER(fact_zatca_clearance_ledger, "
+                              "fact_zatca_clearance_ledger[attempts] > 1))", "#,0"),
+        ("EGS Devices", "DISTINCTCOUNT(fact_zatca_clearance_ledger[egs_id])", "0")],
     "mart_ndmo_scorecard": [
         ("Quality Checks Passing", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), mart_ndmo_scorecard[status] = \"PASS\", "
                                    "mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\")", "0"),
         ("Tables Needing Split", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
-                                 "mart_ndmo_scorecard[status] = \"SPLIT_RECOMMENDED\")", "0")],
+                                 "mart_ndmo_scorecard[status] = \"SPLIT_RECOMMENDED\")", "0"),
+        ("Scorecard Checks", "COUNTROWS(mart_ndmo_scorecard)", "0"),
+        ("Average Score Pct", "AVERAGE(mart_ndmo_scorecard[score_pct])", "#,0.00"),
+        ("Threshold Pct", "AVERAGE(mart_ndmo_scorecard[threshold_pct])", "#,0.00"),
+        ("Quality Score Pct", "CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), "
+                              "mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\")", "#,0.00"),
+        ("Classified Tables", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
+                              "NOT ISBLANK(mart_ndmo_scorecard[table_classification]))", "0")],
 }
+# Layout grid for a 1280 x 720 page. Each visual: (kind, role-spec, (x, y, w, h), title).
+# Roles: ("m", measure) or ("c", table, column). Charts sort descending by their first Y measure.
+R, Z, N = "fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard"
+D = "dim_date_saudi"
+CARD_Y, CARD_H = 70, 88
+
+
+def _cards(measures: list[str]) -> list[tuple]:
+    w = (1240 - 10 * (len(measures) - 1)) // len(measures)
+    return [("card", {"Values": [("m", m)]}, (20 + i * (w + 10), CARD_Y, w, CARD_H), None)
+            for i, m in enumerate(measures)]
+
+
 PAGES = [
-    ("cfo_settlement", "CFO Settlement", [
-        ("card", "Gross Captures SAR"), ("card", "Bank Paid SAR"), ("card", "In Transit SAR"),
-        ("card", "Unexplained Bank Variance SAR"), ("card", "Unexplained GL Variance SAR"), ("card", "Halala Breaks"),
-        ("table", ("fact_merchant_settlement_recon", ["merchant_id", "business_date_ksa", "gross_captures_sar",
-                                                       "acquirer_fees_sar", "bank_paid_sar", "in_transit_sar",
-                                                       "gl_card_clearing_sar", "unexplained_bank_variance_sar",
-                                                       "unexplained_gl_variance_sar"]))]),
-    ("tax_zatca_health", "Tax ZATCA Health", [
-        ("card", "Accepted Documents"), ("card", "Documents Total SAR"), ("card", "Corrections"),
-        ("table", ("fact_zatca_clearance_ledger", ["egs_id", "invoice_flow", "document_type", "state", "icv",
-                                                    "issue_date_ksa", "total_incl_vat_sar"]))]),
-    ("cdo_data_trust", "CDO Data Trust", [
-        ("card", "Quality Checks Passing"), ("card", "Tables Needing Split"),
-        ("table", ("mart_ndmo_scorecard", ["metric_family", "dimension", "subject_table", "score_pct",
-                                            "threshold_pct", "status", "table_classification"]))]),
+    ("cfo_settlement", "CFO Settlement",
+     "Every halala reconciled: captures vs mada/SADAD bank file vs ERP card clearing. Variance must be SAR 0.00.",
+     _cards(["Gross Captures SAR", "Bank Paid SAR", "In Transit SAR", "Unexplained Bank Variance SAR",
+             "Unexplained GL Variance SAR", "Halala Breaks"]) + [
+        ("lineChart", {"Category": [("c", D, "calendar_date")],
+                       "Y": [("m", "Gross Captures SAR"), ("m", "Bank Paid SAR"), ("m", "GL Card Clearing SAR")]},
+         (20, 168, 800, 270), "Captures vs bank paid vs GL clearing by business day "
+         "(last day: bank file not yet arrived, T+1 in transit)"),
+        ("clusteredBarChart", {"Category": [("c", R, "merchant_id")], "Y": [("m", "Gross Captures SAR")]},
+         (830, 168, 430, 270), "Top merchants by gross captures"),
+        ("slicer", {"Values": [("c", R, "merchant_id")]}, (20, 450, 200, 255), "Merchant"),
+        ("tableEx", {"Values": [("c", R, c) for c in (
+            "merchant_id", "business_date_ksa", "gross_captures_sar", "acquirer_fees_sar", "bank_paid_sar",
+            "in_transit_sar", "gl_card_clearing_sar", "unexplained_bank_variance_sar",
+            "unexplained_gl_variance_sar")]}, (230, 450, 1030, 255), "Reconciliation by MID-day (key spine)")]),
+    ("tax_zatca_health", "Tax ZATCA Health",
+     "Phase-2 e-invoice chain: zero ICV gaps, transport failures (5xx/timeout) retried with identical UUID and bytes.",
+     _cards(["Accepted Documents", "Documents Total SAR", "Corrections", "Retried Documents", "EGS Devices"]) + [
+        ("donutChart", {"Category": [("c", Z, "state")], "Y": [("m", "Accepted Documents")]},
+         (20, 168, 380, 270), "Documents by ZATCA outcome"),
+        ("clusteredColumnChart", {"Category": [("c", Z, "egs_id")], "Y": [("m", "Accepted Documents")]},
+         (410, 168, 420, 270), "Documents per EGS device"),
+        ("clusteredColumnChart", {"Category": [("c", Z, "invoice_flow")],
+                                  "Y": [("m", "Documents Total SAR")]},
+         (840, 168, 420, 270), "SAR by flow (REPORTING = B2C, CLEARANCE = B2B)"),
+        ("slicer", {"Values": [("c", Z, "document_type")]}, (20, 450, 200, 255), "Document type"),
+        ("tableEx", {"Values": [("c", Z, c) for c in (
+            "egs_id", "icv", "invoice_flow", "document_type", "state", "attempts", "issue_date_ksa",
+            "total_incl_vat_sar", "corrects_invoice_uuid")]}, (230, 450, 1030, 255), "Clearance ledger")]),
+    ("cdo_data_trust", "CDO Data Trust",
+     "NDMO scorecard: data quality checks against thresholds and 4-tier classification "
+     "(TOP_SECRET / SECRET / CONFIDENTIAL / PUBLIC).",
+     _cards(["Scorecard Checks", "Quality Checks Passing", "Quality Score Pct", "Tables Needing Split"]) + [
+        ("clusteredBarChart", {"Category": [("c", N, "dimension")],
+                               "Y": [("m", "Average Score Pct"), ("m", "Threshold Pct")]},
+         (20, 168, 620, 270), "Score vs threshold by quality dimension"),
+        ("donutChart", {"Category": [("c", N, "status")], "Y": [("m", "Scorecard Checks")]},
+         (650, 168, 300, 270), "Checks by status"),
+        ("donutChart", {"Category": [("c", N, "table_classification")], "Y": [("m", "Classified Tables")]},
+         (960, 168, 300, 270), "Tables by NDMO classification"),
+        ("slicer", {"Values": [("c", N, "metric_family")]}, (20, 450, 200, 255), "Metric family"),
+        ("tableEx", {"Values": [("c", N, c) for c in (
+            "metric_family", "dimension", "subject_table", "numerator", "denominator", "score_pct",
+            "threshold_pct", "status", "table_classification")]}, (230, 450, 1030, 255), "NDMO scorecard")]),
 ]
 MEASURE_TABLE = {m: t for t, ms in MEASURES.items() for m, _, _ in ms}
 TYPE_MAP = {"varchar": "string", "char": "string", "nvarchar": "string", "int": "int64", "bigint": "int64",
@@ -108,6 +162,9 @@ def model_parts(cols: dict[str, list[tuple[str, str]]]) -> dict[str, str]:
     model += [f"ref table {t}" for t in TABLES]
     model += ["", "relationship " + tag("rel-recon-date"),
               "\tfromColumn: fact_merchant_settlement_recon.business_date_ksa",
+              "\ttoColumn: dim_date_saudi.calendar_date", "",
+              "relationship " + tag("rel-zatca-date"),
+              "\tfromColumn: fact_zatca_clearance_ledger.issue_date_ksa",
               "\ttoColumn: dim_date_saudi.calendar_date", ""]
     parts["definition/model.tmdl"] = "\n".join(model) + "\n"
     for t in TABLES:
@@ -163,32 +220,72 @@ def report_parts(model_id: str) -> dict[str, str]:
             "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/"
                        "1.0.0/schema.json", "pageOrder": [p[0] for p in PAGES], "activePageName": PAGES[0][0]}),
     }
-    for pid, title, visuals in PAGES:
+    for pid, title, subtitle, visuals in PAGES:
         parts[f"definition/pages/{pid}/page.json"] = json.dumps({
             "$schema": PAGE, "name": pid, "displayName": title, "displayOption": "FitToPage",
-            "height": 720, "width": 1280})
-        x = 0
-        for i, (kind, spec) in enumerate(visuals):
+            "height": 720, "width": 1280,
+            "objects": {"background": [{"properties": {"color": _solid(BG), "transparency": _lit("0D")}}]}})
+        for i, (kind, roles, (x, y, w, h), vtitle) in enumerate(visuals):
             vid = f"{pid}_v{i}"
-            if kind == "card":
-                pos = {"x": 20 + x, "y": 60, "z": i, "width": 195, "height": 110}
-                x += 205
-                visual = {"visualType": "card", "query": {"queryState": {
-                    "Values": {"projections": [_field_measure(spec)]}}}, "drillFilterOtherVisuals": True}
-            else:
-                t, columns = spec
-                pos = {"x": 20, "y": 190, "z": i, "width": 1240, "height": 510}
-                visual = {"visualType": "tableEx", "query": {"queryState": {
-                    "Values": {"projections": [_field_column(t, c) for c in columns]}}},
-                    "drillFilterOtherVisuals": True}
             parts[f"definition/pages/{pid}/visuals/{vid}/visual.json"] = json.dumps(
-                {"$schema": VIS, "name": vid, "position": pos, "visual": visual})
+                {"$schema": VIS, "name": vid, "position": {"x": x, "y": y, "z": i, "width": w, "height": h},
+                 "visual": _visual(kind, roles, vtitle)})
         parts[f"definition/pages/{pid}/visuals/{pid}_title/visual.json"] = json.dumps({
-            "$schema": VIS, "name": f"{pid}_title", "position": {"x": 20, "y": 8, "z": 99, "width": 900, "height": 44},
-            "visual": {"visualType": "textbox", "objects": {"general": [{"properties": {"paragraphs": [{
-                "textRuns": [{"value": f"MIZAN-KSA Control Tower: {title}",
-                              "textStyle": {"fontSize": "18pt", "fontWeight": "bold"}}]}]}}]}}})
+            "$schema": VIS, "name": f"{pid}_title", "position": {"x": 20, "y": 2, "z": 99, "width": 1240, "height": 64},
+            "visual": {"visualType": "textbox", "objects": {"general": [{"properties": {"paragraphs": [
+                {"textRuns": [{"value": f"MIZAN-KSA Control Tower  |  {title}",
+                               "textStyle": {"fontSize": "16pt", "fontWeight": "bold", "color": ACCENT}}]},
+                {"textRuns": [{"value": subtitle, "textStyle": {"fontSize": "9pt", "color": "#5B6770"}}]}]}}]}}})
     return parts
+
+
+BG, ACCENT = "#F4F6F8", "#0B6E4F"          # light page, Saudi green accent
+
+
+def _lit(v: str) -> dict:
+    return {"expr": {"Literal": {"Value": v}}}
+
+
+def _solid(color: str) -> dict:
+    return {"solid": {"color": _lit(f"'{color}'")}}
+
+
+def _proj(r: tuple) -> dict:
+    return _field_measure(r[1]) if r[0] == "m" else _field_column(r[1], r[2])
+
+
+def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None) -> dict:
+    query: dict = {"queryState": {role: {"projections": [_proj(r) for r in rs]} for role, rs in roles.items()}}
+    ys = [r for r in roles.get("Y", []) if r[0] == "m"]
+    if ys and kind in ("clusteredBarChart", "clusteredColumnChart", "donutChart"):
+        query["sortDefinition"] = {"sort": [{"field": _proj(ys[0])["field"], "direction": "Descending"}],
+                                   "isDefaultSort": True}
+    container = {"background": [{"properties": {"show": _lit("true"), "color": _solid("#FFFFFF"),
+                                                "transparency": _lit("0D")}}],
+                 "border": [{"properties": {"show": _lit("true"), "color": _solid("#DDE3E8"),
+                                            "radius": _lit("8D")}}],
+                 "dropShadow": [{"properties": {"show": _lit("true")}}]}
+    if title:
+        container["title"] = [{"properties": {"show": _lit("true"), "text": _lit("'" + title.replace("'", "''") + "'"),
+                                              "fontColor": _solid("#1F2A30")}}]
+    objects: dict = {}
+    if kind == "card":
+        m = roles["Values"][0][1]
+        units = "1000000D" if m.endswith("SAR") and "Variance" not in m else "1D"    # SAR in millions, counts exact
+        objects = {"labels": [{"properties": {"color": _solid(ACCENT), "fontSize": _lit("20D"),
+                                              "labelDisplayUnits": _lit(units)}}],
+                   "categoryLabels": [{"properties": {"show": _lit("true"), "fontSize": _lit("9D")}}]}
+    elif kind in ("lineChart", "clusteredBarChart", "clusteredColumnChart"):
+        objects = {"legend": [{"properties": {"show": _lit("true"), "position": _lit("'Top'")}}]}
+        if kind == "clusteredColumnChart" or (kind == "clusteredBarChart" and len(ys) == 1):
+            objects["dataPoint"] = [{"properties": {"fill": _solid(ACCENT)}}]
+            objects["legend"] = [{"properties": {"show": _lit("false")}}]
+    elif kind == "slicer":
+        objects = {"data": [{"properties": {"mode": _lit("'Basic'")}}]}
+    v = {"visualType": kind, "query": query, "visualContainerObjects": container, "drillFilterOtherVisuals": True}
+    if objects:
+        v["objects"] = objects
+    return v
 
 
 def upsert(kind: str, name: str, parts: dict[str, str], fmt: str | None = None) -> str:

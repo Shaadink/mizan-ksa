@@ -9,6 +9,26 @@ table mart_ndmo_scorecard
 		formatString: 0
 		lineageTag: 72a02a13-d36e-5b81-84eb-5799730b778e
 
+	measure 'Scorecard Checks' = COUNTROWS(mart_ndmo_scorecard)
+		formatString: 0
+		lineageTag: 14e8e880-ee93-5cd7-b338-a95e0b7d51b8
+
+	measure 'Average Score Pct' = AVERAGE(mart_ndmo_scorecard[score_pct])
+		formatString: #,0.00
+		lineageTag: 78552570-fdae-5223-af52-f8f4e923526e
+
+	measure 'Threshold Pct' = AVERAGE(mart_ndmo_scorecard[threshold_pct])
+		formatString: #,0.00
+		lineageTag: 9aeddacd-6214-52a5-894c-9160b147b783
+
+	measure 'Quality Score Pct' = CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), mart_ndmo_scorecard[metric_family] = "DATA_QUALITY")
+		formatString: #,0.00
+		lineageTag: a2fd92d0-ed9a-54ea-a0de-144697b5c5a7
+
+	measure 'Classified Tables' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), NOT ISBLANK(mart_ndmo_scorecard[table_classification]))
+		formatString: 0
+		lineageTag: ed871c52-f221-51b3-938d-d04f199d1d2c
+
 	column metric_family
 		dataType: string
 		lineageTag: 02dc0ead-a182-5302-b449-45a1f07f7675

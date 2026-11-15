@@ -241,6 +241,11 @@ Not done by API (docs/PORTAL_STEPS.md): Data Agent (trial SKU unsupported).
 `decimal` column; `MizanEvents.amount_sar` is now `string` (exact text) with `MizanEventsTyped()` doing `todecimal()`.
 After `fabric_streaming.py setup` (republish) + `conn` + `replay`: CHECKOUT 23,511, INVOICE 50,002, PAYMENT 18,000;
 VelocityAlerts 1, MuleRingAlerts 1, InvoiceReportingSlaBreaches 2; typed payment total SAR 23,782,562.35 (decimal).
+2026-11-15: Control Tower report redesigned as code (`scripts/fabric_powerbi.py`): per page KPI cards, line/bar/
+column/donut charts, slicer and detail table; Saudi-green styling; new measures (Merchants, MID Days, Retried
+Documents, EGS Devices, Quality Score Pct, Classified Tables); ZATCA issue date related to dim_date_saudi.
+`tests/test_powerbi_report.py` checks every visual field exists in the model. Local: hypothesis pinned <6.136
+(its native DLL is blocked by Windows Smart App Control).
 
 ## Phase 11 — Proof artifacts + packaging (DONE)
 

@@ -12,3 +12,7 @@ relationship e1ac79b0-8d85-59f9-85f2-95c2b97ed4df
 	fromColumn: fact_merchant_settlement_recon.business_date_ksa
 	toColumn: dim_date_saudi.calendar_date
 
+relationship 042db782-c5aa-5c33-bb30-bc6ba435a5fe
+	fromColumn: fact_zatca_clearance_ledger.issue_date_ksa
+	toColumn: dim_date_saudi.calendar_date
+
