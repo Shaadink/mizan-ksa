@@ -56,3 +56,6 @@ Thumbs.db
 # dbt per-machine id
 dbt/.user.yml
 data/bench/
+
+# owner photo copies: never commit
+/1793806965611*
