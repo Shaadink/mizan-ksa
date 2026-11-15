@@ -331,12 +331,12 @@ table.t td.r, table.t th.r { text-align: right }
 footer { padding-block: 60px; border-top: 1px solid var(--line-2); color: var(--dim); font-size: 12.5px }
 footer .wrap { display: grid; gap: 8px }
 
-@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) } .theater { grid-template-columns: 1fr } .egs-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) } .dlc { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) } .theater { grid-template-columns: 1fr } .egs-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) } .dlc { grid-template-columns: repeat(2, minmax(0, 1fr)) } .dlc-node { grid-column: auto !important; grid-row: auto !important } #dlc-lines { display: none } }
 @media (max-width: 1500px) { .brand small { display: none } }
 @media (max-width: 1350px) { .profile .who, .roles, #open-palette .long { display: none } }
 @media (max-width: 900px) {
   :root { --rail: 0px } body.rail-collapsed { --rail: 0px } .rail { display: none; width: 240px } body.rail-open .rail { display: flex } .roles, .li-btn span { display: none }
-  .egs-cards, .dlc { grid-template-columns: 1fr } #dlc-lines { display: none } .search { min-width: 0; flex-basis: 140px } .brand div { display: none }
+  .egs-cards, .dlc { grid-template-columns: 1fr } #dlc-lines { display: none } .dlc-node { grid-column: auto !important; grid-row: auto !important } .search { min-width: 0; flex-basis: 140px } .brand div { display: none }
   .c-3, .c-4, .c-5, .c-6, .c-7, .c-8 { grid-column: span 12 }
   .scene-head { grid-template-columns: 1fr } .counters { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .mdm-stage { height: auto; display: grid; gap: 10px } .src, .golden { position: relative; left: auto; top: auto; transform: none; width: auto }

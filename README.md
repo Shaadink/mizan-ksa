@@ -9,10 +9,32 @@ and can be erased under PDPL without touching signed tax evidence. It runs local
 
 **Stack:** Microsoft Fabric (OneLake Delta `LH_MIZAN`, PySpark notebooks, Warehouse `WH_MIZAN`, Eventhouse/Eventstream,
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
-Actions as the control plane. 231 automated tests; CI runs the full PySpark + dbt suite on every push.
+Actions as the control plane. 250 Python tests and 180 app tests; CI runs the full PySpark + dbt suite and the Fabric App tests on every push.
 
 > Scope and limits are stated in [HONESTY.md](HONESTY.md). It is a standards-informed engineering reference
 > architecture on synthetic data, not a regulator-certified tax product.
+
+## Demo
+
+> Video: `docs/linkedin/demo.mp4` (2:30, recorded from [docs/linkedin/VIDEO_SHOT_LIST.md](docs/linkedin/VIDEO_SHOT_LIST.md)) - add when recorded.
+
+The **MIZAN Command Center** runs as a **Fabric App** in workspace `mizan-ksa-dev` (protected: Fabric sign-in plus
+app permission; viewers also need Build on the semantic model). Every figure is a live DAX query on
+"MIZAN Control Tower Model"; filters, clicks, search and the map all re-query it. A standalone copy
+(`command_center/index.html`) shows the same scenes from an exported snapshot.
+
+| Screenshot (replace the placeholder files) | What it shows |
+|---|---|
+| ![Live hero](docs/artifacts/demo/01_app_live_hero.png) | The scale settles at SAR 0.00 on 2,121 assessed MID-days; green "Live" label |
+| ![City filter](docs/artifacts/demo/02_city_filter_heatmap.png) | City = Jeddah: the heatmap and every KPI recompute from the semantic model |
+| ![Drill](docs/artifacts/demo/03_mid_day_drill.png) | One merchant-day with every leg (captures, fees, bank paid, GL, variances) |
+| ![Defects](docs/artifacts/demo/04_break_a_halala.png) | B: a planted halala break tilts the scale; the candidate run is not published |
+| ![ZATCA](docs/artifacts/demo/05_zatca_egs_cards.png) | EGS cards, 3-part outcome bar with the kept rejection, 24 h reporting window |
+| ![Map](docs/artifacts/demo/06_store_map.png) | Stores by city coloured by reconciliation status; routes to the acquirer and bank |
+| ![Arabic](docs/artifacts/demo/07_arabic_rtl.png) | L: Arabic, right to left; charts, IDs and numbers stay left to right |
+| ![Life cycle](docs/artifacts/demo/08_data_life_cycle.png) | Sources to Gold to the Control Tower, each box linked to its proof |
+
+Keys: `P` presenter mode, `1`-`9` scenes, `T` trace one riyal, `B` break a halala, `L` Arabic, `Ctrl K` jump.
 
 ## Proof artifacts
 
@@ -83,6 +105,7 @@ Workspace `mizan-ksa-dev`, Fabric trial capacity (UAE North). Evidence: [docs/ar
 | ZATCA chain | 25,001 documents, 0 chain violations, 1 worker restart recovered |
 | MDM | 3,985 records into 2,552 golden profiles, 1 steward conflict |
 | Power BI Control Tower (Direct Lake TMDL model + 3-page PBIR report, created by API) | DAX returns the same totals |
+| Fabric App `command-center` (Rayfin Data App, protected) | 5 DAX queries replace the embedded data; results equal the Gold export (tests) |
 | Streaming replay: Eventstream ES_MIZAN -> Eventhouse EH_MIZAN | 91,513 events landed (23,511 checkout, 50,002 invoice, 18,000 payment); KQL rules fire exactly as local: velocity 1, mule ring 1, reporting-SLA breaches 2 |
 
 One portal-only item is listed in [docs/PORTAL_STEPS.md](docs/PORTAL_STEPS.md): the Fabric Data Agent, which
@@ -117,7 +140,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m mizan.generator --out data/generated      # ~100K rows, fixed seed, byte-identical reruns
 .\.venv\Scripts\python.exe -m mizan.spark.pipeline --lake data/lake      # Bronze, Silver, MDM, ZATCA, AI index, NDMO catalog
 cd dbt; $env:MIZAN_LAKE_ROOT="../data/lake"; ..\.venv\Scripts\dbt.exe build --profiles-dir . --target duckdb; cd ..
-.\.venv\Scripts\python.exe -m pytest -q                                  # 231 tests, ~15 min; -m "not spark" for ~30 s
+.\.venv\Scripts\python.exe -m pytest -q                                  # 250 tests, ~15 min; -m "not spark" for ~30 s
 ```
 
 ### Docker
@@ -135,6 +158,7 @@ docker compose -f docker/docker-compose.airflow.yml up -d --build               
 cd dbt; ..\.venv\Scripts\dbt.exe build --profiles-dir . --target fabric; cd ..
 .\.venv\Scripts\python.exe scripts\fabric_streaming.py setup; .\.venv\Scripts\python.exe scripts\fabric_streaming.py replay
 .\.venv\Scripts\python.exe scripts\fabric_powerbi.py          # Direct Lake model + Control Tower report
+cd apps\command-center; npm ci; npx rayfin login; npx rayfin up   # the Command Center as a Fabric App
 ```
 Credentials come only from the git-ignored `.env` (see `.env.example`).
 
@@ -148,7 +172,8 @@ Credentials come only from the git-ignored `.env` (see `.env.example`).
 | `docker/` | Spark benchmark image, Airflow + Marquez compose |
 | `kql/` | EH_MIZAN table, mapping and rule functions |
 | `powerbi/` | TMDL semantic model and PBIR report definitions |
-| `command_center/` | Cinematic web control tower (template, exported data snapshot, built page) |
+| `command_center/` | Cinematic web control tower (template, exported data snapshot, standalone page) |
+| `apps/command-center/` | The same Command Center as a Fabric App (Rayfin Data App): live DAX, filters, map |
 | `scripts/` | Fabric provisioning/deploy/streaming/Power BI, artifact builder, seed builders |
-| `tests/` | 231 tests, one or more per invariant |
+| `tests/` | 250 tests, one or more per invariant |
 | `docs/` | ADRs, policies, streaming guide, portal steps, artifacts |

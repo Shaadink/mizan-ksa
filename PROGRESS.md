@@ -21,8 +21,8 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 13 | Fabric App plan, Stage 1 "Truth" (bugs 1-9) | DONE | 241 |
 | 13 | Stage 2 Fabric App foundation | DONE (deployed) | 248 py + 170 vitest |
 | 13 | Stage 3 app upgrade | DONE (payment-method cards need a Gold change) | 249 py + 180 vitest |
-| 13 | Stage 4 spec rules and polish | DONE, waiting for owner "go" | 250 py + 180 vitest |
-| 13 | Stage 5 ship (standalone copy, LinkedIn kit) | NOT STARTED | |
+| 13 | Stage 4 spec rules and polish | DONE | 250 py + 180 vitest |
+| 13 | Stage 5 ship (standalone copy, LinkedIn kit) | DONE | 250 py + 180 vitest |
 
 ## Environment (checked 2026-11-13)
 
@@ -361,6 +361,25 @@ Stage 4 "spec rules and polish" DONE (2026-11-15), deployed (spec file still not
 - Provenance line on every scene (live/snapshot, published + candidate run, git SHA, data as-of; proof sources;
   "Historical replay" on the stream). Presenter keys: P chrome off, 1-9 scenes, T trace one riyal, B break a
   halala, L Arabic. Test: test_stage4_honesty_colour_zatca_language_and_presenter_rules.
+
+Stage 5 "ship" DONE (2026-11-15):
+- Standalone portfolio copy `command_center/index.html` (same template; filters disabled offline with a note):
+  checked at desktop and phone width (fixed a life-cycle grid overflow on phones); republished to the private
+  link https://claude.ai/artifact/HeSui14YJRiTUwiFDAkXqD.
+- Fabric App live (protected): https://fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net
+  (open from mizan-ksa-dev -> command-center -> Open).
+- `docs/linkedin/VIDEO_SHOT_LIST.md` (2:30: Fabric + dbt green, app tour, story mode; clicks + captions),
+  `docs/linkedin/LINKEDIN_POST.md` (164 words), README "Demo" section with 8 screenshot placeholders
+  (`docs/artifacts/demo/`), README/HONESTY updated (Fabric App row).
+
+## Left for the owner after Phase 13
+1. Record the video from the shot list; save as docs/linkedin/demo.mp4 (or link it).
+2. Capture the 8 demo screenshots into docs/artifacts/demo/ with the README file names (green "Live" label visible).
+3. Optional: profile photo -> apps/command-center/public/profile.jpg and "photo": "profile.jpg" in config/profile.json,
+   then `python scripts/build_command_center.py` and `npx rayfin up staticapp deploy`.
+4. Optional (needs approval): a Gold payment-method model for the payment-method cards and filter.
+5. Have a native Arabic speaker review the Arabic headings before posting.
+6. Sharing the app: give viewers "Run and interact" on the app item and Build on "MIZAN Control Tower Model".
 
 ## Open issues
 
