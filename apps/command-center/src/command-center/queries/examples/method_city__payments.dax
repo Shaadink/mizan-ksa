@@ -1,5 +1,5 @@
 // Payment-method cards: captures, the bank's fees (MDR + VAT from the settlement file) and captures per day.
-// Long form (kind, key, n, captures_h, fees_h, est_h); money in integer halalas.
+// Long form (kind, key, n, captures_h, fees_h, est_h, ref_h, bank_h, transit_h, quar_h); money in integer halalas.
 EVALUATE
 CALCULATETABLE(
 UNION(
@@ -8,15 +8,22 @@ UNION(
             "c", SUMX(CURRENTGROUP(), fact_payment_method_daily[capture_count]),
             "g", SUMX(CURRENTGROUP(), fact_payment_method_daily[gross_captures_sar]),
             "f", SUMX(CURRENTGROUP(), fact_payment_method_daily[acquirer_fees_sar]),
-            "e", SUMX(CURRENTGROUP(), fact_payment_method_daily[fees_estimated_sar])),
+            "e", SUMX(CURRENTGROUP(), fact_payment_method_daily[fees_estimated_sar]),
+            "r", SUMX(CURRENTGROUP(), fact_payment_method_daily[refunds_and_disputes_sar]),
+            "b", SUMX(CURRENTGROUP(), fact_payment_method_daily[bank_paid_sar]),
+            "t", SUMX(CURRENTGROUP(), fact_payment_method_daily[in_transit_sar]),
+            "q", SUMX(CURRENTGROUP(), fact_payment_method_daily[quarantined_sar])),
         "kind", "METHOD", "key", fact_payment_method_daily[payment_method], "n", [c],
         "captures_h", CONVERT(ROUND([g] * 100, 0), INTEGER), "fees_h", CONVERT(ROUND([f] * 100, 0), INTEGER),
-        "est_h", CONVERT(ROUND([e] * 100, 0), INTEGER)),
+        "est_h", CONVERT(ROUND([e] * 100, 0), INTEGER), "ref_h", CONVERT(ROUND([r] * 100, 0), INTEGER),
+        "bank_h", CONVERT(ROUND([b] * 100, 0), INTEGER), "transit_h", CONVERT(ROUND([t] * 100, 0), INTEGER),
+        "quar_h", CONVERT(ROUND([q] * 100, 0), INTEGER)),
     SELECTCOLUMNS(
         GROUPBY(fact_payment_method_daily, fact_payment_method_daily[payment_method], fact_payment_method_daily[business_date_ksa],
             "g", SUMX(CURRENTGROUP(), fact_payment_method_daily[gross_captures_sar])),
         "kind", "METHODDAY", "key", fact_payment_method_daily[payment_method] & "|" & FORMAT(fact_payment_method_daily[business_date_ksa], "yyyy-mm-dd"),
-        "n", 0, "captures_h", CONVERT(ROUND([g] * 100, 0), INTEGER), "fees_h", 0, "est_h", 0)
+        "n", 0, "captures_h", CONVERT(ROUND([g] * 100, 0), INTEGER), "fees_h", 0, "est_h", 0, "ref_h", 0, "bank_h", 0,
+        "transit_h", 0, "quar_h", 0)
 ),
     merchant_store_reference[city] = "Jeddah",
     fact_payment_method_daily[payment_method] = "MADA"

@@ -280,11 +280,13 @@ def payments_section(con) -> dict:
     """Payment-method picture cards: captures, the bank's fees (MDR + VAT, incl. T+1 estimates) and captures per day."""
     P = "gld.fact_payment_method_daily"
     methods = []
-    for m, n, g, f, e in _q(con, f"""SELECT payment_method, SUM(capture_count), SUM(gross_captures_sar),
-                                    SUM(acquirer_fees_sar), SUM(fees_estimated_sar) FROM {P} GROUP BY 1 ORDER BY 1"""):
+    for m, n, g, f, e, rf, b, t, q in _q(con, f"""SELECT payment_method, SUM(capture_count), SUM(gross_captures_sar),
+            SUM(acquirer_fees_sar), SUM(fees_estimated_sar), SUM(refunds_and_disputes_sar), SUM(bank_paid_sar),
+            SUM(in_transit_sar), SUM(quarantined_sar) FROM {P} GROUP BY 1 ORDER BY 1"""):
         days = [{"d": str(d), "captures": money(x)} for d, x in _q(con, f"""SELECT business_date_ksa,
             SUM(gross_captures_sar) FROM {P} WHERE payment_method = ? GROUP BY 1 ORDER BY 1""", m)]
         methods.append({"method": m, "count": int(n), "captures": money(g), "fees": money(f), "estimated": money(e),
+                        "refunds": money(rf), "bank": money(b), "transit": money(t), "quarantined": money(q),
                         "daily": days})
     return {"methods": methods}
 

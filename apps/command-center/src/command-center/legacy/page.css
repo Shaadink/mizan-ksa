@@ -125,6 +125,7 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
   padding: 18px; border-radius: 16px; background: rgba(9, 16, 30, .97); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, .55) }
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
 .prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
+.scope-note { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(242,169,59,.4); background: rgba(242,169,59,.07); color: #f6d39a; font: 500 12.5px var(--f-mono) }
 .empty-note { padding: 40px 10px; text-align: center; color: var(--muted); font: 500 13px var(--f-mono) }
 
 /* ---------- hero ---------- */

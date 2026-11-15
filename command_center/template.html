@@ -130,6 +130,7 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
   padding: 18px; border-radius: 16px; background: rgba(9, 16, 30, .97); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, .55) }
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
 .prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
+.scope-note { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(242,169,59,.4); background: rgba(242,169,59,.07); color: #f6d39a; font: 500 12.5px var(--f-mono) }
 .empty-note { padding: 40px 10px; text-align: center; color: var(--muted); font: 500 13px var(--f-mono) }
 
 /* ---------- hero ---------- */
@@ -822,6 +823,30 @@ function heroScene() {
   hero.replay(); requestAnimationFrame(frame);
 }
 
+/* =========================================================== payment-method view of the reconciliation */
+// With a method selected, Pulse and Money flow use the payment-method Gold model: captures, refunds, the bank's
+// fees and the bank's settlement status split by scheme. The GL leg is posted per merchant-day, so it is not split.
+function hStr(h) { const neg = h < 0; h = Math.abs(h); return (neg ? "-" : "") + Math.floor(h / 100) + "." + String(h % 100).padStart(2, "0"); }
+function methodRecon() {
+  if (!F.method || !D.payments) return null;
+  const m = D.payments.methods.find(x => x.method === F.method) || {};
+  const g = H(m.captures || "0"), rf = H(m.refunds || "0"), f = H(m.fees || "0"), b = H(m.bank || "0"), t = H(m.transit || "0"), q = H(m.quarantined || "0");
+  const net = g - rf - f;
+  return { ...R, gross: hStr(g), refunds: hStr(rf), fees: hStr(f), net: hStr(net), bank: hStr(b), transit: hStr(t), quarantined: hStr(q),
+    gl: hStr(g - rf), bank_variance: hStr(Math.abs(net - b - t - q)), gl_variance: null, method: F.method };
+}
+function curR() { return methodRecon() || R; }
+const SCOPE = { ledger: "the daily ledger is built per merchant-day", recon: "the reconciliation heatmap is per merchant-day (its GL leg has no payment method)",
+  zatca: "invoices carry no payment method in Gold", map: "the store map is per merchant-day" };
+function updateScope() {
+  for (const [id, why] of Object.entries(SCOPE)) {
+    const sec = document.getElementById(id); if (!sec) continue;
+    let el = sec.querySelector(".scope-note"); if (!el) { el = document.createElement("div"); el.className = "scope-note"; sec.querySelector(".wrap").prepend(el); }
+    el.hidden = !F.method;
+    el.textContent = F.method ? `\u24d8 Payment method (${PAYNAME[F.method] || F.method}) does not filter this scene: ${why}. Pulse and Money flow show ${PAYNAME[F.method] || F.method} only.` : "";
+  }
+}
+
 /* =========================================================== 01 PULSE */
 function sparkline(svg, vals, color, opts = {}) {
   const w = 300, h = 46, n = vals.length; svg.setAttribute("viewBox", `0 0 ${w} ${h}`); svg.setAttribute("preserveAspectRatio", "none");
@@ -835,29 +860,31 @@ function sparkline(svg, vals, color, opts = {}) {
 }
 const pulse = { play() {} };
 function pulseScene() {
+  const R = curR(), MS = R.method ? ` \u00b7 ${R.method === "CARD" ? "card" : R.method.toLowerCase()} only` : "";
   const dl = D.daily, z = D.zatca, dq = D.ndmo.scorecard.filter(r => r.family === "DATA_QUALITY");
   const docs = Object.values(D.zatca.states).reduce((a, b) => a + b, 0), recs = D.fabric.notebook_jobs.mdm_resolve.records;
   const tiles = [
-    { l: "Gross captures", v: H(R.gross), cur: true, s: dl.map(d => H(d.gross)), c: C.neutral, note: `${fmtI(R.merchants)} merchants · ${fmtI(R.mid_days)} merchant-days` },
-    { l: "Bank paid", v: H(R.bank), cur: true, s: dl.map(d => H(d.bank)), c: C.cyan, note: "mada / SADAD settlement files" },
-    { l: "In transit (T+1)", v: H(R.transit), cur: true, s: dl.map(d => H(d.transit)), c: C.warn, note: "bank file not yet arrived", zero: true },
-    { l: "Bank variance", v: H(R.bank_variance), cur: true, zero: true, c: C.ok, note: `on ${fmtI(D.truth.assessed_mid_days)} assessed MID-days · ${fmtI(D.truth.not_assessed_mid_days)} not assessed`, ok: true },
-    { l: "GL variance", v: H(R.gl_variance), cur: true, zero: true, c: C.ok, note: "vs ERP card clearing (ACDOCA)", ok: true },
+    { l: "Gross captures" + MS, v: H(R.gross), cur: true, s: dl.map(d => H(d.gross)), c: C.neutral, note: `${fmtI(R.merchants)} merchants · ${fmtI(R.mid_days)} merchant-days` },
+    { l: "Bank paid" + MS, v: H(R.bank), cur: true, s: dl.map(d => H(d.bank)), c: C.cyan, note: "mada / SADAD settlement files" },
+    { l: "In transit (T+1)" + MS, v: H(R.transit), cur: true, s: dl.map(d => H(d.transit)), c: C.warn, note: "bank file not yet arrived", zero: true },
+    { l: "Bank variance" + MS, v: H(R.bank_variance), cur: true, zero: true, c: C.ok, note: `on ${fmtI(D.truth.assessed_mid_days)} assessed MID-days · ${fmtI(D.truth.not_assessed_mid_days)} not assessed`, ok: true },
+    R.gl_variance === null ? { l: "GL variance", v: 0, cur: true, na: true, c: C.dim, note: "not split by method: the ERP posts card clearing per merchant-day" }
+      : { l: "GL variance", v: H(R.gl_variance), cur: true, zero: true, c: C.ok, note: "vs ERP card clearing (ACDOCA)", ok: true },
     { l: "ZATCA documents", v: docs, s: z.daily.map(d => d.docs), c: C.gold, note: `${fmtI(z.states.REPORTED || 0)} reported · ${fmtI(z.states.CLEARED || 0)} cleared · ${fmtI(z.states.CONFIRMED_REJECTION || 0)} rejected (stays in chain)` },
     { l: "Golden customers", v: D.mdm_gold.goldens, c: C.gold, note: `from ${fmtI(recs)} source records · 1 steward case` },
     { l: "Data-quality checks", v: dq.filter(r => r.status === "PASS").length, of: dq.length, c: C.ok, note: `lineage ${D.lineage.covered}/${D.lineage.gold_columns} Gold columns`, ok: true },
   ];
   $("#kpis").innerHTML = tiles.map((t, i) => `<div class="panel kpi ${t.ok ? "zero" : ""}" style="--accent:${t.c}">
       <div class="k-top"><span class="k-lbl">${t.l}</span>${t.ok ? '<span class="pill ok">\u2713 OK</span>' : ""}</div>
-      <div class="k-val num">${t.cur ? "<small>SAR</small>" : ""}<span data-i="${i}">${t.cur ? fmtH(t.v) : fmtI(t.v)}</span>${t.of ? `<small style="margin-left:4px">/ ${t.of}</small>` : ""}</div>
+      <div class="k-val num">${t.cur ? "<small>SAR</small>" : ""}<span data-i="${i}">${t.na ? "n/a" : t.cur ? fmtH(t.v) : fmtI(t.v)}</span>${t.of ? `<small style="margin-left:4px">/ ${t.of}</small>` : ""}</div>
       <div class="k-note">${t.note}</div>${t.s ? `<svg data-s="${i}" aria-hidden="true"></svg>` : `<svg aria-hidden="true"></svg>`}</div>`).join("");
   tiles.forEach((t, i) => { const svg = $(`svg[data-s="${i}"]`); if (svg) sparkline(svg, t.s, t.c, { zero: t.zero }); });
   safe("paymentCards", paymentCards);
   $("#equation").innerHTML = `<div class="t"><span>Gross captures</span><b>${fmtH(H(R.gross))}</b></div><div class="o">&minus;</div>
     <div class="t"><span>Refunds + chargebacks</span><b>${fmtH(H(R.refunds))}</b></div><div class="o">=</div>
-    <div class="t"><span>Net sales = GL clearing</span><b style="color:var(--gold-hi)">${fmtH(H(R.gl))}</b></div><div class="o">&#10003;</div>
+    <div class="t"><span>${R.method ? "Net sales (GL not split by method)" : "Net sales = GL clearing"}</span><b style="color:var(--gold-hi)">${fmtH(H(R.gl))}</b></div><div class="o">&#10003;</div>
     <div class="t"><span>Unclassified events</span><b style="color:var(--ok)">${R.unclassified}</b></div>`;
-  pulse.play = () => { tiles.forEach((t, i) => countTo($(`[data-i="${i}"]`), t.v, { money: !!t.cur, delay: i * 0.06 }));
+  pulse.play = () => { tiles.forEach((t, i) => t.na || countTo($(`[data-i="${i}"]`), t.v, { money: !!t.cur, delay: i * 0.06 }));
     if (window.gsap && !REDUCED) { gsap.fromTo("#kpis .kpi", { y: 24, opacity: .2 }, { y: 0, opacity: 1, duration: .7, stagger: .06, ease: "power3.out", overwrite: true });
       document.querySelectorAll("#kpis .ln").forEach(p => { const L = p.getTotalLength(); gsap.fromTo(p, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 1.4, ease: "power2.out" }); }); } };
 }
@@ -865,11 +892,12 @@ function pulseScene() {
 /* =========================================================== 02 FLOW (sankey + particles) */
 const flow = { play() {} };
 function flowScene() {
+  const R = curR();
   const svg = d3.select("#flow-svg"); svg.selectAll("*").remove(); const myGen = GEN; const W = svg.node().clientWidth || 1000, Hh = 440;
   if (H(R.gross) <= 0) { svg.attr("viewBox", `0 0 ${W} 120`).append("text").attr("x", W / 2).attr("y", 60).attr("text-anchor", "middle").text("No captures for the current filters"); return; }
   svg.attr("viewBox", `0 0 ${W} ${Hh}`);
   const v = k => H(R[k]);
-  const nodes = [{ name: "Gross captures", k: "gross", c: C.neutral }, { name: "Refunds & chargebacks", k: "refunds", c: C.violet }, { name: "Net sales = GL card clearing", k: "gl", c: C.gold },
+  const nodes = [{ name: "Gross captures", k: "gross", c: C.neutral }, { name: "Refunds & chargebacks", k: "refunds", c: C.violet }, { name: R.method ? "Net sales (GL posts per merchant-day)" : "Net sales = GL card clearing", k: "gl", c: C.gold },
     { name: "Acquirer fees (MDR + VAT)", k: "fees", c: C.fee }, { name: "Expected net payable", k: "net", c: C.goldHi }, { name: "Bank paid", k: "bank", c: C.cyan }, { name: "In transit (T+1)", k: "transit", c: C.warn }];
   const links = [[0, 1, "refunds"], [0, 2, "gl"], [2, 3, "fees"], [2, 4, "net"], [4, 5, "bank"], [4, 6, "transit"]].map(([s, t, k]) => ({ source: s, target: t, value: v(k) }));
   const narrow = W < 700;
@@ -1336,7 +1364,8 @@ async function applyFilters() {
     showDrill();
   } catch (e) { mode.className = "fb-mode"; mode.textContent = "Query failed: " + (e && e.message ? e.message : e); }
 }
-function setFilters(patch) { Object.assign(F, patch); if (F.from && F.to && F.from > F.to) [F.from, F.to] = [F.to, F.from]; applyFilters(); }
+function setFilters(patch) { if ("method" in patch && patch.method && patch.method !== F.method && typeof toast === "function") toast(`${PAYNAME[patch.method] || patch.method}: Pulse, payment cards and Money flow now show this method only; the GL leg and merchant-day scenes are not split by method.`);
+  Object.assign(F, patch); if (F.from && F.to && F.from > F.to) [F.from, F.to] = [F.to, F.from]; applyFilters(); }
 function showDrill() {
   const box = $("#drill");
   if (!(F.mid && F.from && F.from === F.to)) { box.hidden = true; return; }
@@ -1355,6 +1384,7 @@ function rerender(next) {
   D = next; R = D.recon; GEN++;
   safe("heroCopy", heroCopy); safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene);
   safe("recon", reconScene); safe("zatca", zatcaScene); safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("prov", updateProv);
+  safe("scope", updateScope);
   window.ScrollTrigger && ScrollTrigger.refresh();
 }
 function initFilterBar() {
@@ -1516,7 +1546,7 @@ function initHeader() {
   const pr = D.profile || {}; if (!pr.name) return;
   const initials = pr.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const safeUrl = /^https:\/\/(www\.)?linkedin\.com\//.test(pr.linkedin || "") ? pr.linkedin : "";
-  $("#profile").innerHTML = `<span class="avatar">${pr.photo ? `<img src="${pr.photo}" alt="">` : initials}</span><span class="who">${pr.name}<small>${pr.role || ""}</small></span>` +
+  $("#profile").innerHTML = `<span class="avatar">${pr.photo && /^[\w./-]+\.(jpe?g|png|webp)$/i.test(pr.photo) ? `<img src="${pr.photo}" alt="${pr.name}" onerror="this.replaceWith(document.createTextNode('${initials}'))">` : initials}</span><span class="who">${pr.name}<small>${pr.role || ""}</small></span>` +
     (safeUrl ? `<a class="li-btn" href="${safeUrl}" target="_blank" rel="noopener noreferrer"><span class="li-badge">in</span><span>LinkedIn</span></a>` : "");
 }
 

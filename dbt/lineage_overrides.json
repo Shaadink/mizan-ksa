@@ -201,6 +201,18 @@
       "slv.settlement_lines.acquirer_mdr_fee_sar",
       "slv.settlement_lines.acquirer_vat_sar",
       "slv.settlement_lines.is_estimate"
+    ],
+    "bank_paid_sar": [
+      "slv.settlement_lines.net_settled_sar",
+      "slv.settlement_lines.settlement_status"
+    ],
+    "in_transit_sar": [
+      "slv.settlement_lines.net_settled_sar",
+      "slv.settlement_lines.settlement_status"
+    ],
+    "quarantined_sar": [
+      "slv.settlement_lines.net_settled_sar",
+      "slv.settlement_lines.settlement_status"
     ]
   }
 }

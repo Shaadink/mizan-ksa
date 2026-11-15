@@ -71,6 +71,27 @@ table fact_payment_method_daily
 		sourceColumn: fees_estimated_sar
 		formatString: #,0.00
 
+	column bank_paid_sar
+		dataType: decimal
+		lineageTag: 94283350-840a-5671-a640-59068fd6ffeb
+		summarizeBy: none
+		sourceColumn: bank_paid_sar
+		formatString: #,0.00
+
+	column in_transit_sar
+		dataType: decimal
+		lineageTag: 62eecac2-5fd7-5bc1-89fe-e989cc46542c
+		summarizeBy: none
+		sourceColumn: in_transit_sar
+		formatString: #,0.00
+
+	column quarantined_sar
+		dataType: decimal
+		lineageTag: 58b7d651-151e-5df6-bbd9-4d26fe967c75
+		summarizeBy: none
+		sourceColumn: quarantined_sar
+		formatString: #,0.00
+
 	partition fact_payment_method_daily = entity
 		mode: directLake
 		source

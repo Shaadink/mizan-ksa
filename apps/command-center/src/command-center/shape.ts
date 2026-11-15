@@ -151,7 +151,8 @@ export function shapeLive(res: LiveResults): MizanData {
                 .map((x) => ({ d: String(x.key).slice(m.length + 1), captures: hundredths(x.captures_h) }))
                 .sort((a, b) => (a.d < b.d ? -1 : 1));
             return { method: m, count: int(r.n), captures: hundredths(r.captures_h), fees: hundredths(r.fees_h),
-                     estimated: hundredths(r.est_h), daily };
+                     estimated: hundredths(r.est_h), refunds: hundredths(r.ref_h), bank: hundredths(r.bank_h),
+                     transit: hundredths(r.transit_h), quarantined: hundredths(r.quar_h), daily };
         }),
     };
 
