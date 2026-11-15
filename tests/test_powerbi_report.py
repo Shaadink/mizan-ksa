@@ -48,3 +48,12 @@ def test_report_parts_are_json():
     for path, body in PB.report_parts("x").items():
         if path.endswith((".json", ".pbir")):
             json.loads(body)
+
+
+def test_report_registers_the_mizan_night_theme():
+    parts = PB.report_parts("x")
+    report = json.loads(parts["definition/report.json"])
+    assert report["themeCollection"]["customTheme"]["name"] == PB.THEME_FILE
+    theme = json.loads(parts[f"StaticResources/RegisteredResources/{PB.THEME_FILE}"])
+    assert theme["background"] == PB.PANEL and theme["dataColors"][0] == PB.EMERALD
+

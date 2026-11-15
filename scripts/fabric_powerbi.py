@@ -213,9 +213,14 @@ def report_parts(model_id: str) -> dict[str, str]:
             "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/1.2.0/"
                        "schema.json",
             "themeCollection": {"baseTheme": {"name": "CY24SU10", "reportVersionAtImport": "5.59",
-                                              "type": "SharedResources"}},
+                                              "type": "SharedResources"},
+                                "customTheme": {"name": THEME_FILE, "reportVersionAtImport": "5.59",
+                                                "type": "RegisteredResources"}},
+            "resourcePackages": [{"name": "RegisteredResources", "type": "RegisteredResources",
+                                  "items": [{"name": THEME_FILE, "path": THEME_FILE, "type": "CustomTheme"}]}],
             "layoutOptimization": "None",
             "settings": {"useStylableVisualContainerHeader": True, "defaultDrillFilterOtherVisuals": True}}),
+        f"StaticResources/RegisteredResources/{THEME_FILE}": json.dumps(THEME),
         "definition/pages/pages.json": json.dumps({
             "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/"
                        "1.0.0/schema.json", "pageOrder": [p[0] for p in PAGES], "activePageName": PAGES[0][0]}),
@@ -235,11 +240,49 @@ def report_parts(model_id: str) -> dict[str, str]:
             "visual": {"visualType": "textbox", "objects": {"general": [{"properties": {"paragraphs": [
                 {"textRuns": [{"value": f"MIZAN-KSA Control Tower  |  {title}",
                                "textStyle": {"fontSize": "16pt", "fontWeight": "bold", "color": ACCENT}}]},
-                {"textRuns": [{"value": subtitle, "textStyle": {"fontSize": "9pt", "color": "#5B6770"}}]}]}}]}}})
+                {"textRuns": [{"value": subtitle, "textStyle": {"fontSize": "9pt", "color": MUTED}}]}]}}]}}})
     return parts
 
 
-BG, ACCENT = "#F4F6F8", "#0B6E4F"          # light page, Saudi green accent
+# "MIZAN Night": the same palette as the Command Center (night page, gold = the scales, emerald = captured money)
+BG, PANEL, LINE, INK, MUTED = "#060B16", "#101B30", "#22314D", "#E9EFF6", "#8D9BB1"
+ACCENT, EMERALD = "#D9B25F", "#2FBF8F"
+THEME_FILE = "MizanNight.json"
+
+
+def _c(color: str) -> dict:
+    return {"solid": {"color": color}}
+
+
+THEME = {
+    "name": "MIZAN Night",
+    "dataColors": [EMERALD, ACCENT, "#5CC8FF", "#F2A93B", "#FF5D63", "#9B8CFF", "#7FD1B9", "#F3D99C"],
+    "background": PANEL, "foreground": INK, "tableAccent": ACCENT,
+    "good": "#3AD29F", "neutral": "#F2A93B", "bad": "#FF5D63",
+    "textClasses": {"label": {"color": "#C3CEE0"}, "callout": {"color": ACCENT}, "title": {"color": INK},
+                    "header": {"color": INK}},
+    "visualStyles": {
+        "*": {"*": {
+            "background": [{"show": True, "color": _c(PANEL), "transparency": 0}],
+            "border": [{"show": True, "color": _c(LINE), "radius": 10}],
+            "title": [{"fontColor": _c(INK)}],
+            "visualHeader": [{"background": _c(PANEL), "foreground": _c(MUTED)}],
+            "categoryAxis": [{"labelColor": _c(MUTED), "titleColor": _c(MUTED)}],
+            "valueAxis": [{"labelColor": _c(MUTED), "titleColor": _c(MUTED), "gridlineColor": _c(LINE)}],
+            "legend": [{"labelColor": _c("#C3CEE0")}],
+            "labels": [{"color": _c("#C3CEE0")}]}},
+        "page": {"*": {"background": [{"color": _c(BG), "transparency": 0}],
+                       "outspace": [{"color": _c(BG), "transparency": 0}]}},
+        "tableEx": {"*": {
+            "columnHeaders": [{"fontColor": _c(ACCENT), "backColor": _c("#0A1324")}],
+            "values": [{"fontColorPrimary": _c(INK), "backColorPrimary": _c(PANEL),
+                        "fontColorSecondary": _c(INK), "backColorSecondary": _c("#0D1729")}],
+            "grid": [{"gridHorizontalColor": _c(LINE), "gridVerticalColor": _c(LINE), "outlineColor": _c(LINE)}]}},
+        "slicer": {"*": {"items": [{"fontColor": _c("#C3CEE0"), "background": _c(PANEL)}],
+                         "header": [{"fontColor": _c(INK)}]}},
+        "textbox": {"*": {"background": [{"show": False}], "border": [{"show": False}]}},
+    },
+}
 
 
 def _lit(v: str) -> dict:
@@ -260,25 +303,26 @@ def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None) -> dict
     if ys and kind in ("clusteredBarChart", "clusteredColumnChart", "donutChart"):
         query["sortDefinition"] = {"sort": [{"field": _proj(ys[0])["field"], "direction": "Descending"}],
                                    "isDefaultSort": True}
-    container = {"background": [{"properties": {"show": _lit("true"), "color": _solid("#FFFFFF"),
+    container = {"background": [{"properties": {"show": _lit("true"), "color": _solid(PANEL),
                                                 "transparency": _lit("0D")}}],
-                 "border": [{"properties": {"show": _lit("true"), "color": _solid("#DDE3E8"),
+                 "border": [{"properties": {"show": _lit("true"), "color": _solid(LINE),
                                             "radius": _lit("8D")}}],
                  "dropShadow": [{"properties": {"show": _lit("true")}}]}
     if title:
         container["title"] = [{"properties": {"show": _lit("true"), "text": _lit("'" + title.replace("'", "''") + "'"),
-                                              "fontColor": _solid("#1F2A30")}}]
+                                              "fontColor": _solid(INK)}}]
     objects: dict = {}
     if kind == "card":
         m = roles["Values"][0][1]
         units = "1000000D" if m.endswith("SAR") and "Variance" not in m else "1D"    # SAR in millions, counts exact
         objects = {"labels": [{"properties": {"color": _solid(ACCENT), "fontSize": _lit("20D"),
                                               "labelDisplayUnits": _lit(units)}}],
-                   "categoryLabels": [{"properties": {"show": _lit("true"), "fontSize": _lit("9D")}}]}
+                   "categoryLabels": [{"properties": {"show": _lit("true"), "fontSize": _lit("9D"),
+                                                      "color": _solid(MUTED)}}]}
     elif kind in ("lineChart", "clusteredBarChart", "clusteredColumnChart"):
         objects = {"legend": [{"properties": {"show": _lit("true"), "position": _lit("'Top'")}}]}
         if kind == "clusteredColumnChart" or (kind == "clusteredBarChart" and len(ys) == 1):
-            objects["dataPoint"] = [{"properties": {"fill": _solid(ACCENT)}}]
+            objects["dataPoint"] = [{"properties": {"fill": _solid(EMERALD)}}]
             objects["legend"] = [{"properties": {"show": _lit("false")}}]
     elif kind == "slicer":
         objects = {"data": [{"properties": {"mode": _lit("'Basic'")}}]}
