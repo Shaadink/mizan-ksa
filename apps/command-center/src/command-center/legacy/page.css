@@ -12,7 +12,7 @@
   --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
   --f-ar: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
-  --rail: 76px; --radius: 14px;
+  --rail: 76px; --radius: 14px; --chrome: 108px;
 }
 * { box-sizing: border-box }
 [hidden] { display: none !important }
@@ -61,11 +61,31 @@ button { font: inherit; color: inherit }
 .rail a:hover::after, .rail a:focus-visible::after { opacity: 1; transform: none }
 .rail a.on { color: var(--gold-hi); background: rgba(217,178,95,.12) }
 .rail a.off { opacity: .25 }
-.progress { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 0; height: 2px; width: 0; z-index: 51;
+.progress { position: fixed; top: calc(env(safe-area-inset-top, 0px) + var(--chrome)); left: 0; height: 2px; width: 0; z-index: 51;
   background: linear-gradient(90deg, var(--emerald), var(--gold), var(--cyan)) }
 
+/* ---------- filter bar (live slicers + cross-filter chips) ---------- */
+.filterbar { position: fixed; z-index: 49; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 60px); height: 48px;
+  display: flex; align-items: center; gap: 10px; padding-left: max(calc(var(--rail) + 24px), env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); background: rgba(8, 14, 27, .92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line-2); overflow-x: auto; white-space: nowrap; scrollbar-width: thin }
+.filterbar label { display: inline-flex; align-items: center; gap: 6px; font: 600 10px var(--f-mono); letter-spacing: .12em; color: var(--dim); text-transform: uppercase }
+.filterbar select, .filterbar input { background: var(--panel-solid); color: var(--ink); border: 1px solid var(--line-2); border-radius: 8px;
+  padding: 5px 8px; font: 500 12px var(--f-mono); max-width: 150px }
+.filterbar select:disabled, .filterbar input:disabled { opacity: .45 }
+.fb-mode { font: 600 10.5px var(--f-mono); letter-spacing: .08em; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted) }
+.fb-mode.live { color: var(--ok); border-color: rgba(58, 210, 159, .4) } .fb-mode.busy { color: var(--warn); border-color: rgba(242, 169, 59, .4) }
+.fb-chips { display: inline-flex; gap: 6px } .fb-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px;
+  background: rgba(217, 178, 95, .14); color: var(--gold-hi); font: 600 11px var(--f-mono); border: 1px solid var(--line) }
+.fb-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 4px }
+[data-f] { cursor: pointer } .clickable-hint { font: 500 11px var(--f-mono); color: var(--dim) }
+.drill { position: fixed; z-index: 58; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(var(--chrome) + 16px); width: min(380px, calc(100% - 32px));
+  padding: 18px; border-radius: 16px; background: rgba(9, 16, 30, .97); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, .55) }
+.drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
+.empty-note { padding: 40px 10px; text-align: center; color: var(--muted); font: 500 13px var(--f-mono) }
+
 /* ---------- hero ---------- */
-.hero { position: relative; min-height: min(860px, 96vh); padding-top: 60px; overflow: hidden;
+.hero { position: relative; min-height: min(860px, 96vh); padding-top: var(--chrome); overflow: hidden;
   background: radial-gradient(1100px 600px at 70% 40%, rgba(217,178,95,.10), transparent 60%),
               radial-gradient(900px 500px at 20% 70%, rgba(47,191,143,.08), transparent 60%), var(--night) }
 .hero canvas { position: absolute; inset: 0; width: 100%; height: 100% }

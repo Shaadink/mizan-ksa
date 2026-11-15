@@ -22,7 +22,9 @@ function countTo(el, target, opts = {}) {
   gsap.to(o, { p: 1, duration: dur, ease: opts.ease || "power3.out", delay: opts.delay || 0,
     onUpdate: () => show(Math.round(target * o.p)), onComplete: () => show(target) });
 }
-const R = D.recon;
+let R = D.recon;
+const BASE = D;          // option lists for the filter bar always come from the unfiltered data
+let GEN = 0;             // bumped on every re-render; animation loops of an older render stop themselves
 const tip = $("#tip");
 function showTip(html, x, y) { tip.innerHTML = html; tip.style.opacity = 1;
   const w = tip.offsetWidth, h = tip.offsetHeight; tip.style.left = Math.min(innerWidth - w - 12, x + 16) + "px"; tip.style.top = Math.max(12, y - h - 12) + "px"; }
@@ -52,7 +54,7 @@ const rail = $("#rail");
 SCENES.forEach(s => { const a = document.createElement("a"); a.href = "#" + s.id; a.textContent = s.n; a.dataset.label = s.label; a.dataset.id = s.id;
   a.addEventListener("click", e => { e.preventDefault(); goTo(s.id) }); rail.appendChild(a) });
 function goTo(id, smooth = true) { const el = document.getElementById(id); if (!el) return;
-  const y = el.getBoundingClientRect().top + scrollY - (id === "top" ? 0 : 60);
+  const y = el.getBoundingClientRect().top + scrollY - (id === "top" ? 0 : 108);
   window.scrollTo({ top: y, behavior: smooth && !REDUCED ? "smooth" : "auto" }); }
 function setRole(r) { role = r; document.querySelectorAll(".roles button").forEach(b => b.setAttribute("aria-pressed", b.dataset.role === r));
   document.querySelectorAll("main .scene").forEach(s => s.hidden = !ROLE_SCENES[r].includes(s.id));
@@ -209,7 +211,7 @@ function heroScene() {
 function sparkline(svg, vals, color, opts = {}) {
   const w = 300, h = 46, n = vals.length; svg.setAttribute("viewBox", `0 0 ${w} ${h}`); svg.setAttribute("preserveAspectRatio", "none");
   const mx = Math.max(...vals), mn = opts.zero ? 0 : Math.min(...vals);
-  const x = i => i / (n - 1) * w, y = v => h - 4 - (mx === mn ? .5 : (v - mn) / (mx - mn)) * (h - 10);
+  const x = i => (n > 1 ? i / (n - 1) : 1) * w, y = v => h - 4 - (mx === mn ? .5 : (v - mn) / (mx - mn)) * (h - 10);
   const d = vals.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
   const id = "g" + Math.random().toString(36).slice(2);
   svg.innerHTML = `<defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
@@ -247,7 +249,8 @@ function pulseScene() {
 /* =========================================================== 02 FLOW (sankey + particles) */
 const flow = { play() {} };
 function flowScene() {
-  const svg = d3.select("#flow-svg"); const W = svg.node().clientWidth || 1000, Hh = 440;
+  const svg = d3.select("#flow-svg"); svg.selectAll("*").remove(); const myGen = GEN; const W = svg.node().clientWidth || 1000, Hh = 440;
+  if (H(R.gross) <= 0) { svg.attr("viewBox", `0 0 ${W} 120`).append("text").attr("x", W / 2).attr("y", 60).attr("text-anchor", "middle").text("No captures for the current filters"); return; }
   svg.attr("viewBox", `0 0 ${W} ${Hh}`);
   const v = k => H(R[k]);
   const nodes = [{ name: "Gross captures", k: "gross", c: C.em }, { name: "Refunds & chargebacks", k: "refunds", c: C.crit }, { name: "Net sales = GL card clearing", k: "gl", c: C.gold },
@@ -277,7 +280,7 @@ function flowScene() {
       el: pg.append("circle").attr("r", 1.6 + Math.random() * 1.4).attr("fill", l.target.c).attr("opacity", .9).node() }); });
   let run = !REDUCED, lastT = performance.now(), vis = false;
   new IntersectionObserver(es => vis = es[0].isIntersecting).observe(svg.node());
-  (function tick(now) { requestAnimationFrame(tick); const dt = Math.min(.05, (now - lastT) / 1000); lastT = now; if (!run || !vis) return;
+  (function tick(now) { if (myGen !== GEN) return; requestAnimationFrame(tick); const dt = Math.min(.05, (now - lastT) / 1000); lastT = now; if (!run || !vis) return;
     for (const p of parts) { p.t = (p.t + dt * p.sp) % 1; const pt = p.path.getPointAtLength(p.t * p.len); p.el.setAttribute("cx", pt.x); p.el.setAttribute("cy", pt.y + p.off); } })(lastT);
   flow.play = () => { if (!window.gsap || REDUCED) return;
     linkPaths.each(function () { const L = this.getTotalLength(); gsap.fromTo(this, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 1.6, ease: "power2.inOut", onComplete: () => this.style.strokeDasharray = "none" }); });
@@ -287,7 +290,8 @@ function flowScene() {
 /* =========================================================== 03 LEDGER */
 const ledger = { play() {} };
 function ledgerScene() {
-  const svg = d3.select("#ledger-svg"), W = svg.node().clientWidth || 1000, Hh = 380, m = { t: 26, r: 18, b: 52, l: 58 };
+  const svg = d3.select("#ledger-svg"), W = svg.node().clientWidth || 1000, Hh = 380, m = { t: 26, r: 18, b: 52, l: 58 }; svg.selectAll("*").remove();
+  if (D.daily.length < 2) { svg.attr("viewBox", `0 0 ${W} 120`).append("text").attr("x", W / 2).attr("y", 60).attr("text-anchor", "middle").text(D.daily.length ? `One business day selected: ${D.daily[0].d} \u00b7 captures SAR ${fmtH(H(D.daily[0].gross))}` : "No business days for the current filters"); return; }
   svg.attr("viewBox", `0 0 ${W} ${Hh}`);
   const dl = D.daily.map(d => ({ ...d, date: new Date(d.d + "T12:00:00Z"), g: H(d.gross), b: H(d.bank), gl: H(d.gl), tr: H(d.transit), cal: D.calendar[d.d] }));
   const x = d3.scaleUtc().domain(d3.extent(dl, d => d.date)).range([m.l, W - m.r]);
@@ -317,7 +321,8 @@ function ledgerScene() {
   svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", W - m.l - m.r).attr("height", Hh - m.b - m.t).attr("fill", "transparent")
     .on("mousemove", e => { const [mx] = d3.pointer(e); const i = Math.max(0, Math.min(dl.length - 1, Math.round((mx - m.l) / step))); const d = dl[i];
       ch.attr("x1", x(d.date)).attr("x2", x(d.date)).attr("opacity", 1);
-      showTip(`<b>${d.d}</b> &middot; <span class="ar">${d.cal ? d.cal.hijri : ""}</span>${d.cal && d.cal.weekend ? " &middot; weekend" : ""}<br>Captures ${fmtH(d.g)}<br>GL clearing ${fmtH(d.gl)}<br>Bank paid ${fmtH(d.b)}<br>In transit ${fmtH(d.tr)}`, e.clientX, e.clientY); })
+      showTip(`<b>${d.d}</b> &middot; <span class="ar">${d.cal ? d.cal.hijri : ""}</span>${d.cal && d.cal.weekend ? " &middot; weekend" : ""}<br>Captures ${fmtH(d.g)}<br>GL clearing ${fmtH(d.gl)}<br>Bank paid ${fmtH(d.b)}<br>In transit ${fmtH(d.tr)}<br><span class="clickable-hint">Click to filter to this day</span>`, e.clientX, e.clientY); })
+    .on("click", e => { const [mx] = d3.pointer(e); const i = Math.max(0, Math.min(dl.length - 1, Math.round((mx - m.l) / step))); hideTip(); setFilters({ from: dl[i].d, to: dl[i].d }); })
     .on("mouseleave", () => { ch.attr("opacity", 0); hideTip(); });
   ledger.play = () => { if (!window.gsap || REDUCED) return; lines.forEach((l, i) => { const p = l.node(), L = p.getTotalLength(), dash = p.getAttribute("stroke-dasharray");
     gsap.fromTo(p, { strokeDasharray: `${L} ${L}`, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 1.8, delay: i * .25, ease: "power2.out", onComplete: () => p.setAttribute("stroke-dasharray", dash || "none") }); }); };
@@ -326,11 +331,10 @@ function ledgerScene() {
 /* =========================================================== 04 RECON HEATMAP */
 const recon = { play() {} };
 function reconScene() {
-  const hm = D.heat, cv = $("#heat"), ctx = cv.getContext("2d");
+  const hm = D.heat, myGen = GEN, cv = (() => { const o = $("#heat"), n = o.cloneNode(false); o.replaceWith(n); return n; })(), ctx = cv.getContext("2d");
   $("#r-rows").textContent = fmtI(R.mid_days); $("#r-uncl").textContent = R.unclassified; $("#r-merch").textContent = fmtI(R.merchants);
-  const topRow = hm.cells[0].reduce((a, c) => a + (c ? H(c) : 0), 0);
-  $("#r-top").textContent = `${D.truth.largest_merchant.merchant} · ${D.truth.largest_merchant.share_of_sar_pct}% of SAR`;
-  const vals = hm.cells.flat().filter(Boolean).map(H).filter(v => v > 0), lmin = Math.log(Math.min(...vals)), lmax = Math.log(Math.max(...vals));
+  $("#r-top").textContent = !D.truth.largest_merchant || !D.truth.largest_merchant.merchant ? "\u2014" : `${D.truth.largest_merchant.merchant} · ${D.truth.largest_merchant.share_of_sar_pct}% of SAR`;
+  const vals = hm.cells.flat().filter(Boolean).map(H).filter(v => v > 0), lmin = vals.length ? Math.log(Math.min(...vals)) : 0, lmax = vals.length ? Math.log(Math.max(...vals)) : 1;
   let defects = false, reveal = 1, pulseT = 0, hover = null;
   const L = { l: 86, t: 26, b: 8 };
   function layout() { const w = cv.clientWidth; const rows = hm.merchants.length; const ch = Math.max(4, Math.min(6, Math.floor(560 / rows)));
@@ -358,17 +362,19 @@ function reconScene() {
     if (hover) { ctx.strokeStyle = C.goldHi; ctx.lineWidth = 1; ctx.strokeRect(L.l + hover.j * cw, L.t + hover.i * ch, cw, ch); }
   }
   let vis = false; new IntersectionObserver(es => vis = es[0].isIntersecting).observe(cv);
-  (function loop(now) { requestAnimationFrame(loop); if (!vis) return; pulseT = now / 1000; draw(); })(0);
-  new ResizeObserver(() => { G = layout(); draw(); }).observe(cv.parentElement);
+  (function loop(now) { if (myGen !== GEN) return; requestAnimationFrame(loop); if (!vis) return; pulseT = now / 1000; draw(); })(0);
+  new ResizeObserver(() => { if (myGen !== GEN) return; G = layout(); draw(); }).observe(cv.parentElement);
+  cv.addEventListener("click", e => { const r = cv.getBoundingClientRect(); const j = Math.floor((e.clientX - r.left - L.l) / G.cw), i = Math.floor((e.clientY - r.top - L.t) / G.ch);
+    if (i < 0 || j < 0 || i >= hm.merchants.length || j >= hm.days.length || !hm.cells[i][j]) return; hideTip(); setFilters({ mid: hm.merchants[i], from: hm.days[j], to: hm.days[j] }); });
   cv.addEventListener("mousemove", e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
     const j = Math.floor((x - L.l) / G.cw), i = Math.floor((y - L.t) / G.ch);
     if (i < 0 || j < 0 || i >= hm.merchants.length || j >= hm.days.length) { hover = null; hideTip(); return; }
     hover = { i, j }; const c = hm.cells[i][j], m = hm.merchants[i], d = hm.days[j], br = defects && breaks.get(m + "|" + d);
-    showTip(`<b>${m}</b> &middot; ${d}<br>${c ? "Captures SAR " + fmtH(H(c)) : "No activity"}<br>${br ? `<span style="color:${C.crit}">Bank var ${br.bank_variance} · GL var ${br.gl_variance}<br>${br.cause}</span>` : "Bank var 0.00 · GL var 0.00"}`, e.clientX, e.clientY); });
+    showTip(`<b>${m}</b> &middot; ${d}<br>${c ? "Captures SAR " + fmtH(H(c)) : "No activity"}<br>${br ? `<span style="color:${C.crit}">Bank var ${br.bank_variance} · GL var ${br.gl_variance}<br>${br.cause}</span>` : "Bank var 0.00 · GL var 0.00"}<br><span class="clickable-hint">Click for this MID-day</span>`, e.clientX, e.clientY); });
   cv.addEventListener("mouseleave", () => { hover = null; hideTip(); });
   $("#breaks").innerHTML = `<tr><th>MID</th><th>Day</th><th class="r">Bank var</th><th class="r">GL var</th></tr>` +
     hm.demo_breaks.map(b => `<tr><td>${b.merchant}</td><td>${b.d.slice(5)}</td><td class="r" style="color:${H(b.bank_variance) ? C.crit : C.muted}">${b.bank_variance}</td><td class="r" style="color:${H(b.gl_variance) ? C.crit : C.muted}">${b.gl_variance}</td></tr><tr><td colspan="4" style="color:var(--dim)">${b.cause}</td></tr>`).join("");
-  const btn = $("#inject");
+  const btn = (() => { const o = $("#inject"), n = o.cloneNode(true); o.replaceWith(n); return n; })();
   recon.setDefects = on => { defects = on; btn.setAttribute("aria-pressed", on); btn.innerHTML = on ? "&#10003; Restore main build" : "&#9888; Inject planted defects";
     $("#breaker").classList.toggle("fail", on); $("#breaks-panel").hidden = !on;
     $("#breaker-text").innerHTML = on ? "dbt circuit breaker &middot; FAIL &middot; 2 unexplained MID-days &middot; build halted" : "dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days";
@@ -404,18 +410,19 @@ function zatcaScene() {
   $("#steps").innerHTML = steps.map(s => `<div class="step ${s[1]}"><span class="dot">${s[2]}</span><span>${s[0]}</span><span class="pill ${s[1] === "crit" ? "crit" : s[1]}">${s[3]}</span></div>`).join("");
   // donut
   const st = D.zatca.states, data = Object.entries(st).map(([k, v]) => ({ k, v })), colors = { REPORTED: C.em, CLEARED: C.cyan, CONFIRMED_REJECTION: C.crit };
-  const svg = d3.select("#donut"), arc = d3.arc().innerRadius(64).outerRadius(96).cornerRadius(4).padAngle(.02);
+  const svg = d3.select("#donut"); svg.selectAll("*").remove(); const arc = d3.arc().innerRadius(64).outerRadius(96).cornerRadius(4).padAngle(.02);
   const pie = d3.pie().value(d => d.v).sort(null)(data);
   const g = svg.append("g").attr("transform", "translate(110,110)");
-  const arcs = g.selectAll("path").data(pie).join("path").attr("fill", d => colors[d.data.k] || C.gold).attr("d", arc).style("filter", d => `drop-shadow(0 0 6px ${colors[d.data.k] || C.gold})`)
+  const arcs = g.selectAll("path").data(pie).join("path").attr("data-f", "state").attr("data-v", d => d.data.k).attr("fill", d => colors[d.data.k] || C.gold).attr("d", arc).style("filter", d => `drop-shadow(0 0 6px ${colors[d.data.k] || C.gold})`)
     .on("mousemove", (e, d) => showTip(`<b>${d.data.k}</b><br>${fmtI(d.data.v)} documents`, e.clientX, e.clientY)).on("mouseleave", hideTip);
   g.append("text").attr("text-anchor", "middle").attr("y", -4).style("font", "600 22px IBM Plex Mono").style("fill", "#e9eff6").text(fmtI(data.reduce((a, d) => a + d.v, 0)));
   g.append("text").attr("text-anchor", "middle").attr("y", 16).text("in chain");
   $("#donut-legend").innerHTML = data.map(d => `<span><i style="background:${colors[d.k] || C.gold}"></i>${d.k} ${fmtI(d.v)}</span>`).join("");
   const mx = Math.max(...D.zatca.egs.map(e => e.docs));
-  $("#egs").innerHTML = D.zatca.egs.map(e => `<div class="lane" style="grid-template-columns:62px 1fr 110px"><span>${e.egs}</span><div class="track" style="height:14px"><div class="max" data-w="${e.docs / mx}" style="top:0;bottom:0;width:${e.docs / mx * 100}%;background:linear-gradient(90deg,var(--emerald-deep),var(--emerald))"></div></div><span class="num" style="text-align:right">${fmtI(e.docs)}</span></div>`).join("");
+  $("#egs").innerHTML = D.zatca.egs.map(e => `<div class="lane" data-f="egs" data-v="${e.egs}" title="Filter to ${e.egs}" style="grid-template-columns:62px 1fr 110px"><span>${e.egs}</span><div class="track" style="height:14px"><div class="max" data-w="${e.docs / mx}" style="top:0;bottom:0;width:${e.docs / mx * 100}%;background:linear-gradient(90deg,var(--emerald-deep),var(--emerald))"></div></div><span class="num" style="text-align:right">${fmtI(e.docs)}</span></div>`).join("");
   const fl = Object.fromEntries(D.zatca.flows.map(f => [f.flow, f]));
-  $("#f-rep").textContent = `${fmtI(fl.REPORTING.docs)} · SAR ${fmtH(H(fl.REPORTING.sar))}`; $("#f-clr").textContent = `${fmtI(fl.CLEARANCE.docs)} · SAR ${fmtH(H(fl.CLEARANCE.sar))}`;
+  const flowTxt = f => f ? `${fmtI(f.docs)} · SAR ${fmtH(H(f.sar))}` : "\u2014";
+  $("#f-rep").textContent = flowTxt(fl.REPORTING); $("#f-clr").textContent = flowTxt(fl.CLEARANCE);
   zatca.incident = () => { if (!window.gsap || REDUCED) return; const tl = gsap.timeline();
     tl.fromTo("#steps .step", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .4, stagger: .55, ease: "power2.out", overwrite: true });
     const b = el.querySelector(`[data-icv="${inc.icv}"]`); if (b) { el.scrollTo({ left: b.offsetLeft - 240, behavior: "smooth" }); tl.fromTo(b, { scale: 1 }, { scale: 1.06, yoyo: true, repeat: 3, duration: .3 }, 0.2); } };
@@ -537,7 +544,7 @@ function streamScene() {
 const trust = { play() {} };
 function trustScene() {
   const Lg = D.lineage; $("#lin-badge").textContent = `${Lg.covered}/${Lg.gold_columns} Gold columns`;
-  const svg = d3.select("#lineage"), W = svg.node().clientWidth || 700, Hh = 420; svg.attr("viewBox", `0 0 ${W} ${Hh}`);
+  const svg = d3.select("#lineage"), W = svg.node().clientWidth || 700, Hh = 420; svg.selectAll("*").remove(); svg.attr("viewBox", `0 0 ${W} ${Hh}`);
   const srcs = [...new Set(Lg.edges.map(e => e.from))].sort(), gold = Lg.models.map(m => "gld." + m);
   const bz = Object.keys(D.ndmo.catalog.tables_by_schema).length;
   const cols = [{ x: 20, items: [`brz · ${D.ndmo.catalog.tables_by_schema.brz} raw tables`, "encrypt-on-land", "HMAC tokens"], tag: "BRONZE" }];
@@ -637,6 +644,81 @@ addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLower
   const ids = ROLE_SCENES[role]; const cur = rail.querySelector("a.on"); const i = Math.max(0, ids.indexOf(cur ? cur.dataset.id : "top"));
   if (e.key === "ArrowRight" || e.key === "j") { goTo(ids[Math.min(ids.length - 1, i + 1)]); } if (e.key === "ArrowLeft" || e.key === "k") { goTo(ids[Math.max(0, i - 1)]); } });
 
+/* =========================================================== live filters, cross-filter, drill-through */
+// The host (the Fabric App) sets window.MIZAN_QUERY(filters) -> Promise<data> and the page re-renders with live DAX
+// results. Without a host (the standalone page) the bar shows that filtering needs the live connection.
+const F = { from: "", to: "", mid: "", city: "", status: "", egs: "", flow: "", state: "" };
+const FLABEL = { from: "From", to: "To", mid: "MID", city: "City", status: "Bank file", egs: "EGS", flow: "Invoice", state: "Outcome" };
+const SETTLE = ["from", "to", "mid", "city", "status"], TAXF = ["from", "to", "egs", "flow", "state"];
+function opt(v, t) { return `<option value="${v}">${t}</option>`; }
+function fillFilterBar() {
+  const days = BASE.heat.days, stores = BASE.stores || [];
+  $("#flt-from").innerHTML = opt("", "Start") + days.map(d => opt(d, d.slice(5))).join("");
+  $("#flt-to").innerHTML = opt("", "End") + days.map(d => opt(d, d.slice(5))).join("");
+  $("#flt-mid-list").innerHTML = BASE.heat.merchants.map(m => `<option value="${m}">`).join("");
+  $("#flt-city").innerHTML = opt("", "All") + [...new Set(stores.map(s => s.city))].sort().map(c => opt(c, c)).join("");
+  $("#flt-egs").innerHTML = opt("", "All") + BASE.zatca.egs.map(e => opt(e.egs, e.egs)).join("");
+  $("#flt-state").innerHTML = opt("", "All") + Object.keys(BASE.zatca.states).sort().map(k => opt(k, k)).join("");
+}
+function syncFilterBar() {
+  for (const k of Object.keys(F)) { const el = $("#flt-" + k); if (el && el.value !== F[k]) el.value = F[k]; }
+  $("#flt-chips").innerHTML = Object.entries(F).filter(([, v]) => v).map(([k, v]) =>
+    `<span class="fb-chip">${FLABEL[k]}: ${k === "flow" ? (v === "REPORTING" ? "Simplified" : "Standard") : v}<button type="button" data-clear="${k}" aria-label="Remove ${FLABEL[k]} filter">&times;</button></span>`).join("");
+}
+let filtering = 0;
+async function applyFilters() {
+  syncFilterBar();
+  const mode = $("#fb-mode");
+  if (typeof window.MIZAN_QUERY !== "function") return;
+  const my = ++filtering; mode.className = "fb-mode busy"; mode.textContent = "Querying\u2026";
+  try {
+    const next = await window.MIZAN_QUERY({ ...F });
+    if (my !== filtering) return;                        // a newer filter change is already running
+    rerender(next);
+    const any = Object.values(F).some(Boolean);
+    mode.className = "fb-mode live"; mode.textContent = any ? `Live \u00b7 ${fmtI(next.recon.mid_days)} MID-days \u00b7 ${fmtI(Object.values(next.zatca.states).reduce((a, b) => a + b, 0))} docs` : "Live \u00b7 all data";
+    showDrill();
+  } catch (e) { mode.className = "fb-mode"; mode.textContent = "Query failed: " + (e && e.message ? e.message : e); }
+}
+function setFilters(patch) { Object.assign(F, patch); if (F.from && F.to && F.from > F.to) [F.from, F.to] = [F.to, F.from]; applyFilters(); }
+function showDrill() {
+  const box = $("#drill");
+  if (!(F.mid && F.from && F.from === F.to)) { box.hidden = true; return; }
+  const Rr = D.recon, na = D.truth && D.truth.not_assessed_mid_days > 0;
+  const row = (k, v, c) => `<div class="row"><span>${k}</span><span${c ? ` style="color:${c}"` : ""}>${v}</span></div>`;
+  $("#drill-body").innerHTML = `<h3>${F.mid} \u00b7 ${F.from}</h3><div class="sub">${(BASE.stores || []).filter(s => s.merchant === F.mid).map(s => `${s.channel} \u00b7 ${s.city} \u00b7 ${s.egs}`).join("") || ""}</div>` +
+    row("Gross captures", "SAR " + fmtH(H(Rr.gross))) + row("Refunds + chargebacks", "SAR " + fmtH(H(Rr.refunds))) +
+    row("Acquirer fees (MDR + VAT)", "SAR " + fmtH(H(Rr.fees))) + row("Expected net payable", "SAR " + fmtH(H(Rr.net))) +
+    row("Bank paid", na ? "Awaiting bank file" : "SAR " + fmtH(H(Rr.bank)), na ? C.warn : null) + row("In transit (T+1)", "SAR " + fmtH(H(Rr.transit))) +
+    row("GL card clearing", "SAR " + fmtH(H(Rr.gl))) +
+    row("Unexplained bank variance", na ? "Not assessed" : "SAR " + fmtH(H(Rr.bank_variance)), na ? C.warn : (H(Rr.bank_variance) ? C.crit : C.ok)) +
+    row("Unexplained GL variance", "SAR " + fmtH(H(Rr.gl_variance)), H(Rr.gl_variance) ? C.crit : C.ok);
+  box.hidden = false;
+}
+function rerender(next) {
+  D = next; R = D.recon; GEN++;
+  safe("heroCopy", heroCopy); safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene);
+  safe("recon", reconScene); safe("zatca", zatcaScene);
+  window.ScrollTrigger && ScrollTrigger.refresh();
+}
+function initFilterBar() {
+  fillFilterBar(); syncFilterBar();
+  const live = typeof window.MIZAN_QUERY === "function";
+  document.querySelectorAll("#filterbar select, #filterbar input, #flt-clear").forEach(el => { el.disabled = !live; });
+  const mode = $("#fb-mode");
+  mode.className = "fb-mode" + (live ? " live" : ""); mode.textContent = live ? "Live \u00b7 all data" : "Filters need the live Fabric App";
+  mode.title = live ? "Every filter re-queries the semantic model (DAX)" : "This standalone copy shows a fixed export; the Fabric App filters live";
+  if (!live) return;
+  ["from", "to", "city", "status", "egs", "flow", "state"].forEach(k => $("#flt-" + k).addEventListener("change", e => setFilters({ [k]: e.target.value })));
+  $("#flt-mid").addEventListener("change", e => { const v = e.target.value.trim().toUpperCase(); setFilters({ mid: BASE.heat.merchants.includes(v) ? v : "" }); });
+  $("#flt-clear").addEventListener("click", () => setFilters(Object.fromEntries(Object.keys(F).map(k => [k, ""]))));
+  $("#drill-close").addEventListener("click", () => setFilters({ mid: "", from: "", to: "" }));
+  document.addEventListener("click", e => {
+    const x = e.target.closest("[data-clear]"); if (x) { setFilters({ [x.dataset.clear]: "" }); return; }
+    const f = e.target.closest("[data-f]"); if (f && f.dataset.v) setFilters({ [f.dataset.f]: F[f.dataset.f] === f.dataset.v ? "" : f.dataset.v });
+  });
+}
+
 $("#seed").textContent = D.meta.seed;
 { const P = D.runs.published, Q = D.runs.candidate;
   $("#runs").textContent = `Published run ${P.status} (dbt ${P.nodes} nodes, ${P.generated_at}; Fabric ${P.fabric.dbt_pass} pass on ${P.fabric.run_date}) · candidate run ${Q.status}: ${Q.reason} · git ${D.runs.git_sha}`; }
@@ -644,6 +726,7 @@ $("#seed").textContent = D.meta.seed;
 safe("heroCopy", heroCopy); safe("hero", heroScene);
 safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene); safe("recon", reconScene); safe("zatca", zatcaScene);
 safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("trust", trustScene); safe("platform", platformScene);
+safe("filters", initFilterBar);
 if (window.gsap && window.ScrollTrigger) { gsap.registerPlugin(ScrollTrigger);
   SCENES.slice(1).forEach(s => ScrollTrigger.create({ trigger: "#" + s.id, start: "top 70%", once: true, onEnter: () => { if (!story) safe(s.id, PLAY[s.id]); } }));
   gsap.fromTo(".hero-copy > *", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .9, stagger: .1, ease: "power3.out", delay: .2 }); }

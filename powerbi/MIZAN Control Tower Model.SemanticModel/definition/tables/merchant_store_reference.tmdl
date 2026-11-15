@@ -1,0 +1,45 @@
+table merchant_store_reference
+	lineageTag: 6412ce96-dbd6-5f94-8732-bf2d6d671bbd
+
+	column merchant_id
+		dataType: string
+		lineageTag: 111ca91c-517d-5f64-8fd1-17ea479e54e2
+		summarizeBy: none
+		sourceColumn: merchant_id
+
+	column store_id
+		dataType: string
+		lineageTag: 007c1da2-54bd-5de5-9ea9-295461a774e5
+		summarizeBy: none
+		sourceColumn: store_id
+
+	column channel
+		dataType: string
+		lineageTag: e0e28ac1-901a-5e34-a695-0ba8708b56c2
+		summarizeBy: none
+		sourceColumn: channel
+
+	column egs_id
+		dataType: string
+		lineageTag: 061c4fe3-6584-5195-a5dd-70e597f5d357
+		summarizeBy: none
+		sourceColumn: egs_id
+
+	column city
+		dataType: string
+		lineageTag: 9db72a21-4257-5df9-970f-5f57e9c3a5ea
+		summarizeBy: none
+		sourceColumn: city
+
+	column register_count
+		dataType: int64
+		lineageTag: bd40777e-aeee-5d65-b04b-18aaf62ed4bf
+		summarizeBy: none
+		sourceColumn: register_count
+
+	partition merchant_store_reference = entity
+		mode: directLake
+		source
+			entityName: merchant_store_reference
+			schemaName: gld
+			expressionSource: DatabaseQuery

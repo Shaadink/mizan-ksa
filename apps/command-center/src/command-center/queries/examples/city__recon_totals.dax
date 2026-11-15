@@ -1,0 +1,25 @@
+// Pulse, money flow, hero: whole-table reconciliation totals. Money in integer halalas.
+EVALUATE
+CALCULATETABLE(
+ROW(
+    "gross_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[gross_captures_sar]) * 100, 0), INTEGER),
+    "refunds_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[refunds_and_disputes_sar]) * 100, 0), INTEGER),
+    "fees_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[acquirer_fees_sar]) * 100, 0), INTEGER),
+    "net_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[expected_net_payable_sar]) * 100, 0), INTEGER),
+    "bank_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[bank_paid_sar]) * 100, 0), INTEGER),
+    "transit_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[in_transit_sar]) * 100, 0), INTEGER),
+    "quarantined_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[quarantined_sar]) * 100, 0), INTEGER),
+    "gl_h", CONVERT(ROUND(SUM(fact_merchant_settlement_recon[gl_card_clearing_sar]) * 100, 0), INTEGER),
+    "bank_variance_h", CONVERT(ROUND(SUMX(fact_merchant_settlement_recon, ABS(fact_merchant_settlement_recon[unexplained_bank_variance_sar])) * 100, 0), INTEGER),
+    "gl_variance_h", CONVERT(ROUND(SUMX(fact_merchant_settlement_recon, ABS(fact_merchant_settlement_recon[unexplained_gl_variance_sar])) * 100, 0), INTEGER),
+    "unclassified", SUM(fact_merchant_settlement_recon[unclassified_events]) + 0,
+    "mid_days", COUNTROWS(fact_merchant_settlement_recon),
+    "merchants", DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id]),
+    "date_from", FORMAT(MIN(fact_merchant_settlement_recon[business_date_ksa]), "yyyy-mm-dd"),
+    "date_to", FORMAT(MAX(fact_merchant_settlement_recon[business_date_ksa]), "yyyy-mm-dd"),
+    "assessed", COUNTROWS(FILTER(fact_merchant_settlement_recon, fact_merchant_settlement_recon[in_transit_sar] = 0)) + 0,
+    "not_assessed", COUNTROWS(FILTER(fact_merchant_settlement_recon, fact_merchant_settlement_recon[in_transit_sar] <> 0)) + 0,
+    "not_assessed_net_h", CONVERT(ROUND(SUMX(FILTER(fact_merchant_settlement_recon, fact_merchant_settlement_recon[in_transit_sar] <> 0), fact_merchant_settlement_recon[expected_net_payable_sar]) * 100, 0), INTEGER)
+),
+    merchant_store_reference[city] = "Jeddah"
+)

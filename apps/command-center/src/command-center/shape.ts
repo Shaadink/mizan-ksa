@@ -128,7 +128,9 @@ export function shapeLive(res: LiveResults): MizanData {
         assessed_mid_days: int(t.assessed), not_assessed_mid_days: int(t.not_assessed),
         not_assessed_dates: [...new Set(notAssessed.map(([, d]) => d))].sort(),
         not_assessed_cells: notAssessed, not_assessed_expected_net: hundredths(t.not_assessed_net_h),
-        largest_merchant: { merchant: top, share_of_sar_pct: pct1(byMerchant.get(top)!, big(t.gross_h)) },
+        largest_merchant: top && big(t.gross_h) > 0n
+            ? { merchant: top, share_of_sar_pct: pct1(byMerchant.get(top)!, big(t.gross_h)) }
+            : { merchant: "", share_of_sar_pct: "0.0" },           // a filter that matches no captures
     };
 
     return { recon, daily, calendar, heat: { days, merchants, cells: merchants.map((m) => grid.get(m)!) },

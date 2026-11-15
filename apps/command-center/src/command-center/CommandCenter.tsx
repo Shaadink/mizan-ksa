@@ -7,7 +7,8 @@ import pageHtml from "./legacy/page.html?raw";
 import "./legacy/page.css";
 import "./app.css";
 import { mountScenes } from "./legacy/scenes.js";
-import { CONNECTOR, loadData, type Loaded, type Runner } from "./load";
+import type { Filters } from "./filters";
+import { CONNECTOR, loadData, queryFiltered, type Loaded, type Runner } from "./load";
 
 function runner(): Runner | null {
     if (!(CONNECTOR in connectorConfigs)) return null;
@@ -21,7 +22,8 @@ function runner(): Runner | null {
     return async (query) => (await connectors[CONNECTOR].executeQuery({ query })) as Awaited<ReturnType<Runner>>;
 }
 
-export function CommandCenter(): ReactElement {
+/** `query` is only for the local preview (recorded live results); the app itself always uses the connector. */
+export function CommandCenter({ query }: { query?: (f: Filters) => Promise<unknown> } = {}): ReactElement {
     const [loaded, setLoaded] = useState<Loaded | null>(null);
     const mounted = useRef(false);
     const host = useRef<HTMLDivElement>(null);
@@ -32,6 +34,11 @@ export function CommandCenter(): ReactElement {
         if (!loaded || mounted.current || !host.current) return;
         mounted.current = true;           // the scene module binds window listeners: mount exactly once
         installGlobals();
+        const run = runner();
+        const w = window as unknown as { MIZAN_QUERY?: (f: Filters) => Promise<unknown> };
+        if (loaded.mode === "live" && run) w.MIZAN_QUERY = (f) => queryFiltered(run, f);   // live filter bar
+        else if (query) w.MIZAN_QUERY = query;
+        else delete w.MIZAN_QUERY;
         mountScenes(loaded.data);
     }, [loaded]);
 

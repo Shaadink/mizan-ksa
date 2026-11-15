@@ -1,0 +1,15 @@
+// Daily ledger: Gregorian + Umm al-Qura Hijri for the reconciliation date range.
+DEFINE
+    VAR __d0 = MIN(fact_merchant_settlement_recon[business_date_ksa])
+    VAR __d1 = MAX(fact_merchant_settlement_recon[business_date_ksa])
+EVALUATE
+SELECTCOLUMNS(
+    FILTER(dim_date_saudi, dim_date_saudi[calendar_date] >= __d0 && dim_date_saudi[calendar_date] <= __d1),
+    "d", FORMAT(dim_date_saudi[calendar_date], "yyyy-mm-dd"),
+    "hijri_day", dim_date_saudi[hijri_day],
+    "hijri_month_name", dim_date_saudi[hijri_month_name],
+    "hijri_year", dim_date_saudi[hijri_year],
+    "is_ramadan", dim_date_saudi[is_ramadan],
+    "is_saudi_weekend", dim_date_saudi[is_saudi_weekend]
+)
+ORDER BY [d]

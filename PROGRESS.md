@@ -19,8 +19,9 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 11 | Packaging (artifacts, README, ADRs, HONESTY) | DONE | 221 |
 | 12 | MIZAN Command Center (cinematic web control tower, ADR-011) | DONE | 231 |
 | 13 | Fabric App plan, Stage 1 "Truth" (bugs 1-9) | DONE | 241 |
-| 13 | Stage 2 Fabric App foundation | DONE, waiting for owner "go" | 248 py + 170 vitest |
-| 13 | Stage 3 app upgrade / 4 polish / 5 ship | NOT STARTED | |
+| 13 | Stage 2 Fabric App foundation | DONE (deployed) | 248 py + 170 vitest |
+| 13 | Stage 3 app upgrade | IN PROGRESS: 3a interactivity DONE; 3b shell/search/cards/hover/map/DLC next | 248 py + 180 vitest |
+| 13 | Stage 4 polish / 5 ship | NOT STARTED | |
 
 ## Environment (checked 2026-11-13)
 
@@ -314,6 +315,19 @@ Stage 2 "Fabric App foundation" DONE (2026-11-15):
   2026-11-15 to the same item `command-center` (protected asset access, no database):
   https://fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net . Redeploy: `cd apps/command-center; npx rayfin up
   --workspace-id <ws>` (or `npx rayfin up staticapp deploy` for frontend-only changes).
+
+Stage 3a "interactivity" DONE (2026-11-15), deployed (`npx rayfin up staticapp deploy`):
+- Semantic model: + `merchant_store_reference` and relationship recon[merchant_id] -> store (city filter; city
+  gross sums to the total, verified by DAX).
+- template.html (shared by standalone + app): filter bar (From/To, MID, City, Bank file assessed/not assessed, EGS,
+  Invoice Simplified/Standard, Outcome), chips with remove, Clear; click-to-filter (ledger day, heatmap cell,
+  EGS bar, donut slice, flow row); MID-day drill panel (all legs, "Awaiting bank file"/"Not assessed" honesty);
+  scenes re-render on new data (render generation stops old animation loops). Standalone: bar disabled with
+  "Filters need the live Fabric App". Host hook `window.MIZAN_QUERY(filters)`.
+- App: `filters.ts` wraps each base query in CALCULATETABLE with validated predicates (no DAX injection);
+  `filters.spec.ts`: injection rejected, 4 example filter sets committed (`queries/examples`) and recorded live
+  (`__fixtures__/filtered`, `scripts/record_app_dax.py`), results agree with unfiltered Gold (MID-day, city sum,
+  EGS+flow, 112 not-assessed). Payment-method filter NOT built: no payment method in Gold (needs owner approval).
 
 ## Open issues
 

@@ -12,6 +12,20 @@
   <button class="btn" id="open-palette" title="Command palette (Ctrl+K)"><span class="long">Jump to</span> <span class="kbd">Ctrl K</span></button>
   <button class="btn primary" id="play-story">&#9654; <span class="long">Play the story</span></button>
 </header>
+<div class="filterbar" id="filterbar" role="region" aria-label="Filters">
+  <span class="fb-mode" id="fb-mode">Filters</span>
+  <label for="flt-from">From <select id="flt-from"></select></label>
+  <label for="flt-to">To <select id="flt-to"></select></label>
+  <label for="flt-mid">Merchant <input id="flt-mid" list="flt-mid-list" placeholder="MID" autocomplete="off"><datalist id="flt-mid-list"></datalist></label>
+  <label for="flt-city">City <select id="flt-city"></select></label>
+  <label for="flt-status">Bank file <select id="flt-status"><option value="">All</option><option value="ASSESSED">Assessed</option><option value="NOT_ASSESSED">Not assessed</option></select></label>
+  <label for="flt-egs">EGS <select id="flt-egs"></select></label>
+  <label for="flt-flow">Invoice <select id="flt-flow"><option value="">All</option><option value="REPORTING">Simplified (reporting)</option><option value="CLEARANCE">Standard (clearance)</option></select></label>
+  <label for="flt-state">Outcome <select id="flt-state"></select></label>
+  <button class="btn" id="flt-clear" type="button">Clear</button>
+  <span class="fb-chips" id="flt-chips"></span>
+</div>
+<aside class="drill" id="drill" hidden aria-live="polite"><button class="btn close" id="drill-close" type="button">Close</button><div id="drill-body"></div></aside>
 <nav class="rail" id="rail" aria-label="Scenes"></nav>
 
 <section class="hero" id="top">
@@ -94,8 +108,8 @@
           <div class="sub" id="inc-sub"></div><div class="steps" id="steps"></div></div>
         <div class="panel c-3"><h3>Outcomes</h3><div class="sub">Gold clearance ledger</div><svg id="donut" viewBox="0 0 220 220" style="width:100%;max-width:240px;display:block;margin:10px auto 0"></svg><div id="donut-legend" class="legend" style="justify-content:center;margin-top:8px"></div></div>
         <div class="panel c-4"><h3>By EGS device</h3><div class="sub">Documents and SAR including VAT</div><div id="egs" class="race" style="margin-top:14px"></div>
-          <div class="row" style="margin-top:10px"><span>B2C simplified (REPORTING)</span><span id="f-rep"></span></div>
-          <div class="row"><span>B2B standard (CLEARANCE)</span><span id="f-clr"></span></div></div>
+          <div class="row" style="margin-top:10px" data-f="flow" data-v="REPORTING"><span>B2C simplified (REPORTING)</span><span id="f-rep"></span></div>
+          <div class="row" data-f="flow" data-v="CLEARANCE"><span>B2B standard (CLEARANCE)</span><span id="f-clr"></span></div></div>
       </div>
     </div>
   </section>

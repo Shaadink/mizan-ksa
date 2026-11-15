@@ -1,0 +1,17 @@
+// Daily ledger and reconciliation heatmap: one row per merchant-day (2,233). Money in integer halalas.
+EVALUATE
+CALCULATETABLE(
+SELECTCOLUMNS(
+    fact_merchant_settlement_recon,
+    "merchant_id", fact_merchant_settlement_recon[merchant_id],
+    "d", FORMAT(fact_merchant_settlement_recon[business_date_ksa], "yyyy-mm-dd"),
+    "gross_h", CONVERT(ROUND(fact_merchant_settlement_recon[gross_captures_sar] * 100, 0), INTEGER),
+    "refunds_h", CONVERT(ROUND(fact_merchant_settlement_recon[refunds_and_disputes_sar] * 100, 0), INTEGER),
+    "fees_h", CONVERT(ROUND(fact_merchant_settlement_recon[acquirer_fees_sar] * 100, 0), INTEGER),
+    "bank_h", CONVERT(ROUND(fact_merchant_settlement_recon[bank_paid_sar] * 100, 0), INTEGER),
+    "transit_h", CONVERT(ROUND(fact_merchant_settlement_recon[in_transit_sar] * 100, 0), INTEGER),
+    "gl_h", CONVERT(ROUND(fact_merchant_settlement_recon[gl_card_clearing_sar] * 100, 0), INTEGER)
+),
+    fact_merchant_settlement_recon[in_transit_sar] <> 0
+)
+ORDER BY [merchant_id], [d]

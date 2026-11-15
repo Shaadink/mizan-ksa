@@ -48,7 +48,7 @@ def test_app_scenes_are_generated_from_the_same_template():
     tpl = (REPO / "command_center" / "template.html").read_text(encoding="utf-8")
     js = (CC / "legacy" / "scenes.js").read_text(encoding="utf-8")
     body = re.findall(r"<script>(.*?)</script>", tpl, re.S)[0]
-    body = body.replace('const D = JSON.parse(document.getElementById("mizan-data").textContent);\n', "")
+    body = body.replace('let D = JSON.parse(document.getElementById("mizan-data").textContent);\n', "")
     assert body in js and js.startswith("// GENERATED") and "export function mountScenes(D)" in js
     html = (CC / "legacy" / "page.html").read_text(encoding="utf-8")
     assert 'id="hero-canvas"' in html and "<script" not in html

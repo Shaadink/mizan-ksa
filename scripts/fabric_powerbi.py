@@ -25,7 +25,8 @@ from fabric_deploy import API, _req, env  # noqa: E402
 from mizan.privacy.crypto import load_dotenv  # noqa: E402
 
 MODEL, REPORT = "MIZAN Control Tower Model", "MIZAN Control Tower"
-TABLES = ("fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard", "dim_date_saudi")
+TABLES = ("fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard", "dim_date_saudi",
+          "merchant_store_reference")    # store seed (owner-approved): city / EGS / channel per merchant
 OUT = REPO / "powerbi"
 REJ = 'fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION"'
 # Every filter inside CALCULATE is wrapped in KEEPFILTERS: a plain column filter REPLACES the filter coming from a
@@ -209,7 +210,10 @@ def model_parts(cols: dict[str, list[tuple[str, str]]]) -> dict[str, str]:
               "\ttoColumn: dim_date_saudi.calendar_date", "",
               "relationship " + tag("rel-zatca-date"),
               "\tfromColumn: fact_zatca_clearance_ledger.issue_date_ksa",
-              "\ttoColumn: dim_date_saudi.calendar_date", ""]
+              "\ttoColumn: dim_date_saudi.calendar_date", "",
+              "relationship " + tag("rel-recon-store"),
+              "\tfromColumn: fact_merchant_settlement_recon.merchant_id",
+              "\ttoColumn: merchant_store_reference.merchant_id", ""]
     parts["definition/model.tmdl"] = "\n".join(model) + "\n"
     for t in TABLES:
         lines = [f"table {t}", f"\tlineageTag: {tag(t)}", ""]
