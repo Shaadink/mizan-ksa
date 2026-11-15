@@ -377,7 +377,8 @@ Stage 5 "ship" DONE (2026-11-15):
 2. Capture the 8 demo screenshots into docs/artifacts/demo/ with the README file names (green "Live" label visible).
 3. Optional: profile photo -> apps/command-center/public/profile.jpg and "photo": "profile.jpg" in config/profile.json,
    then `python scripts/build_command_center.py` and `npx rayfin up staticapp deploy`.
-4. Optional (needs approval): a Gold payment-method model for the payment-method cards and filter.
+4. DONE 2026-11-15 (owner approved): gld.fact_payment_method_daily + payment-method cards and Method filter
+   (dbt test reconciles it to the recon per MID-day; built on DuckDB and WH_MIZAN; in the semantic model; live DAX).
 5. Have a native Arabic speaker review the Arabic headings before posting.
 6. Sharing the app: give viewers "Run and interact" on the app item and Build on "MIZAN Control Tower Model".
 

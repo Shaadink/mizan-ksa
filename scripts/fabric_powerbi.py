@@ -26,7 +26,8 @@ from mizan.privacy.crypto import load_dotenv  # noqa: E402
 
 MODEL, REPORT = "MIZAN Control Tower Model", "MIZAN Control Tower"
 TABLES = ("fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard", "dim_date_saudi",
-          "merchant_store_reference")    # store seed (owner-approved): city / EGS / channel per merchant
+          "merchant_store_reference",    # store seed (owner-approved): city / EGS / channel per merchant
+          "fact_payment_method_daily")   # owner-approved: captures + bank fees per payment scheme
 OUT = REPO / "powerbi"
 REJ = 'fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION"'
 # Every filter inside CALCULATE is wrapped in KEEPFILTERS: a plain column filter REPLACES the filter coming from a
@@ -80,6 +81,11 @@ MEASURES = {
         ("Retried Documents", "COUNTROWS(FILTER(fact_zatca_clearance_ledger, "
                               "fact_zatca_clearance_ledger[attempts] > 1))", "#,0"),
         ("EGS Devices", "DISTINCTCOUNT(fact_zatca_clearance_ledger[egs_id])", "0")],
+    "fact_payment_method_daily": [
+        ("Method Captures SAR", "SUM(fact_payment_method_daily[gross_captures_sar])", "#,0.00"),
+        ("Method Bank Fees SAR", "SUM(fact_payment_method_daily[acquirer_fees_sar])", "#,0.00"),
+        ("Method Fee Rate bps", "DIVIDE(SUM(fact_payment_method_daily[acquirer_fees_sar]), "
+                                "SUM(fact_payment_method_daily[gross_captures_sar])) * 10000", "0.0")],
     "mart_ndmo_scorecard": [
         ("Scorecard Checks", "COUNTROWS(mart_ndmo_scorecard)", "0"),
         # bug 3: ONE shared passing measure; families filter on top of it (6 data quality + 1 classification = 7)
@@ -213,7 +219,13 @@ def model_parts(cols: dict[str, list[tuple[str, str]]]) -> dict[str, str]:
               "\ttoColumn: dim_date_saudi.calendar_date", "",
               "relationship " + tag("rel-recon-store"),
               "\tfromColumn: fact_merchant_settlement_recon.merchant_id",
-              "\ttoColumn: merchant_store_reference.merchant_id", ""]
+              "\ttoColumn: merchant_store_reference.merchant_id", "",
+              "relationship " + tag("rel-paymethod-store"),
+              "\tfromColumn: fact_payment_method_daily.merchant_id",
+              "\ttoColumn: merchant_store_reference.merchant_id", "",
+              "relationship " + tag("rel-paymethod-date"),
+              "\tfromColumn: fact_payment_method_daily.business_date_ksa",
+              "\ttoColumn: dim_date_saudi.calendar_date", ""]
     parts["definition/model.tmdl"] = "\n".join(model) + "\n"
     for t in TABLES:
         lines = [f"table {t}", f"\tlineageTag: {tag(t)}", ""]

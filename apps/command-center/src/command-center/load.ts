@@ -5,6 +5,7 @@ import ndmoDax from "./queries/ndmo.dax?raw";
 import reconCellsDax from "./queries/recon_cells.dax?raw";
 import reconTotalsDax from "./queries/recon_totals.dax?raw";
 import zatcaDax from "./queries/zatca.dax?raw";
+import paymentsDax from "./queries/payments.dax?raw";
 import proof from "./proof.json";
 import snapshot from "./snapshot.json";
 import { buildQueries, type Filters } from "./filters";
@@ -13,6 +14,7 @@ import { mergeData, shapeLive, type LiveResults, type MizanData, type QueryName,
 export const CONNECTOR = "mizan";
 export const QUERIES: Record<QueryName, string> = {
     recon_totals: reconTotalsDax, recon_cells: reconCellsDax, calendar: calendarDax, zatca: zatcaDax, ndmo: ndmoDax,
+    payments: paymentsDax,
 };
 
 type QueryResult = { status: "success"; table: QueryTableLike } | { status: "error"; error: { message: string } };

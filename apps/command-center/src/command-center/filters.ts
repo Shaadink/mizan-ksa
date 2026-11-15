@@ -6,7 +6,7 @@ import type { QueryName } from "./shape";
 
 export interface Filters {
     from?: string; to?: string; mid?: string; city?: string; status?: string;
-    egs?: string; flow?: string; state?: string;
+    egs?: string; flow?: string; state?: string; method?: string;
 }
 
 const R = "fact_merchant_settlement_recon";
@@ -36,6 +36,20 @@ export function settlementFilters(f: Filters): string[] {
     if (f.status === "ASSESSED") out.push(`${R}[in_transit_sar] = 0`);
     else if (f.status === "NOT_ASSESSED") out.push(`${R}[in_transit_sar] <> 0`);
     else if (f.status) throw new Error(`invalid status filter: ${f.status}`);
+    return out;
+}
+
+const PM = "fact_payment_method_daily";
+const METHODS = new Set(["MADA", "CARD", "BNPL", "SADAD", "UNMATCHED_BANK_LINE"]);
+
+/** Filter predicates for the payment-method table (dates, merchant, city through the store relationship, method). */
+export function paymentFilters(f: Filters): string[] {
+    const out: string[] = [];
+    if (f.from) out.push(`${PM}[business_date_ksa] >= ${daxDate(f.from)}`);
+    if (f.to) out.push(`${PM}[business_date_ksa] <= ${daxDate(f.to)}`);
+    if (f.mid) out.push(`${PM}[merchant_id] = ${str(f.mid, (x) => /^MID\d{6}$/.test(x), "merchant")}`);
+    if (f.city) out.push(`merchant_store_reference[city] = ${str(f.city, (x) => CITIES.has(x), "city")}`);
+    if (f.method) out.push(`${PM}[payment_method] = ${str(f.method, (x) => METHODS.has(x), "method")}`);
     return out;
 }
 
@@ -71,5 +85,6 @@ export function buildQueries(base: Record<QueryName, string>, f: Filters): Recor
         calendar: base.calendar,             // the full Gregorian/Hijri window, labels only
         zatca: withFilters(base.zatca, z),
         ndmo: base.ndmo,                     // governance scorecard: not sliced by business filters
+        payments: withFilters(base.payments, paymentFilters(f)),
     };
 }

@@ -237,7 +237,7 @@ def test_gold_column_lineage_is_complete(gold_main, lake_run, tmp_path):
     manifest = gold_main["duck"].parent / "target" / "manifest.json"
     doc = build(manifest, gold_main["duck"], lake_run["root"], tmp_path / "lineage.json")
     models = {"fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "dim_date_saudi", "dim_party_golden",
-              "mart_ndmo_scorecard"}
+              "mart_ndmo_scorecard", "fact_payment_method_daily"}
     assert set(doc["column_lineage"]) == models
     for m in models:
         assert set(doc["column_lineage"][m]) == set(doc["columns"][f"gld.{m}"])        # every column covered

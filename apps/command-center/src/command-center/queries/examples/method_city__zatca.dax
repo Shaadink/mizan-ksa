@@ -1,0 +1,23 @@
+// ZATCA scene and pulse: one long-form table (kind, key, docs, sar_h). Money in integer halalas.
+// STATE and EGS count every document in the chain (the 400 rejection included); FLOW is accepted documents only.
+EVALUATE
+UNION(
+    SELECTCOLUMNS(GROUPBY(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[state], "n", COUNTX(CURRENTGROUP(), 1), "s", SUMX(CURRENTGROUP(), fact_zatca_clearance_ledger[total_incl_vat_sar])),
+        "kind", "STATE", "key", fact_zatca_clearance_ledger[state], "docs", [n], "sar_h", CONVERT(ROUND([s] * 100, 0), INTEGER)),
+    SELECTCOLUMNS(GROUPBY(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[egs_id], "n", COUNTX(CURRENTGROUP(), 1), "s", SUMX(CURRENTGROUP(), fact_zatca_clearance_ledger[total_incl_vat_sar])),
+        "kind", "EGS", "key", fact_zatca_clearance_ledger[egs_id], "docs", [n], "sar_h", CONVERT(ROUND([s] * 100, 0), INTEGER)),
+    SELECTCOLUMNS(GROUPBY(FILTER(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[state] <> "CONFIRMED_REJECTION"), fact_zatca_clearance_ledger[invoice_flow],
+            "n", COUNTX(CURRENTGROUP(), 1), "s", SUMX(CURRENTGROUP(), fact_zatca_clearance_ledger[total_incl_vat_sar])),
+        "kind", "FLOW", "key", fact_zatca_clearance_ledger[invoice_flow], "docs", [n], "sar_h", CONVERT(ROUND([s] * 100, 0), INTEGER)),
+    SELECTCOLUMNS(GROUPBY(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[issue_date_ksa], "n", COUNTX(CURRENTGROUP(), 1)),
+        "kind", "DAY", "key", FORMAT(fact_zatca_clearance_ledger[issue_date_ksa], "yyyy-mm-dd"), "docs", [n], "sar_h", 0),
+    SELECTCOLUMNS(GROUPBY(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[egs_id], "n", MAXX(CURRENTGROUP(), fact_zatca_clearance_ledger[icv])),
+        "kind", "EGSLAST", "key", fact_zatca_clearance_ledger[egs_id], "docs", [n], "sar_h", 0),
+    SELECTCOLUMNS(GROUPBY(FILTER(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[attempts] > 1), fact_zatca_clearance_ledger[egs_id], "n", COUNTX(CURRENTGROUP(), 1)),
+        "kind", "EGSRETRY", "key", fact_zatca_clearance_ledger[egs_id], "docs", [n], "sar_h", 0),
+    SELECTCOLUMNS(GROUPBY(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[egs_id], fact_zatca_clearance_ledger[issue_date_ksa], "n", COUNTX(CURRENTGROUP(), 1)),
+        "kind", "EGSDAY", "key", fact_zatca_clearance_ledger[egs_id] & "|" & FORMAT(fact_zatca_clearance_ledger[issue_date_ksa], "yyyy-mm-dd"), "docs", [n], "sar_h", 0),
+    ROW("kind", "TOTAL", "key", "SAR", "docs", COUNTROWS(fact_zatca_clearance_ledger), "sar_h", CONVERT(ROUND(SUM(fact_zatca_clearance_ledger[total_incl_vat_sar]) * 100, 0), INTEGER)),
+    ROW("kind", "TOTAL", "key", "CORRECTIONS", "docs", COUNTROWS(FILTER(fact_zatca_clearance_ledger, NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid]))) + 0, "sar_h", 0),
+    ROW("kind", "TOTAL", "key", "RETRIED", "docs", COUNTROWS(FILTER(fact_zatca_clearance_ledger, fact_zatca_clearance_ledger[attempts] > 1)) + 0, "sar_h", 0)
+)

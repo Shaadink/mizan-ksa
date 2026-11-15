@@ -24,6 +24,7 @@
   <label for="flt-mid"><span class="sr">Merchant</span><input id="flt-mid" list="flt-mid-list" placeholder="Merchant MID" autocomplete="off"><datalist id="flt-mid-list"></datalist></label>
   <label for="flt-city"><span class="sr">City</span><select id="flt-city"></select></label>
   <label for="flt-status"><span class="sr">Bank file</span><select id="flt-status"><option value="">Any bank status</option><option value="ASSESSED">Assessed</option><option value="NOT_ASSESSED">Not assessed</option></select></label>
+  <label for="flt-method"><span class="sr">Payment method</span><select id="flt-method"></select></label>
   <label for="flt-egs"><span class="sr">EGS</span><select id="flt-egs"></select></label>
   <label for="flt-flow"><span class="sr">Invoice</span><select id="flt-flow"><option value="">All invoices</option><option value="REPORTING">Simplified (reporting)</option><option value="CLEARANCE">Standard (clearance)</option></select></label>
   <label for="flt-state"><span class="sr">Outcome</span><select id="flt-state"></select></label>
@@ -58,6 +59,7 @@
       <div class="scene-head"><div><div class="tag">Executive pulse</div><h2>The whole platform on one screen</h2>
         <p>Headline figures straight from the Gold layer. Variances are absolute sums over every merchant-day, so a single halala anywhere would show here.</p></div></div>
       <div class="kpis" id="kpis"></div>
+      <div class="egs-cards" id="pay-cards" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px"></div>
       <div class="panel equation" id="equation"></div>
     </div>
   </section>

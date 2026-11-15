@@ -1,0 +1,10 @@
+// Data trust and pulse: the NDMO scorecard. Scores as integer hundredths (99.07 -> 9907).
+EVALUATE
+SELECTCOLUMNS(
+    mart_ndmo_scorecard,
+    "family", mart_ndmo_scorecard[metric_family], "dimension", mart_ndmo_scorecard[dimension], "table", mart_ndmo_scorecard[subject_table],
+    "num", mart_ndmo_scorecard[numerator], "den", mart_ndmo_scorecard[denominator],
+    "score_x100", CONVERT(ROUND(mart_ndmo_scorecard[score_pct] * 100, 0), INTEGER), "threshold_x100", CONVERT(ROUND(mart_ndmo_scorecard[threshold_pct] * 100, 0), INTEGER),
+    "status", mart_ndmo_scorecard[status], "tier", mart_ndmo_scorecard[table_classification]
+)
+ORDER BY [family], [dimension], [table]

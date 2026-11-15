@@ -31,7 +31,7 @@ def test_every_money_value_leaves_dax_as_integer_halalas():
 def test_fixtures_are_recorded_for_every_query():
     queries = {f.stem for f in (CC / "queries").glob("*.dax")}
     fixtures = {f.stem for f in (CC / "__fixtures__").glob("*.json")}
-    assert queries == fixtures == {"recon_totals", "recon_cells", "calendar", "zatca", "ndmo"}
+    assert queries == fixtures == {"recon_totals", "recon_cells", "calendar", "zatca", "ndmo", "payments"}
 
 
 def test_snapshot_is_the_export_and_proof_names_its_sources():
@@ -40,7 +40,7 @@ def test_snapshot_is_the_export_and_proof_names_its_sources():
     proof = json.loads((CC / "proof.json").read_text(encoding="utf-8"))
     for k in ("chain", "pdpl", "mdm", "stream", "lineage", "skew", "fabric", "runs"):
         assert k in proof and k in proof["sources"], k
-    for k in ("recon", "daily", "calendar", "zatca"):
+    for k in ("recon", "daily", "calendar", "zatca", "payments"):
         assert k not in proof, f"{k} must come live from the semantic model"
 
 

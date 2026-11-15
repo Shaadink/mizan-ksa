@@ -5,12 +5,13 @@ import ndmo from "./__fixtures__/ndmo.json";
 import reconCells from "./__fixtures__/recon_cells.json";
 import reconTotals from "./__fixtures__/recon_totals.json";
 import zatca from "./__fixtures__/zatca.json";
+import payments from "./__fixtures__/payments.json";
 import proof from "./proof.json";
 import snapshot from "./snapshot.json";
 import { big, hundredths, mergeData, shapeLive, type LiveResults } from "./shape";
 
 // Fixtures are real results of the app's DAX queries on the Fabric semantic model (scripts/record_app_dax.py).
-const live = shapeLive({ recon_totals: reconTotals, recon_cells: reconCells, calendar, zatca, ndmo } as LiveResults);
+const live = shapeLive({ recon_totals: reconTotals, recon_cells: reconCells, calendar, zatca, ndmo, payments } as LiveResults);
 
 describe("money is exact", () => {
     it("formats integer halalas without floats", () => {
@@ -22,7 +23,7 @@ describe("money is exact", () => {
 });
 
 describe("live DAX results equal the exported Gold figures", () => {
-    it.each(["recon", "daily", "calendar", "zatca"] as const)("%s", (k) => {
+    it.each(["recon", "daily", "calendar", "zatca", "payments"] as const)("%s", (k) => {
         expect(live[k]).toEqual(snapshot[k]);
     });
     it("heatmap cells, days and merchant order", () => {

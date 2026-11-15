@@ -276,6 +276,19 @@ def lineage_section() -> dict:
             "edges": [{"from": a, "to": b} for a, b in edges]}
 
 
+def payments_section(con) -> dict:
+    """Payment-method picture cards: captures, the bank's fees (MDR + VAT, incl. T+1 estimates) and captures per day."""
+    P = "gld.fact_payment_method_daily"
+    methods = []
+    for m, n, g, f, e in _q(con, f"""SELECT payment_method, SUM(capture_count), SUM(gross_captures_sar),
+                                    SUM(acquirer_fees_sar), SUM(fees_estimated_sar) FROM {P} GROUP BY 1 ORDER BY 1"""):
+        days = [{"d": str(d), "captures": money(x)} for d, x in _q(con, f"""SELECT business_date_ksa,
+            SUM(gross_captures_sar) FROM {P} WHERE payment_method = ? GROUP BY 1 ORDER BY 1""", m)]
+        methods.append({"method": m, "count": int(n), "captures": money(g), "fees": money(f), "estimated": money(e),
+                        "daily": days})
+    return {"methods": methods}
+
+
 def residuals(con, R: str) -> dict:
     """Net (signed) residuals and broken keys, next to the gross absolute residuals (bank_variance / gl_variance)."""
     (bn, gn, broken), = _q(con, f"""SELECT SUM(unexplained_bank_variance_sar), SUM(unexplained_gl_variance_sar),
@@ -373,6 +386,7 @@ def build_data() -> dict:
         data = gold_section(con)
         data["ndmo"]["catalog"] = tiers(con)
         data["truth"] = truth_section(con)
+        data["payments"] = payments_section(con)
         data["stores"] = [{"merchant": m, "store": st, "channel": ch, "egs": e, "city": c} for m, st, ch, e, c in _q(
             con, "SELECT merchant_id, store_id, channel, egs_id, city FROM gld.merchant_store_reference ORDER BY 1")]
     finally:
@@ -401,7 +415,7 @@ def build_data() -> dict:
 # ----------------------------------------------------------------------------- Fabric App (apps/command-center)
 APP = REPO / "apps" / "command-center" / "src" / "command-center"
 # Sections the app reads LIVE from the semantic model (DAX); everything else ships as labelled proof-run data.
-LIVE_KEYS = ("recon", "daily", "calendar", "zatca")
+LIVE_KEYS = ("recon", "daily", "calendar", "zatca", "payments")
 
 
 def proof_sections(data: dict) -> dict:

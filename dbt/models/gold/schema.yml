@@ -12,6 +12,23 @@ models:
         data_tests: [not_null]
       - name: business_date_ksa
         data_tests: [not_null]
+  - name: fact_payment_method_daily
+    description: "Captures and bank fees (MDR + VAT from the settlement file) per merchant, business day and payment scheme."
+    data_tests:
+      - no_float_columns
+      - unique_combination:
+          arguments: {columns: ["merchant_id", "business_date_ksa", "payment_scheme"]}
+    columns:
+      - name: payment_scheme
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ["MADA", "VISA", "MASTERCARD", "BNPL", "SADAD", "UNMATCHED_BANK_LINE"]}
+      - name: payment_method
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ["MADA", "CARD", "BNPL", "SADAD", "UNMATCHED_BANK_LINE"]}
   - name: fact_zatca_clearance_ledger
     data_tests: [no_float_columns]
     columns:

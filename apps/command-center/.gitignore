@@ -49,3 +49,6 @@ coverage
 rayfin/.env
 rayfin/.deployments.json
 .env.local
+
+# owner photo: deployed with the app, kept out of git
+public/profile.*

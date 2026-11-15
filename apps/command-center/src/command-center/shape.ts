@@ -7,7 +7,7 @@ export interface QueryTableLike {
     rows: unknown[][];
 }
 
-export type QueryName = "recon_totals" | "recon_cells" | "calendar" | "zatca" | "ndmo";
+export type QueryName = "recon_totals" | "recon_cells" | "calendar" | "zatca" | "ndmo" | "payments";
 export type LiveResults = Record<QueryName, QueryTableLike>;
 // The scenes consume an untyped JSON document (same as the standalone page).
 export type MizanData = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -143,8 +143,20 @@ export function shapeLive(res: LiveResults): MizanData {
             : { merchant: "", share_of_sar_pct: "0.0" },           // a filter that matches no captures
     };
 
+    const pm = records(res.payments);
+    const payments = {
+        methods: pm.filter((r) => r.kind === "METHOD").sort((a, b) => (String(a.key) < String(b.key) ? -1 : 1)).map((r) => {
+            const m = String(r.key);
+            const daily = pm.filter((x) => x.kind === "METHODDAY" && String(x.key).startsWith(m + "|"))
+                .map((x) => ({ d: String(x.key).slice(m.length + 1), captures: hundredths(x.captures_h) }))
+                .sort((a, b) => (a.d < b.d ? -1 : 1));
+            return { method: m, count: int(r.n), captures: hundredths(r.captures_h), fees: hundredths(r.fees_h),
+                     estimated: hundredths(r.est_h), daily };
+        }),
+    };
+
     return { recon, daily, calendar, heat: { days, merchants, cells: merchants.map((m) => grid.get(m)!) },
-             zatca, ndmo: { scorecard }, truth };
+             zatca, ndmo: { scorecard }, truth, payments };
 }
 
 /** Live Gold figures over the labelled proof-run sections (proof.json). */

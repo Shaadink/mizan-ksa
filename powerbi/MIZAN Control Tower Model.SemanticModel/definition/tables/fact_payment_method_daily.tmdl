@@ -1,0 +1,79 @@
+table fact_payment_method_daily
+	lineageTag: 1136d7db-0656-597c-b60f-c7965fe13a9f
+
+	measure 'Method Captures SAR' = SUM(fact_payment_method_daily[gross_captures_sar])
+		formatString: #,0.00
+		lineageTag: 1fe5a32e-efa7-525c-84ea-3e5e3207afb8
+
+	measure 'Method Bank Fees SAR' = SUM(fact_payment_method_daily[acquirer_fees_sar])
+		formatString: #,0.00
+		lineageTag: ae490985-b35c-5961-9156-f128e1c2a87d
+
+	measure 'Method Fee Rate bps' = DIVIDE(SUM(fact_payment_method_daily[acquirer_fees_sar]), SUM(fact_payment_method_daily[gross_captures_sar])) * 10000
+		formatString: 0.0
+		lineageTag: a0a5ea42-e181-5a44-88fe-0f14f29aa161
+
+	column merchant_id
+		dataType: string
+		lineageTag: af6a5b64-ad52-5747-9dc7-24448309fc2e
+		summarizeBy: none
+		sourceColumn: merchant_id
+
+	column business_date_ksa
+		dataType: dateTime
+		lineageTag: 70a0f422-2804-5b18-9ca3-5b2f2ae5f739
+		summarizeBy: none
+		sourceColumn: business_date_ksa
+
+	column payment_scheme
+		dataType: string
+		lineageTag: fce6739f-dac4-5812-abf4-861493076426
+		summarizeBy: none
+		sourceColumn: payment_scheme
+
+	column payment_method
+		dataType: string
+		lineageTag: 908824ec-e30d-597b-8049-8848b829e13d
+		summarizeBy: none
+		sourceColumn: payment_method
+
+	column capture_count
+		dataType: int64
+		lineageTag: 99b43cbe-c519-5783-bd4d-5fe8c9e55ed1
+		summarizeBy: none
+		sourceColumn: capture_count
+
+	column gross_captures_sar
+		dataType: decimal
+		lineageTag: 74198cd9-bd69-53ce-888c-cf8367cac548
+		summarizeBy: none
+		sourceColumn: gross_captures_sar
+		formatString: #,0.00
+
+	column refunds_and_disputes_sar
+		dataType: decimal
+		lineageTag: 94612160-6c60-5343-8cf6-353de4eb4558
+		summarizeBy: none
+		sourceColumn: refunds_and_disputes_sar
+		formatString: #,0.00
+
+	column acquirer_fees_sar
+		dataType: decimal
+		lineageTag: 234940bf-24da-547f-9d2c-d86ff937d17a
+		summarizeBy: none
+		sourceColumn: acquirer_fees_sar
+		formatString: #,0.00
+
+	column fees_estimated_sar
+		dataType: decimal
+		lineageTag: 15269f57-210f-5e69-9497-41c533fa87f5
+		summarizeBy: none
+		sourceColumn: fees_estimated_sar
+		formatString: #,0.00
+
+	partition fact_payment_method_daily = entity
+		mode: directLake
+		source
+			entityName: fact_payment_method_daily
+			schemaName: gld
+			expressionSource: DatabaseQuery

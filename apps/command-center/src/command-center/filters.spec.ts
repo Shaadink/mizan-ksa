@@ -3,12 +3,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { buildQueries, settlementFilters, withFilters, zatcaFilters, type Filters } from "./filters";
+import { buildQueries, paymentFilters, settlementFilters, withFilters, zatcaFilters, type Filters } from "./filters";
 import { shapeLive, type LiveResults, type QueryName } from "./shape";
 import snapshot from "./snapshot.json";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const NAMES: QueryName[] = ["recon_totals", "recon_cells", "calendar", "zatca", "ndmo"];
+const NAMES: QueryName[] = ["recon_totals", "recon_cells", "calendar", "zatca", "ndmo", "payments"];
 const base = Object.fromEntries(NAMES.map((n) => [n, readFileSync(join(HERE, "queries", `${n}.dax`), "utf8")])) as Record<QueryName, string>;
 // Example filter sets: their generated DAX is committed (queries/examples) and recorded live (__fixtures__/filtered).
 export const EXAMPLES: Record<string, Filters> = {
@@ -16,6 +16,7 @@ export const EXAMPLES: Record<string, Filters> = {
     city: { city: "Jeddah" },
     egs_flow: { egs: "EGS-05", flow: "REPORTING" },
     not_assessed: { status: "NOT_ASSESSED" },
+    method_city: { method: "MADA", city: "Jeddah" },
 };
 
 describe("filter DAX", () => {
@@ -25,6 +26,7 @@ describe("filter DAX", () => {
         expect(() => settlementFilters({ from: "2026-02-21); EVALUATE x //" })).toThrow();
         expect(() => zatcaFilters({ state: "PAID" })).toThrow();
         expect(() => zatcaFilters({ egs: "EGS-5" })).toThrow();
+        expect(() => paymentFilters({ method: "CRYPTO" })).toThrow();
     });
     it("wraps the table expression and keeps ORDER BY outside", () => {
         const q = withFilters(base.recon_cells, ['x[y] = "z"']);
@@ -74,6 +76,14 @@ describe("live filtered results agree with the unfiltered Gold data", () => {
         const docs = Object.values(live.zatca.states as Record<string, number>).reduce((a, b) => a + b, 0);
         expect(docs).toBe(live.zatca.egs[0].docs);
         expect(live.recon).toEqual(snapshot.recon);             // ZATCA filters never slice the settlement scenes
+    });
+    it("payment method + city slices the payment cards (and the city slices settlement)", () => {
+        const live = shapeLive(fixture("method_city")!);
+        expect(live.payments.methods.map((m: { method: string }) => m.method)).toEqual(["MADA"]);
+        const all = shapeLive(fixture("city")!);
+        const mada = all.payments.methods.find((m: { method: string }) => m.method === "MADA");
+        expect(live.payments.methods[0].captures).toBe(mada.captures);     // MADA in Jeddah, both ways
+        expect(live.recon).toEqual(all.recon);                             // method never slices the recon
     });
     it("MID-days not assessed (no bank file)", () => {
         const live = shapeLive(fixture("not_assessed")!);

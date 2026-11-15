@@ -78,3 +78,12 @@ Smallest change: add `merchants.csv` as one **dbt seed** `merchant_store_referen
 with tests (unique `merchant_id`, accepted `channel`, accepted `city`), read by the map only. No existing table or
 column changes. The map's money routes (store, acquirer, bank) can then be drawn from the existing recon facts.
 **This adds a seed table, so it needs your yes.**
+
+## 9. Payment methods (owner-approved Gold model)
+
+`gld.fact_payment_method_daily` (merchant x business day x payment scheme): capture count, gross captures,
+refunds and disputes, the bank's fees (MDR + VAT summed from settlement lines, linked to the scheme through the
+payment event) and the part that is a T+1 estimate. Totals: captures SAR 22,390,730.16 and fees SAR 370,553.94,
+equal to the reconciliation; `dbt/tests/assert_payment_methods_reconcile_to_recon.sql` checks every merchant-day.
+Fee rates: mada 99.5 bps, credit card 232.1 bps, BNPL 467.9 bps, SADAD 46.7 bps.
+
