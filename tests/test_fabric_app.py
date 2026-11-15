@@ -60,3 +60,16 @@ def test_connector_is_delegated_semantic_model_and_no_deploy_state_is_committed(
     assert "data:\n    enabled: false" in yml                        # no app database is created
     ignore = (APP / ".gitignore").read_text(encoding="utf-8")
     assert "rayfin/.env" in ignore and "rayfin/.deployments.json" in ignore
+
+
+def test_stage3_shell_menu_scenes_and_profile_guard():
+    tpl = (REPO / "command_center" / "template.html").read_text(encoding="utf-8")
+    for label in ("Pulse", "Money flow", "Ledger", "Reconciliation", "ZATCA", "PDPL", "MDM", "Risk stream", "Map",
+                  "Data trust", "Platform", "Data life cycle"):
+        assert f'"{label}"' in tpl, label
+    for sid in ("map", "lifecycle"):
+        assert f'<section class="scene" id="{sid}"' in tpl
+    assert r"linkedin\.com" in tpl and 'rel="noopener noreferrer"' in tpl     # only a LinkedIn URL becomes a link
+    assert 'id="search"' in tpl and "window.MIZAN_QUERY" in tpl
+    prof = json.loads((REPO / "config" / "profile.json").read_text(encoding="utf-8"))
+    assert prof["name"] and prof["linkedin"].startswith("https://www.linkedin.com/")

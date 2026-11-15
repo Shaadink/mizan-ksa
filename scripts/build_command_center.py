@@ -101,7 +101,7 @@ def gold_section(con) -> dict:
                                  {"merchant": "MID900001", "d": "2026-02-12", "bank_variance": "0.00",
                                   "gl_variance": "0.01", "cause": "0.01 SAR float rounding bug"}]},
         "zatca": {"states": states, "egs": egs, "flows": flows, "sar": money(zsar), "corrections": corr,
-                  "retried": retried, "daily": zdaily},
+                  "retried": retried, "daily": zdaily, "egs_detail": egs_detail(con, z)},
         "ndmo": {"scorecard": score},
         "mdm_gold": {"goldens": goldens, "max_members": maxm},
     }
@@ -274,6 +274,17 @@ def lineage_section() -> dict:
             "edges": [{"from": a, "to": b} for a, b in edges]}
 
 
+def egs_detail(con, z: str) -> list[dict]:
+    """Per EGS device: last ICV, retried documents and documents per issue day (EGS picture cards)."""
+    out = []
+    for e, last, retried in _q(con, f"""SELECT egs_id, MAX(icv), COUNT(*) FILTER (WHERE attempts > 1) FROM {z}
+                                       GROUP BY 1 ORDER BY 1"""):
+        days = [{"d": str(d), "docs": n} for d, n in _q(con, f"""SELECT issue_date_ksa, COUNT(*) FROM {z}
+                                                               WHERE egs_id = ? GROUP BY 1 ORDER BY 1""", e)]
+        out.append({"egs": e, "last_icv": last, "retried": retried, "daily": days})
+    return out
+
+
 # ----------------------------------------------------------------------------- Stage 1 truth facts
 NOT_ASSESSED = "in_transit_sar <> 0"     # bank file for that MID-day has not arrived: not assessed, never "balanced"
 
@@ -370,6 +381,8 @@ def build_data() -> dict:
                                                     .parameters["mega_share"].default),
                           "source": "src/mizan/spark/skew.py skewed_facts(mega_share)"}
     data["runs"] = runs_section()
+    prof = REPO / "config" / "profile.json"
+    data["profile"] = json.loads(prof.read_text(encoding="utf-8")) if prof.exists() else {}
     data["fabric"] = json.loads((ART / "10_fabric_run_evidence.json").read_text(encoding="utf-8"))
     data["meta"] = {"seed": 20261112, "timezone": "Asia/Riyadh", "currency": "SAR",
                     "note": "Synthetic data, fixed seed. Every figure is exported from Gold or a proof run."}
@@ -401,6 +414,7 @@ def proof_sections(data: dict) -> dict:
         "mdm_gold": "gld.dim_party_golden (not in the semantic model)",
         "runs": "dbt/target/run_results.json + docs/artifacts/html/02_halala_recon_board.html",
         "stores": "gld.merchant_store_reference (owner-approved seed)",
+        "profile": "config/profile.json (owner)",
     }
     return proof
 

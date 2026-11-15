@@ -43,16 +43,30 @@ const SCENES = [
   { id: "pdpl", n: "06", label: "PDPL erasure", cap: "One request shreds five keys and removes the identity link. The signed tax journal stays under legal hold, totals unchanged." },
   { id: "mdm", n: "07", label: "Arabic MDM", cap: "Mojibake, tashkeel, ligatures, Arabic-Indic digits and an English nickname resolve to one golden customer. Brothers stay apart." },
   { id: "stream", n: "08", label: "Risk stream", cap: "91,513 events replayed. The velocity burst, the mule ring and two late ZATCA reports are caught exactly where they happen." },
-  { id: "trust", n: "09", label: "Data trust", cap: "64 of 64 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
-  { id: "platform", n: "10", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
+  { id: "map", n: "09", label: "Store map", cap: "Stores by city, coloured by reconciliation status for the current filters. Money routes store to acquirer to bank." },
+  { id: "trust", n: "10", label: "Data trust", cap: "64 of 64 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
+  { id: "platform", n: "11", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
+  { id: "lifecycle", n: "12", label: "Data life cycle", cap: "Sources to Bronze, Silver and Gold, then the Control Tower and this app: every box is a working, tested part." },
 ];
-const ROLE_SCENES = { ALL: SCENES.map(s => s.id), CFO: ["top", "pulse", "flow", "ledger", "recon"], TAX: ["top", "pulse", "ledger", "zatca", "stream"], CDO: ["top", "pulse", "pdpl", "mdm", "stream", "trust", "platform"] };
+const ROLE_SCENES = { ALL: SCENES.map(s => s.id), CFO: ["top", "pulse", "flow", "ledger", "recon", "map"], TAX: ["top", "pulse", "ledger", "zatca", "stream"], CDO: ["top", "pulse", "pdpl", "mdm", "stream", "trust", "platform", "lifecycle"] };
 let role = "ALL";
 
 /* ---------- rail + roles ---------- */
 const rail = $("#rail");
-SCENES.forEach(s => { const a = document.createElement("a"); a.href = "#" + s.id; a.textContent = s.n; a.dataset.label = s.label; a.dataset.id = s.id;
-  a.addEventListener("click", e => { e.preventDefault(); goTo(s.id) }); rail.appendChild(a) });
+const ICONS = { top: "M12 3v18M5 7h14M7 7l-3 7h6l-3-7M17 7l-3 7h6l-3-7M8 21h8", pulse: "M3 12h4l2-6 4 12 2-6h6",
+  flow: "M3 6h8a4 4 0 0 1 4 4a4 4 0 0 0 4 4h2M3 18h18M3 12h6", ledger: "M4 19V5M4 19h16M8 15l3-4 3 2 5-6",
+  recon: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z", zatca: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
+  pdpl: "M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6zM9 12l2 2 4-4", mdm: "M5 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0M13 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 20c0-3 2-5 5-5s5 2 5 5M11 20c0-3 2-5 5-5s5 2 5 5",
+  stream: "M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0", map: "M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14",
+  trust: "M12 3l8 4-8 4-8-4zM4 12l8 4 8-4M4 17l8 4 8-4", platform: "M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01",
+  lifecycle: "M4 12a8 8 0 0 1 14-5l2-2v6h-6l2-2a5 5 0 1 0 1 5" };
+const MENU = { top: "Home" , pulse: "Pulse", flow: "Money flow", ledger: "Ledger", recon: "Reconciliation", zatca: "ZATCA", pdpl: "PDPL", mdm: "MDM",
+  stream: "Risk stream", map: "Map", trust: "Data trust", platform: "Platform", lifecycle: "Data life cycle" };
+SCENES.forEach(s => { const a = document.createElement("a"); a.href = "#" + s.id; a.dataset.label = s.label; a.dataset.id = s.id; a.title = s.label;
+  a.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[s.id] || ICONS.pulse}"/></svg><span>${MENU[s.id] || s.label}</span>`;
+  a.addEventListener("click", e => { e.preventDefault(); document.body.classList.remove("rail-open"); goTo(s.id) }); rail.appendChild(a) });
+rail.insertAdjacentHTML("beforeend", `<div class="rail-foot">Synthetic data &middot; live DAX on the Fabric semantic model</div>`);
+$("#menu-btn").addEventListener("click", () => { if (innerWidth <= 900) document.body.classList.toggle("rail-open"); else document.body.classList.toggle("rail-collapsed"); });
 function goTo(id, smooth = true) { const el = document.getElementById(id); if (!el) return;
   const y = el.getBoundingClientRect().top + scrollY - (id === "top" ? 0 : 108);
   window.scrollTo({ top: y, behavior: smooth && !REDUCED ? "smooth" : "auto" }); }
@@ -370,7 +384,11 @@ function reconScene() {
     const j = Math.floor((x - L.l) / G.cw), i = Math.floor((y - L.t) / G.ch);
     if (i < 0 || j < 0 || i >= hm.merchants.length || j >= hm.days.length) { hover = null; hideTip(); return; }
     hover = { i, j }; const c = hm.cells[i][j], m = hm.merchants[i], d = hm.days[j], br = defects && breaks.get(m + "|" + d);
-    showTip(`<b>${m}</b> &middot; ${d}<br>${c ? "Captures SAR " + fmtH(H(c)) : "No activity"}<br>${br ? `<span style="color:${C.crit}">Bank var ${br.bank_variance} · GL var ${br.gl_variance}<br>${br.cause}</span>` : "Bank var 0.00 · GL var 0.00"}<br><span class="clickable-hint">Click for this MID-day</span>`, e.clientX, e.clientY); });
+    const row7 = hm.cells[i].slice(Math.max(0, j - 6), j + 1).map(v => v ? H(v) : 0);
+    const spark = (() => { const mx = Math.max(1, ...row7), w = 120, h = 28; const pts = row7.map((v, k) => `${(row7.length > 1 ? k / (row7.length - 1) : 1) * w},${h - 3 - v / mx * (h - 6)}`).join(" ");
+      return `<svg width="${w}" height="${h}" style="display:block;margin:6px 0"><polyline points="${pts}" fill="none" stroke="${C.em}" stroke-width="1.8"/></svg>`; })();
+    const store = (BASE.stores || []).find(x => x.merchant === m);
+    showTip(`<b>${m}</b> &middot; ${d}${store ? ` &middot; ${store.channel} ${store.city} ${store.egs}` : ""}<br>${spark}<span class="clickable-hint">Captures, last 7 days to ${d.slice(5)}</span><br>${c ? "Captures SAR " + fmtH(H(c)) : "No activity"}<br>${br ? `<span style="color:${C.crit}">Bank var ${br.bank_variance} · GL var ${br.gl_variance}<br>${br.cause}</span>` : "Bank var 0.00 · GL var 0.00"}<br><span class="clickable-hint">Click for this MID-day</span>`, e.clientX, e.clientY); });
   cv.addEventListener("mouseleave", () => { hover = null; hideTip(); });
   $("#breaks").innerHTML = `<tr><th>MID</th><th>Day</th><th class="r">Bank var</th><th class="r">GL var</th></tr>` +
     hm.demo_breaks.map(b => `<tr><td>${b.merchant}</td><td>${b.d.slice(5)}</td><td class="r" style="color:${H(b.bank_variance) ? C.crit : C.muted}">${b.bank_variance}</td><td class="r" style="color:${H(b.gl_variance) ? C.crit : C.muted}">${b.gl_variance}</td></tr><tr><td colspan="4" style="color:var(--dim)">${b.cause}</td></tr>`).join("");
@@ -419,6 +437,7 @@ function zatcaScene() {
   g.append("text").attr("text-anchor", "middle").attr("y", 16).text("in chain");
   $("#donut-legend").innerHTML = data.map(d => `<span><i style="background:${colors[d.k] || C.gold}"></i>${d.k} ${fmtI(d.v)}</span>`).join("");
   const mx = Math.max(...D.zatca.egs.map(e => e.docs));
+  safe("egsCards", egsCards);
   $("#egs").innerHTML = D.zatca.egs.map(e => `<div class="lane" data-f="egs" data-v="${e.egs}" title="Filter to ${e.egs}" style="grid-template-columns:62px 1fr 110px"><span>${e.egs}</span><div class="track" style="height:14px"><div class="max" data-w="${e.docs / mx}" style="top:0;bottom:0;width:${e.docs / mx * 100}%;background:linear-gradient(90deg,var(--emerald-deep),var(--emerald))"></div></div><span class="num" style="text-align:right">${fmtI(e.docs)}</span></div>`).join("");
   const fl = Object.fromEntries(D.zatca.flows.map(f => [f.flow, f]));
   const flowTxt = f => f ? `${fmtI(f.docs)} · SAR ${fmtH(H(f.sar))}` : "\u2014";
@@ -607,8 +626,8 @@ function platformScene() {
 
 /* =========================================================== story mode, palette, boot */
 const PLAY = { top: () => hero.replay(), pulse: () => pulse.play(), flow: () => flow.play(), ledger: () => ledger.play(), recon: () => recon.play(),
-  zatca: () => zatca.play(), pdpl: () => { pdpl.play(); setTimeout(() => pdpl.run && pdpl.run(), 900); }, mdm: () => mdm.play(), stream: () => stream.play(), trust: () => trust.play(), platform: () => platform.play() };
-const DUR = { top: 9500, pulse: 6500, flow: 7000, ledger: 6500, recon: 8000, zatca: 8000, pdpl: 8500, mdm: 7000, stream: 12500, trust: 7000, platform: 7500 };
+  zatca: () => zatca.play(), map: () => mapS.play(), lifecycle: () => dlc.play(), pdpl: () => { pdpl.play(); setTimeout(() => pdpl.run && pdpl.run(), 900); }, mdm: () => mdm.play(), stream: () => stream.play(), trust: () => trust.play(), platform: () => platform.play() };
+const DUR = { top: 9500, pulse: 6500, flow: 7000, ledger: 6500, recon: 8000, zatca: 8000, pdpl: 8500, mdm: 7000, stream: 12500, trust: 7000, platform: 7500, map: 8000, lifecycle: 8000 };
 let story = null;
 function startStory() { stopStory(); const ids = ROLE_SCENES[role]; let i = 0; $("#caption").classList.add("on");
   const next = () => { if (i >= ids.length) return stopStory(); const id = ids[i], sc = SCENES.find(s => s.id === id);
@@ -653,12 +672,12 @@ const SETTLE = ["from", "to", "mid", "city", "status"], TAXF = ["from", "to", "e
 function opt(v, t) { return `<option value="${v}">${t}</option>`; }
 function fillFilterBar() {
   const days = BASE.heat.days, stores = BASE.stores || [];
-  $("#flt-from").innerHTML = opt("", "Start") + days.map(d => opt(d, d.slice(5))).join("");
-  $("#flt-to").innerHTML = opt("", "End") + days.map(d => opt(d, d.slice(5))).join("");
+  $("#flt-from").innerHTML = opt("", "From: start") + days.map(d => opt(d, d.slice(5))).join("");
+  $("#flt-to").innerHTML = opt("", "To: end") + days.map(d => opt(d, d.slice(5))).join("");
   $("#flt-mid-list").innerHTML = BASE.heat.merchants.map(m => `<option value="${m}">`).join("");
-  $("#flt-city").innerHTML = opt("", "All") + [...new Set(stores.map(s => s.city))].sort().map(c => opt(c, c)).join("");
-  $("#flt-egs").innerHTML = opt("", "All") + BASE.zatca.egs.map(e => opt(e.egs, e.egs)).join("");
-  $("#flt-state").innerHTML = opt("", "All") + Object.keys(BASE.zatca.states).sort().map(k => opt(k, k)).join("");
+  $("#flt-city").innerHTML = opt("", "All cities") + [...new Set(stores.map(s => s.city))].sort().map(c => opt(c, c)).join("");
+  $("#flt-egs").innerHTML = opt("", "All EGS") + BASE.zatca.egs.map(e => opt(e.egs, e.egs)).join("");
+  $("#flt-state").innerHTML = opt("", "All outcomes") + Object.keys(BASE.zatca.states).sort().map(k => opt(k, k)).join("");
 }
 function syncFilterBar() {
   for (const k of Object.keys(F)) { const el = $("#flt-" + k); if (el && el.value !== F[k]) el.value = F[k]; }
@@ -698,7 +717,7 @@ function showDrill() {
 function rerender(next) {
   D = next; R = D.recon; GEN++;
   safe("heroCopy", heroCopy); safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene);
-  safe("recon", reconScene); safe("zatca", zatcaScene);
+  safe("recon", reconScene); safe("zatca", zatcaScene); safe("map", mapScene); safe("lifecycle", lifecycleScene);
   window.ScrollTrigger && ScrollTrigger.refresh();
 }
 function initFilterBar() {
@@ -719,6 +738,128 @@ function initFilterBar() {
   });
 }
 
+/* =========================================================== EGS picture cards (inside the ZATCA scene) */
+function egsCards() {
+  const det = D.zatca.egs_detail || [], byEgs = Object.fromEntries(D.zatca.egs.map(e => [e.egs, e]));
+  const merch = (BASE.truth && BASE.truth.egs_merchants) || {}, breaks = D.fabric.notebook_jobs.zatca_chain.violations;
+  $("#egs-cards").innerHTML = det.map(e => {
+    const days = e.daily.map(x => x.docs), last7 = days.slice(-7).reduce((a, b) => a + b, 0), prev7 = days.slice(-14, -7).reduce((a, b) => a + b, 0);
+    const pct = prev7 ? (last7 - prev7) / prev7 * 100 : null, up = pct !== null && pct >= 0;
+    const ms = merch[e.egs] || [], who = ms.length === 1 ? `${ms[0]} \u00b7 e-commerce` : `${ms.length} POS merchants`;
+    return `<div class="egs-card ${F.egs === e.egs ? "sel" : ""}" data-f="egs" data-v="${e.egs}" title="Filter the page to ${e.egs}">
+      <div class="top"><span class="badge"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M9 15h2M13 15h2M9 18h2M13 18h2"/></svg></span>
+        <div><b>${e.egs}</b><div class="sub">${who}</div></div></div>
+      <div class="kv"><span>Documents</span><span>${fmtI(byEgs[e.egs] ? byEgs[e.egs].docs : 0)}</span></div>
+      <div class="kv"><span>Last ICV</span><span>${fmtI(e.last_icv)}</span></div>
+      <div class="kv"><span>Retries</span><span>${e.retried ? "\u21bb " + e.retried : "0"}</span></div>
+      <div class="kv"><span>Chain</span><span style="color:${breaks ? C.crit : C.ok}">${breaks ? "\u2717 " + breaks + " breaks" : "\u2713 0 breaks"}</span></div>
+      <div class="kv"><span>vs prior 7 days</span><span class="delta ${up ? "up" : "down"}">${pct === null ? "\u2014" : (up ? "\u25b2 +" : "\u25bc \u2212") + Math.abs(pct).toFixed(1) + "%"}</span></div></div>`; }).join("");
+}
+
+/* =========================================================== 09 STORE MAP */
+const mapS = { play() {} };
+// Simplified outline of the Kingdom (lon, lat), drawn coarse on purpose: a schematic, not a survey map.
+const KSA = [[34.9,29.4],[36.1,29.2],[37.5,30.0],[38.0,30.5],[39.2,32.2],[40.4,32.0],[42.0,31.1],[44.7,29.2],[46.5,29.1],[47.5,29.0],[48.4,28.5],
+  [48.9,27.6],[49.6,26.9],[50.2,26.2],[50.8,25.0],[51.1,24.5],[51.6,24.2],[52.6,22.9],[55.2,22.7],[55.7,22.0],[55.0,20.0],[52.0,19.0],[49.1,18.6],
+  [46.4,17.3],[44.5,17.4],[43.4,17.5],[42.8,16.5],[42.6,17.4],[41.8,17.9],[40.9,19.5],[39.7,20.9],[39.1,21.8],[38.4,23.6],[37.4,24.8],[36.6,25.8],[35.6,27.3],[34.7,28.1]];
+const CITY = { Riyadh: [46.72, 24.71], Jeddah: [39.19, 21.49], Makkah: [39.83, 21.42], Madinah: [39.61, 24.47], Dammam: [50.10, 26.43] };
+function mapScene() {
+  const svg = d3.select("#map-svg"); svg.selectAll("*").remove(); const myGen = GEN;
+  const W = svg.node().clientWidth || 800, Hh = 520; svg.attr("viewBox", `0 0 ${W} ${Hh}`);
+  const lon = d3.extent(KSA, d => d[0]), lat = d3.extent(KSA, d => d[1]), k = Math.cos(24 * Math.PI / 180);
+  const sc = Math.min((W - 40) / ((lon[1] - lon[0]) * k), (Hh - 40) / (lat[1] - lat[0]));
+  const ox = (W - (lon[1] - lon[0]) * k * sc) / 2, oy = (Hh - (lat[1] - lat[0]) * sc) / 2;
+  const P = ([x, y]) => [ox + (x - lon[0]) * k * sc, oy + (lat[1] - y) * sc];
+  const defs = svg.append("defs"); const gr = defs.append("radialGradient").attr("id", "landg");
+  gr.append("stop").attr("offset", 0).attr("stop-color", "rgba(217,178,95,.10)"); gr.append("stop").attr("offset", 1).attr("stop-color", "rgba(16,27,48,.9)");
+  svg.append("path").attr("d", "M" + KSA.map(P).map(p => p.join(",")).join("L") + "Z").attr("fill", "url(#landg)").attr("stroke", "rgba(217,178,95,.35)").attr("stroke-width", 1.4);
+  // per-city facts from the current (filtered) data
+  const stores = BASE.stores || [], na = new Set((D.truth.not_assessed_cells || []).map(c => c[0])), hm = D.heat;
+  const gross = Object.fromEntries(hm.merchants.map((m, i) => [m, hm.cells[i].reduce((a, c) => a + (c ? H(c) : 0), 0)]));
+  const days = Object.fromEntries(hm.merchants.map((m, i) => [m, hm.cells[i].filter(Boolean).length]));
+  const cities = Object.keys(CITY).map(c => { const ss = stores.filter(s => s.city === c);
+    return { c, ss, g: ss.reduce((a, s) => a + (gross[s.merchant] || 0), 0), md: ss.reduce((a, s) => a + (days[s.merchant] || 0), 0), na: ss.filter(s => na.has(s.merchant)).length }; });
+  const hub = P(CITY.Riyadh), bank = [hub[0] + 40, hub[1] + 95], maxG = Math.max(1, ...cities.map(x => x.g));
+  const g = svg.append("g");
+  cities.forEach(x => { if (!x.g) return; const [cx, cy] = P(CITY[x.c]); const mx = (cx + hub[0]) / 2, my = Math.min(cy, hub[1]) - 60;
+    g.append("path").attr("class", REDUCED ? "" : "route").attr("d", x.c === "Riyadh" ? `M${cx} ${cy} L${hub[0]} ${hub[1]}` : `M${cx} ${cy} Q${mx} ${my} ${hub[0]} ${hub[1]}`)
+      .attr("fill", "none").attr("stroke", C.em).attr("stroke-opacity", .55).attr("stroke-width", 1 + 3 * Math.sqrt(x.g / maxG)); });
+  g.append("path").attr("class", REDUCED ? "" : "route").attr("d", `M${hub[0]} ${hub[1]} Q${hub[0] + 50} ${hub[1] - 10} ${bank[0]} ${bank[1]}`).attr("fill", "none").attr("stroke", C.cyan).attr("stroke-width", 3);
+  // stores: spread around their city on a golden-angle spiral (the store reference holds the city only)
+  cities.forEach(x => { const [cx, cy] = P(CITY[x.c]);
+    x.ss.forEach((s, i) => { const a = i * 2.39996, rr = 8 + 4.2 * Math.sqrt(i + 1); const col = !gross[s.merchant] ? C.dim : na.has(s.merchant) ? C.warn : C.ok;
+      g.append("circle").attr("cx", cx + Math.cos(a) * rr).attr("cy", cy + Math.sin(a) * rr).attr("r", s.channel === "ECOM" ? 5 : 2.6).attr("fill", col).attr("opacity", .9)
+        .on("mousemove", e => showTip(`<b>${s.merchant}</b> \u00b7 ${s.store}<br>${s.channel} \u00b7 ${x.c} \u00b7 ${s.egs}<br>Captures SAR ${fmtH(gross[s.merchant] || 0)} \u00b7 ${days[s.merchant] || 0} MID-days<br>${na.has(s.merchant) ? "\u23f3 has MID-days awaiting the bank file" : gross[s.merchant] ? "\u2713 reconciled" : "no activity in this filter"}`, e.clientX, e.clientY))
+        .on("mouseleave", hideTip); });
+    g.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 4 + 14 * Math.sqrt(x.g / maxG)).attr("fill", "none").attr("stroke", C.gold).attr("stroke-width", 1.5)
+      .attr("data-f", "city").attr("data-v", x.c).style("cursor", "pointer")
+      .on("mousemove", e => showTip(`<b>${x.c}</b><br>${x.ss.length} stores \u00b7 ${fmtI(x.md)} MID-days<br>Captures SAR ${fmtH(x.g)}<br>${x.na ? "\u23f3 " + x.na + " stores awaiting a bank file" : "\u2713 all assessed MID-days reconciled"}<br><span class="clickable-hint">Click to filter to ${x.c}</span>`, e.clientX, e.clientY)).on("mouseleave", hideTip);
+    const LAB = { Jeddah: [-14, 4, "end"], Makkah: [12, 22, "start"], Madinah: [12, -12, "start"], Riyadh: [14, -14, "start"], Dammam: [12, -14, "start"] }[x.c];
+    g.append("text").attr("x", cx + LAB[0]).attr("y", cy + LAB[1]).attr("text-anchor", LAB[2]).style("fill", "#e9eff6").style("font", "600 12px IBM Plex Sans").text(x.c); });
+  g.append("rect").attr("x", hub[0] - 9).attr("y", hub[1] - 9).attr("width", 18).attr("height", 18).attr("rx", 4).attr("fill", C.gold);
+  g.append("text").attr("x", hub[0] - 14).attr("y", hub[1] + 30).attr("text-anchor", "end").style("fill", C.goldHi).text("Acquirer (Riyadh hub)");
+  g.append("rect").attr("x", bank[0] - 9).attr("y", bank[1] - 9).attr("width", 18).attr("height", 18).attr("rx", 9).attr("fill", C.cyan);
+  g.append("text").attr("x", bank[0] + 14).attr("y", bank[1] + 4).style("fill", "#bfe8ff").text("Settlement bank (T+1)");
+  $("#map-note").textContent = "Schematic map. The store reference holds the city only, so stores are spread around their city for visibility. \u2713 green reconciled \u00b7 \u23f3 amber awaiting bank file \u00b7 grey no activity.";
+  $("#citylist").innerHTML = cities.map(x => `<div class="row" data-f="city" data-v="${x.c}"><span>${F.city === x.c ? "\u25cf " : ""}${x.c} \u00b7 ${x.ss.length} stores</span><span>${fmtI(x.md)} MID-days \u00b7 SAR ${fmtH(x.g)}${x.na ? ` \u00b7 \u23f3${x.na}` : ""}</span></div>`).join("");
+  mapS.play = () => { if (!window.gsap || REDUCED || myGen !== GEN) return; gsap.fromTo("#map-svg circle", { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: .5, stagger: .004, ease: "back.out(2)", overwrite: true }); };
+}
+
+/* =========================================================== 12 DATA LIFE CYCLE */
+const dlc = { play() {} };
+function lifecycleScene() {
+  const cat = D.ndmo.catalog, fab = D.fabric;
+  const N = [
+    { id: "src", col: 1, row: 2, k: "Sources", b: "Five systems", d: "POS (5 EGS), e-commerce, mada/SADAD T+1 bank files, ERP ACDOCA, CRM + SPL addresses", n: `${fmtI(D.stores ? D.stores.length : 0)} stores`, go: "pulse" },
+    { id: "brz", col: 2, row: 2, k: "Bronze", b: "Encrypt on land", d: "PII tokenised and encrypted at the write; file sha256 reconciled", n: `${cat.tables_by_schema.brz} raw tables`, go: "pdpl" },
+    { id: "slv", col: 3, row: 2, k: "Silver", b: "Clean, resolve, chain", d: "Payments lifecycle, settlement, GL, Arabic MDM, ZATCA documents", n: `${cat.tables_by_schema.slv} tables \u00b7 ${fmtI(D.mdm_gold.goldens)} goldens`, go: "mdm" },
+    { id: "gld", col: 4, row: 2, k: "Gold \u00b7 WH_MIZAN", b: "Reconciled facts", d: "Key-spine recon, clearance ledger, Hijri calendar, NDMO scorecard", n: `${fmtI(D.recon.mid_days)} MID-days \u00b7 dbt ${fab.dbt_build_WH_MIZAN.pass} pass`, go: "recon" },
+    { id: "srv", col: 5, row: 2, k: "Serve", b: "Control Tower + this app", d: "Direct Lake Power BI report and this Fabric App, both live DAX on one semantic model", n: "live DAX", go: "pulse" },
+    { id: "air", col: "2 / 5", row: 1, k: "Orchestration", b: "Airflow daily DAG", d: "Fabric notebook jobs, freshness gate, dbt build, residency gate", n: `${Object.keys(fab.notebook_jobs).length} Fabric jobs`, go: "platform", side: true },
+    { id: "ztc", col: 3, row: 3, k: "ZATCA engine", b: "Phase-2 hash chain", d: "SUBMITTING before HTTP; retries reuse identical bytes", n: `${fmtI(fab.notebook_jobs.zatca_chain.documents)} docs \u00b7 ${fab.notebook_jobs.zatca_chain.violations} breaks`, go: "zatca", side: true },
+    { id: "brk", col: 4, row: 3, k: "Circuit breaker", b: "dbt tests gate Gold", d: "Any unexplained halala stops publishing", n: `candidate ${D.runs.candidate.status} \u00b7 published ${D.runs.published.status}`, go: "recon", side: true },
+    { id: "lin", col: 5, row: 3, k: "OpenLineage", b: "Column lineage", d: "Every Gold column traced to source; build fails otherwise", n: `${D.lineage.covered}/${D.lineage.gold_columns} columns`, go: "trust", side: true },
+    { id: "evs", col: "1 / 3", row: 3, k: "Real time", b: "Eventstream \u2192 Eventhouse", d: "Tokenised events, KQL risk rules", n: `${fmtI(D.stream.total)} events`, go: "stream", side: true },
+  ];
+  const box = $("#dlc"); box.querySelectorAll(".dlc-node").forEach(n => n.remove());
+  N.forEach(n => box.insertAdjacentHTML("beforeend", `<button type="button" class="dlc-node ${n.side ? "side" : ""}" data-node="${n.id}" data-go="${n.go}" style="grid-column:${n.col};grid-row:${n.row}"><div class="k">${n.k}</div><b>${n.b}</b><div class="d">${n.d}</div><div class="n">${n.n}</div></button>`));
+  box.querySelectorAll(".dlc-node").forEach(b => b.addEventListener("click", () => goTo(b.dataset.go)));
+  function lines() { const sv = $("#dlc-lines"), br = box.getBoundingClientRect(); const c = id => { const r = box.querySelector(`[data-node="${id}"]`).getBoundingClientRect(); return { l: r.left - br.left, r: r.right - br.left, t: r.top - br.top, b: r.bottom - br.top, x: r.left - br.left + r.width / 2, y: r.top - br.top + r.height / 2 }; };
+    const E = [["src", "brz"], ["brz", "slv"], ["slv", "gld"], ["gld", "srv"]].map(([a, b]) => { const A = c(a), B = c(b); return `M${A.r} ${A.y} L${B.l} ${B.y}`; });
+    const V = [["ztc", "slv"], ["brk", "gld"], ["lin", "srv"], ["air", "slv"]].map(([a, b]) => { const A = c(a), B = c(b); return A.y > B.y ? `M${A.x} ${A.t} L${B.x} ${B.b}` : `M${B.x} ${B.t} L${B.x} ${A.b}`; });
+    const S = (() => { const A = c("evs"), B = c("srv"); return `M${A.r} ${A.y} C${A.r + 80} ${A.y}, ${B.x} ${B.b + 60}, ${B.x} ${B.b}`; })();
+    sv.innerHTML = E.map(d => `<path class="${REDUCED ? "" : "route"}" d="${d}" stroke="${C.gold}" stroke-width="2" fill="none"/>`).join("") +
+      V.map(d => `<path d="${d}" stroke="${C.cyan}" stroke-width="1.5" stroke-dasharray="4 5" fill="none"/>`).join("") +
+      `<path class="${REDUCED ? "" : "route"}" d="${S}" stroke="${C.em}" stroke-width="1.5" fill="none"/>`; }
+  if (innerWidth > 900) { requestAnimationFrame(lines); if (!dlc.ro) { dlc.ro = new ResizeObserver(() => innerWidth > 900 && lines()); dlc.ro.observe(box); } }
+  dlc.play = () => { if (window.gsap && !REDUCED) gsap.fromTo("#dlc .dlc-node", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .5, stagger: .07, overwrite: true }); };
+}
+
+/* =========================================================== header: search + profile */
+let toastT = null;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
+function flash(el) { if (!el) return; el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+function runSearch(q) {
+  q = q.trim(); if (!q) return; const live = typeof window.MIZAN_QUERY === "function", u = q.toUpperCase();
+  if (/^MID\d{6}$/.test(u)) { if (!BASE.heat.merchants.includes(u)) return toast(`${u} is not in the store reference`);
+    if (live) setFilters({ mid: u }); goTo("recon"); return toast(live ? `Filtered to ${u}` : `${u}: live filtering needs the Fabric App`); }
+  if (/^EGS-\d{2}$/.test(u)) { if (live) setFilters({ egs: u }); goTo("zatca"); setTimeout(() => flash(document.querySelector(`.egs-card[data-v="${u}"]`)), 700); return; }
+  const city = Object.keys(CITY).find(c => c.toUpperCase() === u); if (city) { if (live) setFilters({ city }); goTo("map"); return; }
+  if (/^GP-[0-9A-F]{16}$/.test(u)) { goTo("mdm"); setTimeout(() => flash($("#golden")), 700); return u === D.mdm.five[0].golden ? null : toast(`${u}: only the demo golden record is shown on this page`); }
+  const blocks = D.chain.blocks, hit = /^\d{1,6}$/.test(q) ? blocks.find(b => b.icv === +q) : blocks.find(b => u.startsWith(b.uuid.toUpperCase()) || b.uuid.toUpperCase().startsWith(u) || b.request === u);
+  if (hit) { goTo("zatca"); setTimeout(() => { const el = document.querySelector(`[data-icv="${hit.icv}"]`); if (el) { $("#chain").scrollTo({ left: el.offsetLeft - 200, behavior: "smooth" }); flash(el); } }, 700); return; }
+  if (/^\d{1,6}$/.test(q)) return toast(`ICV ${q}: the chain tape shows a sample of ${D.chain.egs} (${blocks.map(b => b.icv).join(", ")})`);
+  toast(`No match for "${q}". Try a MID, EGS-05, a city, an ICV or an invoice UUID prefix.`);
+}
+function initHeader() {
+  $("#search").addEventListener("keydown", e => { if (e.key === "Enter") { runSearch(e.target.value); e.target.blur(); } });
+  const pr = D.profile || {}; if (!pr.name) return;
+  const initials = pr.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const safeUrl = /^https:\/\/(www\.)?linkedin\.com\//.test(pr.linkedin || "") ? pr.linkedin : "";
+  $("#profile").innerHTML = `<span class="avatar">${pr.photo ? `<img src="${pr.photo}" alt="">` : initials}</span><span class="who">${pr.name}<small>${pr.role || ""}</small></span>` +
+    (safeUrl ? `<a class="li-btn" href="${safeUrl}" target="_blank" rel="noopener noreferrer"><span class="li-badge">in</span><span>LinkedIn</span></a>` : "");
+}
+
 $("#seed").textContent = D.meta.seed;
 { const P = D.runs.published, Q = D.runs.candidate;
   $("#runs").textContent = `Published run ${P.status} (dbt ${P.nodes} nodes, ${P.generated_at}; Fabric ${P.fabric.dbt_pass} pass on ${P.fabric.run_date}) · candidate run ${Q.status}: ${Q.reason} · git ${D.runs.git_sha}`; }
@@ -726,6 +867,7 @@ $("#seed").textContent = D.meta.seed;
 safe("heroCopy", heroCopy); safe("hero", heroScene);
 safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene); safe("recon", reconScene); safe("zatca", zatcaScene);
 safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("trust", trustScene); safe("platform", platformScene);
+safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("header", initHeader);
 safe("filters", initFilterBar);
 if (window.gsap && window.ScrollTrigger) { gsap.registerPlugin(ScrollTrigger);
   SCENES.slice(1).forEach(s => ScrollTrigger.create({ trigger: "#" + s.id, start: "top 70%", once: true, onEnter: () => { if (!story) safe(s.id, PLAY[s.id]); } }));

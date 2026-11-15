@@ -2,7 +2,9 @@
 
 <div class="progress" id="progress"></div>
 <header class="topbar">
-  <div class="brand"><span class="glyph ar">&#x645;</span><div>MIZAN Command Center<small>KSA &middot; COMMERCE &amp; PAYMENTS INTEGRITY</small></div></div>
+  <button class="icon-btn" id="menu-btn" type="button" aria-label="Toggle menu" title="Collapse or expand the menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  <div class="brand"><span class="glyph ar">&#x645;</span><div>MIZAN Command Center<small>Every halala reconciled &middot; ZATCA &middot; PDPL &middot; live on Microsoft Fabric</small></div></div>
+  <label class="search" for="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span class="sr">Search</span><input id="search" placeholder="MID, invoice UUID, ICV, EGS, city" autocomplete="off"></label>
   <div class="roles" role="group" aria-label="Role view">
     <button id="role-all" aria-pressed="true" data-role="ALL">ALL</button>
     <button id="role-cfo" aria-pressed="false" data-role="CFO">CFO</button>
@@ -11,17 +13,19 @@
   </div>
   <button class="btn" id="open-palette" title="Command palette (Ctrl+K)"><span class="long">Jump to</span> <span class="kbd">Ctrl K</span></button>
   <button class="btn primary" id="play-story">&#9654; <span class="long">Play the story</span></button>
+  <div class="profile" id="profile"></div>
 </header>
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
 <div class="filterbar" id="filterbar" role="region" aria-label="Filters">
   <span class="fb-mode" id="fb-mode">Filters</span>
-  <label for="flt-from">From <select id="flt-from"></select></label>
-  <label for="flt-to">To <select id="flt-to"></select></label>
-  <label for="flt-mid">Merchant <input id="flt-mid" list="flt-mid-list" placeholder="MID" autocomplete="off"><datalist id="flt-mid-list"></datalist></label>
-  <label for="flt-city">City <select id="flt-city"></select></label>
-  <label for="flt-status">Bank file <select id="flt-status"><option value="">All</option><option value="ASSESSED">Assessed</option><option value="NOT_ASSESSED">Not assessed</option></select></label>
-  <label for="flt-egs">EGS <select id="flt-egs"></select></label>
-  <label for="flt-flow">Invoice <select id="flt-flow"><option value="">All</option><option value="REPORTING">Simplified (reporting)</option><option value="CLEARANCE">Standard (clearance)</option></select></label>
-  <label for="flt-state">Outcome <select id="flt-state"></select></label>
+  <label for="flt-from"><span class="sr">From</span><select id="flt-from"></select></label>
+  <label for="flt-to"><span class="sr">To</span><select id="flt-to"></select></label>
+  <label for="flt-mid"><span class="sr">Merchant</span><input id="flt-mid" list="flt-mid-list" placeholder="Merchant MID" autocomplete="off"><datalist id="flt-mid-list"></datalist></label>
+  <label for="flt-city"><span class="sr">City</span><select id="flt-city"></select></label>
+  <label for="flt-status"><span class="sr">Bank file</span><select id="flt-status"><option value="">Any bank status</option><option value="ASSESSED">Assessed</option><option value="NOT_ASSESSED">Not assessed</option></select></label>
+  <label for="flt-egs"><span class="sr">EGS</span><select id="flt-egs"></select></label>
+  <label for="flt-flow"><span class="sr">Invoice</span><select id="flt-flow"><option value="">All invoices</option><option value="REPORTING">Simplified (reporting)</option><option value="CLEARANCE">Standard (clearance)</option></select></label>
+  <label for="flt-state"><span class="sr">Outcome</span><select id="flt-state"></select></label>
   <button class="btn" id="flt-clear" type="button">Clear</button>
   <span class="fb-chips" id="flt-chips"></span>
 </div>
@@ -102,6 +106,7 @@
       <div class="scene-head"><div><div class="tag">ZATCA Phase-2 chain</div><h2>An unbroken hash chain, even through a crash</h2>
         <p>Each invoice carries the previous invoice's hash (PIH). SUBMITTING is saved before any HTTP call; a transport failure (5xx/timeout) is retried with the identical UUID and signed bytes. A 400 rejection stays in the chain and is corrected by a new document.</p></div>
         <div class="actions"><button class="btn" id="incident-replay">&#9654; Replay the ICV 102 incident</button></div></div>
+      <div class="egs-cards" id="egs-cards"></div>
       <div class="panel" style="padding:12px 12px 4px"><div class="chain" id="chain"></div></div>
       <div class="grid g-12" style="margin-top:16px">
         <div class="panel c-5"><h3>Incident replay &middot; ICV <span id="inc-icv"></span> &middot; <span id="inc-req"></span></h3>
@@ -165,6 +170,17 @@
     </div>
   </section>
 
+  <section class="scene" id="map" data-roles="CFO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Store map &middot; Kingdom of Saudi Arabia</div><h2>Where the money is captured, and where it settles</h2>
+        <p>Every store from the store reference, coloured by reconciliation status for the current filters. Money routes store to acquirer to bank. Click a city to filter the whole page.</p></div></div>
+      <div class="grid g-12">
+        <div class="panel c-8"><svg id="map-svg" role="img" aria-label="Map of stores by city"></svg><div class="sub" id="map-note"></div></div>
+        <div class="panel c-4 citylist"><h3>Cities</h3><div class="sub">Stores, merchant-days and gross captures (current filters)</div><div id="citylist" style="margin-top:10px"></div></div>
+      </div>
+    </div>
+  </section>
+
   <section class="scene" id="trust" data-roles="CDO">
     <div class="wrap">
       <div class="scene-head"><div><div class="tag">Data trust &middot; NDMO</div><h2>Every Gold column traced, every column classified</h2>
@@ -192,6 +208,13 @@
           <div class="row" style="margin-top:10px"><span>dbt build on WH_MIZAN</span><span id="fab-dbt"></span></div>
           <div class="row"><span>Eventhouse rows / KQL alerts</span><span id="fab-kql"></span></div></div>
       </div>
+    </div>
+  </section>
+  <section class="scene" id="lifecycle" data-roles="CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Data life cycle</div><h2>From a till receipt to a governed number</h2>
+        <p>Every box is a working part of this platform. Click one to jump to the scene that proves it.</p></div></div>
+      <div class="panel" style="padding:24px"><div class="dlc" id="dlc"><svg id="dlc-lines" aria-hidden="true"></svg></div></div>
     </div>
   </section>
 </main>

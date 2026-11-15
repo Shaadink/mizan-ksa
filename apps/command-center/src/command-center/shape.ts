@@ -115,6 +115,14 @@ export function shapeLive(res: LiveResults): MizanData {
         daily: of("DAY").map((r) => ({ d: String(r.key), docs: int(r.docs) })),
         sar: hundredths(total("SAR").sar_h), corrections: int(total("CORRECTIONS").docs),
         retried: int(total("RETRIED").docs),
+        egs_detail: of("EGSLAST").map((r) => {
+            const e = String(r.key);
+            const retry = z.find((x) => x.kind === "EGSRETRY" && x.key === e);
+            const daily = z.filter((x) => x.kind === "EGSDAY" && String(x.key).startsWith(e + "|"))
+                .map((x) => ({ d: String(x.key).slice(e.length + 1), docs: int(x.docs) }))
+                .sort((a, b) => (a.d < b.d ? -1 : 1));
+            return { egs: e, last_icv: int(r.docs), retried: retry ? int(retry.docs) : 0, daily };
+        }),
     };
 
     const scorecard = records(res.ndmo).map((r) => ({

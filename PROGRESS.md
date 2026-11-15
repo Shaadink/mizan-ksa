@@ -20,7 +20,7 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 12 | MIZAN Command Center (cinematic web control tower, ADR-011) | DONE | 231 |
 | 13 | Fabric App plan, Stage 1 "Truth" (bugs 1-9) | DONE | 241 |
 | 13 | Stage 2 Fabric App foundation | DONE (deployed) | 248 py + 170 vitest |
-| 13 | Stage 3 app upgrade | IN PROGRESS: 3a interactivity DONE; 3b shell/search/cards/hover/map/DLC next | 248 py + 180 vitest |
+| 13 | Stage 3 app upgrade | DONE, waiting for owner "go" (payment-method cards need a Gold change) | 249 py + 180 vitest |
 | 13 | Stage 4 polish / 5 ship | NOT STARTED | |
 
 ## Environment (checked 2026-11-13)
@@ -328,6 +328,20 @@ Stage 3a "interactivity" DONE (2026-11-15), deployed (`npx rayfin up staticapp d
   `filters.spec.ts`: injection rejected, 4 example filter sets committed (`queries/examples`) and recorded live
   (`__fixtures__/filtered`, `scripts/record_app_dax.py`), results agree with unfiltered Gold (MID-day, city sum,
   EGS+flow, 112 not-assessed). Payment-method filter NOT built: no payment method in Gold (needs owner approval).
+
+Stage 3b "app shell" DONE (2026-11-15), deployed:
+- Left icon menu (Home + the 12 requested scenes, collapsible; overlay on phones), header search (MID, EGS, city,
+  ICV, invoice UUID/request id, golden id -> filter/jump/flash), profile from `config/profile.json` (Shadin K,
+  LinkedIn link restricted to linkedin.com; initials until a photo is added).
+- EGS picture cards: documents, last ICV, retries, chain breaks (Fabric chain run), docs vs prior 7 days (live DAX:
+  zatca.dax EGSLAST/EGSRETRY/EGSDAY rows; export `zatca.egs_detail`; fixtures re-recorded, equality holds).
+- Hover cards: MID 7-day captures trend + channel/city/EGS; map store and city cards.
+- Store map scene: schematic KSA outline, stores by city (spread for visibility; reference has city only),
+  coloured reconciled / awaiting bank file / no activity, routes store -> acquirer hub -> settlement bank, city
+  click = city filter; city list.
+- Data Life Cycle scene: sources -> Bronze -> Silver -> Gold -> serve, plus Airflow, ZATCA engine, circuit breaker,
+  OpenLineage, Eventstream; live counts; every box jumps to its scene.
+- Not built: payment-method picture cards (no payment method in Gold; needs owner approval for a new Gold model).
 
 ## Open issues
 
