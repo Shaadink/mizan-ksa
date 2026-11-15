@@ -20,8 +20,9 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 12 | MIZAN Command Center (cinematic web control tower, ADR-011) | DONE | 231 |
 | 13 | Fabric App plan, Stage 1 "Truth" (bugs 1-9) | DONE | 241 |
 | 13 | Stage 2 Fabric App foundation | DONE (deployed) | 248 py + 170 vitest |
-| 13 | Stage 3 app upgrade | DONE, waiting for owner "go" (payment-method cards need a Gold change) | 249 py + 180 vitest |
-| 13 | Stage 4 polish / 5 ship | NOT STARTED | |
+| 13 | Stage 3 app upgrade | DONE (payment-method cards need a Gold change) | 249 py + 180 vitest |
+| 13 | Stage 4 spec rules and polish | DONE, waiting for owner "go" | 250 py + 180 vitest |
+| 13 | Stage 5 ship (standalone copy, LinkedIn kit) | NOT STARTED | |
 
 ## Environment (checked 2026-11-13)
 
@@ -342,6 +343,24 @@ Stage 3b "app shell" DONE (2026-11-15), deployed:
 - Data Life Cycle scene: sources -> Bronze -> Silver -> Gold -> serve, plus Airflow, ZATCA engine, circuit breaker,
   OpenLineage, Eventstream; live counts; every box jumps to its scene.
 - Not built: payment-method picture cards (no payment method in Gold; needs owner approval for a new Gold model).
+
+Stage 4 "spec rules and polish" DONE (2026-11-15), deployed (spec file still not provided; rules from the brief):
+- Honesty: 03 Mar bank line breaks over a hatched "awaiting bank file, not assessed" day; not-assessed heatmap cells
+  hatched with their own tooltip; hero stamp "BALANCED - 2,121 assessed MID-days"; recon panel shows net residual,
+  gross absolute residual, broken keys, not assessed, plus Publishing (published PASS / candidate FAIL).
+  New data: recon bank_net_residual, gl_net_residual, broken_keys (export + recon_totals.dax); stream SLA
+  lag_minutes (IR-0000102 1,560 min).
+- Colour: captures neutral (sankey, ledger, pulse, hero particles, map routes), heatmap volume in gold, refunds
+  violet, fees grey, checkout violet; green only for pass/reconciled; every status has an icon or sign.
+- ZATCA: "Simplified: reporting (B2C)" / "Standard: clearance (B2B)"; 3-part outcome bar (rejection <0.01%);
+  24 h reporting window rings (historical replay).
+- Defects (button or B) tilt the 3D scale, stamp "UNBALANCED - SAR 2,536.34 - candidate run", flash candidate run.
+- Calendar: Ramadan band, Fri-Sat shading, "Govt payday (27th)", Hijri on its own tooltip line.
+- EN/AR toggle (button or L): RTL layout, menu right, scale left; charts/IDs/numbers stay LTR, Western digits;
+  menu, scene headings, hero and controls in Arabic (escapes / HTML entities, never raw); body text stays English.
+- Provenance line on every scene (live/snapshot, published + candidate run, git SHA, data as-of; proof sources;
+  "Historical replay" on the stream). Presenter keys: P chrome off, 1-9 scenes, T trace one riyal, B break a
+  halala, L Arabic. Test: test_stage4_honesty_colour_zatca_language_and_presenter_rules.
 
 ## Open issues
 
