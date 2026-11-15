@@ -27,6 +27,11 @@ seeds:
                       calendar_version: varchar(32)}
     # Official moon-sighting announcements that differ from the Umm al-Qura table. Empty by default:
     # rows are added when an announcement is published (never invented). Mechanism tested in tests/test_gold_dbt.py.
+    # Store reference for the map (owner-approved seed, 2026-11-15): copied unchanged from the generator's
+    # data/generated/reference/merchants.csv. 121 rows, no personal data. tests/test_stage2_seed.py guards drift.
+    merchant_store_reference:
+      +column_types: {merchant_id: varchar(16), store_id: varchar(16), channel: varchar(8), egs_id: varchar(8),
+                      city: varchar(32), register_count: int}
     hijri_announcement_overrides:
       +column_types: {hijri_year: int, hijri_month: int, announced_start_date: date,
                       announcement_ref: varchar(200), override_version: varchar(32)}

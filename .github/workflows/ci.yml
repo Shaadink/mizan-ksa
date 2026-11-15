@@ -33,6 +33,26 @@ jobs:
           MIZAN_DBT_TARGET: duckdb
         run: dbt parse --profiles-dir .
 
+  fabric-app:
+    name: Fabric App (type-check + vitest; live DAX shapes = exported Gold)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/command-center
+    env:
+      RAYFIN_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/command-center/package-lock.json
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npx vitest run
+
   full:
     name: full suite (PySpark + Delta + dbt-duckdb + residency gate)
     runs-on: ubuntu-latest

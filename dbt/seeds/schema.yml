@@ -1,0 +1,22 @@
+version: 2
+
+seeds:
+  - name: merchant_store_reference
+    description: "Store reference (merchant -> store, channel, EGS device, city). Read by the Command Center map only."
+    columns:
+      - name: merchant_id
+        data_tests: [not_null, unique]
+      - name: channel
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["POS", "ECOM"]}
+      - name: egs_id
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ["EGS-01", "EGS-02", "EGS-03", "EGS-04", "EGS-05"]}
+      - name: city
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ["Riyadh", "Jeddah", "Dammam", "Makkah", "Madinah"]}   # display names, as in the source

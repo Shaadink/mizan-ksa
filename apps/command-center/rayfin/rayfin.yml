@@ -1,0 +1,30 @@
+id: command-center
+name: command-center
+version: 1.0.0
+services:
+  auth:
+    enabled: true
+    fabric:
+      enabled: true
+    allowedRedirectUris:
+      - http://localhost:5173
+  data:
+    enabled: false
+  storage:
+    enabled: false
+  staticHosting:
+    enabled: true
+    folder: dist
+    buildCommand: npm run build:fabric
+    indexDocument: index.html
+connectors:
+  - name: mizan
+    type: fabric-semanticmodel
+    config:
+      workspaceId: 5a86e5aa-4f54-4180-a52b-2e21fa993ca4
+      itemId: 6e9ff0b7-3957-4cca-96d3-5e8f2615813a
+    auth:
+      type: delegated
+    version: "1"
+    operations:
+      - name: executeQuery

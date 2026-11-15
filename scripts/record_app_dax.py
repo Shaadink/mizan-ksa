@@ -1,0 +1,76 @@
+"""Run every Fabric App DAX query against the live semantic model and save the results as test fixtures.
+
+The app (apps/command-center) runs these same .dax files through the Rayfin `fabric-semanticmodel` connector.
+This script runs them through the Power BI executeQueries API with the signed-in owner's az token, normalises the
+result to the connector's shape ({columns: [{name, dataType}], rows: [[...]]}) and writes
+apps/command-center/src/command-center/__fixtures__/<query>.json. The app's unit tests shape these fixtures and
+compare them with command_center/data.json, which proves the live DAX returns exactly the exported Gold figures.
+
+    $env:MIZAN_AZ_PROFILE="$env:USERPROFILE\\.azure-college"; .\\.venv\\Scripts\\python.exe scripts\\record_app_dax.py
+No token or secret is printed or written.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "src"))
+APP = REPO / "apps" / "command-center" / "src" / "command-center"
+MODEL = "MIZAN Control Tower Model"
+
+
+def _token() -> str:
+    env = dict(os.environ)
+    if os.environ.get("MIZAN_AZ_PROFILE"):
+        env["AZURE_CONFIG_DIR"] = os.path.expandvars(os.environ["MIZAN_AZ_PROFILE"])
+    az = shutil.which("az") or shutil.which("az.cmd") or "az"
+    out = subprocess.run(  # noqa: S603 (fixed az CLI arguments, no user input)
+        [az, "account", "get-access-token", "--resource", "https://analysis.windows.net/powerbi/api"],
+        capture_output=True, text=True, env=env, check=True).stdout
+    return json.loads(out)["accessToken"]
+
+
+def _call(url: str, tok: str, body: bytes | None = None) -> dict:
+    assert url.startswith("https://api.powerbi.com/")
+    req = urllib.request.Request(url, data=body, headers={  # noqa: S310 (https Power BI API only, asserted above)
+        "Authorization": f"Bearer {tok}", "Content-Type": "application/json"})
+    try:
+        return json.loads(urllib.request.urlopen(req, timeout=180).read())  # noqa: S310
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"{e.code}: {e.read()[:800]!r}") from None
+
+
+def normalise(rows: list[dict]) -> dict:
+    cols = list(rows[0].keys()) if rows else []
+    return {"columns": [{"name": c, "dataType": "unknown"} for c in cols],
+            "rows": [[r.get(c) for c in cols] for r in rows]}
+
+
+def main() -> None:
+    from mizan.privacy.crypto import load_dotenv
+    load_dotenv()
+    ws = os.environ["FABRIC_WORKSPACE_ID"]
+    tok = _token()
+    models = _call(f"https://api.powerbi.com/v1.0/myorg/groups/{ws}/datasets", tok)["value"]
+    mid = next(m["id"] for m in models if m["name"] == MODEL)
+    for f in sorted((APP / "queries").glob("*.dax")):
+        res = _call(f"https://api.powerbi.com/v1.0/myorg/groups/{ws}/datasets/{mid}/executeQueries", tok,
+                    json.dumps({"queries": [{"query": f.read_text(encoding="utf-8")}],
+                                "serializerSettings": {"includeNulls": True}}).encode())
+        rows = res["results"][0]["tables"][0]["rows"]
+        out = APP / "__fixtures__" / f"{f.stem}.json"
+        out.write_text(json.dumps(normalise(rows), ensure_ascii=True, separators=(",", ":")) + "\n",
+                       encoding="utf-8", newline="\n")
+        print(f"{f.stem:<14} {len(rows):>5} rows -> {out.relative_to(REPO)}")
+
+
+if __name__ == "__main__":
+    main()

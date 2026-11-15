@@ -18,8 +18,9 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 9b | Streaming (replay, KQL, docs) | DONE (local + Fabric: rows in EH_MIZAN, rules 1/1/2) | 222 |
 | 11 | Packaging (artifacts, README, ADRs, HONESTY) | DONE | 221 |
 | 12 | MIZAN Command Center (cinematic web control tower, ADR-011) | DONE | 231 |
-| 13 | Fabric App plan, Stage 1 "Truth" (bugs 1-9) | DONE, waiting for owner "go" | 240 |
-| 13 | Stage 2 Fabric App foundation / 3 app upgrade / 4 polish / 5 ship | NOT STARTED | |
+| 13 | Fabric App plan, Stage 1 "Truth" (bugs 1-9) | DONE | 241 |
+| 13 | Stage 2 Fabric App foundation | DONE, waiting for owner "go" | 248 py + 170 vitest |
+| 13 | Stage 3 app upgrade / 4 polish / 5 ship | NOT STARTED | |
 
 ## Environment (checked 2026-11-13)
 
@@ -292,6 +293,23 @@ Verified on Fabric by DAX (executeQueries). Store city exists only in `data/gene
 proposal: dbt seed `merchant_store_reference` (needs owner yes). Windows now blocks `dbt.exe`: run dbt as
 `python -c "from dbt.cli.main import dbtRunner; ..."`. Design reference saved: `docs/design/MIZAN_Command_Center.html`.
 `docs/design/FINAL_DESIGN_SPEC.md` not yet provided by the owner (needed for Stages 3-4 tokens/mirroring rules).
+
+Stage 2 "Fabric App foundation" DONE (2026-11-15):
+- Seed `merchant_store_reference` (owner-approved): unchanged copy of `reference/merchants.csv`, tests; built on
+  DuckDB and WH_MIZAN (7/7 pass). For the Stage 3 map.
+- `docs/fabric-app/RESEARCH.md`: Rayfin CLI 1.36.2, template `dataapp`, `fabric-semanticmodel` connector (DAX via
+  `executeQuery`, delegated only, viewer needs Build), UAE North supported, `rayfin dev` creates a backend item.
+- `apps/command-center/`: Data App scaffold (Node 24, deps pinned incl. gsap 3.12.5, d3 7.9.0, d3-sankey 0.12.3,
+  three 0.128.0). 5 DAX queries (`src/command-center/queries/*.dax`, money as integer halalas) replace the embedded
+  JSON for recon, daily, calendar, heatmap, ZATCA, NDMO, Stage-1 truth; proof-run sections ship in `proof.json`
+  with sources. `shape.ts` (BigInt money) + `shape.spec.ts`: shaped live results == export, every section.
+  `scripts/record_app_dax.py` records fixtures from the live model; `scripts/build_command_center.py` now also
+  generates the app's `legacy/page.html|css|scenes.js` + `snapshot.json` + `proof.json` from `template.html`
+  (standalone HTML unchanged). Snapshot fallback is labelled on screen. `preview.html` = local visual check.
+- Rayfin: `npx rayfin login` (owner), connector `mizan` -> "MIZAN Control Tower Model" (delegated); all 5 queries
+  pass through `fabric-app-semantic-model-tools run-dax-query`. `npx rayfin dev --yes` created dev backend item
+  `command-center` in mizan-ksa-dev; local app at http://localhost:5173 (owner signs in to see "Live").
+- Tests: `tests/test_fabric_app.py`, `tests/test_stage2_seed.py`; CI job `fabric-app` (tsc + vitest).
 
 ## Open issues
 

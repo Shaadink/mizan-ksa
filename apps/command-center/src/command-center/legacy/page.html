@@ -1,0 +1,194 @@
+<!-- GENERATED from command_center/template.html. Do not edit. -->
+
+<div class="progress" id="progress"></div>
+<header class="topbar">
+  <div class="brand"><span class="glyph ar">&#x645;</span><div>MIZAN Command Center<small>KSA &middot; COMMERCE &amp; PAYMENTS INTEGRITY</small></div></div>
+  <div class="roles" role="group" aria-label="Role view">
+    <button id="role-all" aria-pressed="true" data-role="ALL">ALL</button>
+    <button id="role-cfo" aria-pressed="false" data-role="CFO">CFO</button>
+    <button id="role-tax" aria-pressed="false" data-role="TAX">TAX</button>
+    <button id="role-cdo" aria-pressed="false" data-role="CDO">CDO</button>
+  </div>
+  <button class="btn" id="open-palette" title="Command palette (Ctrl+K)"><span class="long">Jump to</span> <span class="kbd">Ctrl K</span></button>
+  <button class="btn primary" id="play-story">&#9654; <span class="long">Play the story</span></button>
+</header>
+<nav class="rail" id="rail" aria-label="Scenes"></nav>
+
+<section class="hero" id="top">
+  <canvas id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="watermark ar" aria-hidden="true">&#x645;&#x64A;&#x632;&#x627;&#x646;</div>
+  <div class="stamp" id="stamp">BALANCED &middot; SAR 0.00</div>
+  <div class="hero-copy">
+    <div class="eyebrow">Control tower &middot; <span id="h-range"></span> &middot; Asia/Riyadh</div>
+    <h1>Every halala, <em>reconciled.</em></h1>
+    <p class="lede">One commercial transaction followed end to end: order, ZATCA Phase-2 e-invoice, mada/SADAD T+1 settlement and the ERP general ledger. The scales settle only when bank and ledger agree to the last 0.01 SAR.</p>
+    <div class="counter"><span class="cur">SAR</span><span class="val num" id="h-counter">0.00</span><span class="lbl">captured across <b id="h-mids"></b> merchant-days</span></div>
+    <div class="identity" id="h-identity"></div>
+    <div class="chips" id="h-chips"></div>
+    <div class="hero-cta">
+      <button class="btn primary" id="hero-play">&#9654; Play the story</button>
+      <button class="btn" id="hero-replay">&#8635; Replay the scales</button>
+    </div>
+  </div>
+  <div class="scrollcue">SCROLL TO EXPLORE</div>
+</section>
+
+<main id="main">
+  <section class="scene" id="pulse" data-roles="CFO TAX CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Executive pulse</div><h2>The whole platform on one screen</h2>
+        <p>Headline figures straight from the Gold layer. Variances are absolute sums over every merchant-day, so a single halala anywhere would show here.</p></div></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="panel equation" id="equation"></div>
+    </div>
+  </section>
+
+  <section class="scene" id="flow" data-roles="CFO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Money flow</div><h2>Where every riyal went</h2>
+        <p>Captures split into refunds and net sales; net sales pay acquirer fees (MDR and VAT, taken from the bank file at the bank's grain) and leave the expected net payable, which is either paid by the bank or still in transit.</p></div>
+        <div class="actions"><button class="btn" id="flow-replay">&#8635; Replay flow</button></div></div>
+      <div class="panel"><svg id="flow-svg" role="img" aria-label="Money flow from captures to bank paid and in transit"></svg></div>
+    </div>
+  </section>
+
+  <section class="scene" id="ledger" data-roles="CFO TAX">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Daily ledger &middot; Gregorian and Hijri</div><h2>Captures, bank and GL move together</h2>
+        <p>Business days in Asia/Riyadh on the Umm al-Qura calendar. The last day's bank file arrives tomorrow (T+1), so its money shows as in transit, never as a variance.</p></div>
+        <div class="legend"><span><i style="background:var(--emerald)"></i>Gross captures</span><span><i style="background:var(--gold)"></i>GL card clearing</span><span><i style="background:var(--cyan)"></i>Bank paid</span><span><i style="background:rgba(217,178,95,.25);height:10px"></i>Ramadan</span></div></div>
+      <div class="panel"><svg id="ledger-svg" role="img" aria-label="Daily captures, GL clearing and bank paid"></svg></div>
+    </div>
+  </section>
+
+  <section class="scene" id="recon" data-roles="CFO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Halala reconciliation</div><h2>Every merchant-day, all three legs</h2>
+        <p>One cell per merchant and business day, built on a key spine (the union of payment, settlement and GL keys), so an orphan row can never drop out of a join. Brightness is volume. Switch on the planted defects to watch the dbt circuit breaker stop the build.</p></div>
+        <div class="actions"><button class="btn" id="inject" aria-pressed="false">&#9888; Inject planted defects</button></div></div>
+      <div class="grid g-12">
+        <div class="panel c-8 heat-wrap"><canvas id="heat" height="560"></canvas></div>
+        <div class="c-4 grid" style="align-content:start">
+          <div class="breaker" id="breaker"><span class="lamp"></span><span id="breaker-text">dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days</span></div>
+          <div class="panel"><h3>Reconciliation identity, per row</h3><div class="sub">Holds on all <span id="r-rows"></span> rows</div>
+            <div class="row"><span>Expected net</span><span>bank paid + in transit + quarantined</span></div>
+            <div class="row"><span>Net sales</span><span>GL card clearing</span></div>
+            <div class="row"><span>Unclassified events</span><span id="r-uncl"></span></div>
+            <div class="row"><span>Merchants</span><span id="r-merch"></span></div>
+            <div class="row"><span>Largest merchant</span><span id="r-top"></span></div></div>
+          <div class="panel" id="breaks-panel" hidden><h3>Planted defects caught</h3><div class="scroll-x"><table class="t" id="breaks"></table></div>
+            <div class="sub" style="margin-top:8px">Demo overlay only; it never enters the main build.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="zatca" data-roles="TAX">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">ZATCA Phase-2 chain</div><h2>An unbroken hash chain, even through a crash</h2>
+        <p>Each invoice carries the previous invoice's hash (PIH). SUBMITTING is saved before any HTTP call; a transport failure (5xx/timeout) is retried with the identical UUID and signed bytes. A 400 rejection stays in the chain and is corrected by a new document.</p></div>
+        <div class="actions"><button class="btn" id="incident-replay">&#9654; Replay the ICV 102 incident</button></div></div>
+      <div class="panel" style="padding:12px 12px 4px"><div class="chain" id="chain"></div></div>
+      <div class="grid g-12" style="margin-top:16px">
+        <div class="panel c-5"><h3>Incident replay &middot; ICV <span id="inc-icv"></span> &middot; <span id="inc-req"></span></h3>
+          <div class="sub" id="inc-sub"></div><div class="steps" id="steps"></div></div>
+        <div class="panel c-3"><h3>Outcomes</h3><div class="sub">Gold clearance ledger</div><svg id="donut" viewBox="0 0 220 220" style="width:100%;max-width:240px;display:block;margin:10px auto 0"></svg><div id="donut-legend" class="legend" style="justify-content:center;margin-top:8px"></div></div>
+        <div class="panel c-4"><h3>By EGS device</h3><div class="sub">Documents and SAR including VAT</div><div id="egs" class="race" style="margin-top:14px"></div>
+          <div class="row" style="margin-top:10px"><span>B2C simplified (REPORTING)</span><span id="f-rep"></span></div>
+          <div class="row"><span>B2B standard (CLEARANCE)</span><span id="f-clr"></span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="pdpl" data-roles="CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">PDPL right to erasure</div><h2>Shred the person, keep the tax evidence</h2>
+        <p>PII is encrypted when it lands in Bronze with a per-subject key. Erasure destroys every linked key and the token-to-identity link. Signed ZATCA records stay under legal hold, and a restore of old data and old keys is re-shredded by the Restore Guard.</p></div>
+        <div class="actions"><button class="btn primary" id="pdpl-run">Execute erasure request</button></div></div>
+      <div class="theater" style="position:relative">
+        <canvas id="pdpl-burst" aria-hidden="true"></canvas>
+        <div class="panel act" id="act1"><h3>1 &middot; Before <span class="pill ok" id="a1-pill">LIVE KEYS</span></h3>
+          <div class="keys" id="keys"></div>
+          <div class="row"><span>Golden id</span><span id="p-gid"></span></div>
+          <div class="row"><span>Linked records</span><span id="p-linked"></span></div>
+          <div class="row"><span>Analytic name</span><span id="p-name" class="ar"></span></div>
+          <div class="row"><span>Token &rarr; identity links</span><span id="p-links"></span></div></div>
+        <div class="panel act" id="act2"><h3>2 &middot; After erasure <span class="pill gold" id="a2-pill">PENDING</span></h3>
+          <div class="row"><span>Request</span><span id="p-dsr"></span></div>
+          <div class="row"><span>Vault keys</span><span id="p-vault">5 ACTIVE</span></div>
+          <div class="row"><span>Tombstones</span><span id="p-tomb">0</span></div>
+          <div class="vault"><span class="lock">&#128274;</span><div><b>Signed ZATCA journal &middot; LEGAL HOLD (TAX)</b><div class="sub" id="p-tax"></div></div></div></div>
+        <div class="panel act" id="act3"><h3>3 &middot; Restore attack <span class="pill gold" id="a3-pill">WAITING</span></h3>
+          <div class="row"><span>Restore old vault + Silver</span><span id="p-restore">&mdash;</span></div>
+          <div class="row"><span>Restore Guard</span><span id="p-guard">&mdash;</span></div>
+          <div class="row"><span>Vault time travel</span><span id="p-vac">&mdash;</span></div>
+          <div class="row"><span>Tax totals before / after</span><span id="p-tt">&mdash;</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="mdm" data-roles="CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Bilingual Arabic MDM</div><h2>Five spellings, one customer, zero false merges</h2>
+        <p>CP1256 repair, ligature folding and Arabic-Indic digits at Bronze; a deterministic ladder anchored on checksum-valid IDs. Ambiguous matches go to a human steward instead of a fuzzy guess.</p></div>
+        <div class="actions"><button class="btn" id="mdm-replay">&#8635; Resolve again</button></div></div>
+      <div class="panel"><div class="mdm-stage" id="mdm-stage"><svg id="mdm-lines" aria-hidden="true"></svg></div></div>
+      <div class="panel" style="margin-top:16px"><h3>Hard-negative test &middot; brothers sharing a father's name, family name and landline</h3>
+        <div class="bro" id="bro"></div></div>
+    </div>
+  </section>
+
+  <section class="scene" id="stream" data-roles="TAX CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Real-time risk stream &middot; Eventstream &rarr; Eventhouse</div><h2>20 days of events, replayed in seconds</h2>
+        <p>Checkouts, invoices and payments carry only HMAC tokens, never PII. KQL rules flag velocity bursts, mule rings and invoices not reported to ZATCA within 24 hours. The same counts landed in Fabric.</p></div>
+        <div class="actions"><button class="btn primary" id="stream-play">&#9654; Replay stream</button></div></div>
+      <div class="counters" id="counters"></div>
+      <div class="grid g-12">
+        <div class="panel c-8"><canvas id="river" height="360"></canvas></div>
+        <div class="panel c-4"><h3>Alerts</h3><div class="sub">Times in Asia/Riyadh</div><div class="alerts" id="alerts" style="margin-top:10px"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="trust" data-roles="CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Data trust &middot; NDMO</div><h2>Every Gold column traced, every column classified</h2>
+        <p>Column-level lineage is emitted as OpenLineage and the build fails if any Gold column has no source. Every column carries an NDMO tier and a legal-hold class; unknown classes fail closed.</p></div></div>
+      <div class="grid g-12">
+        <div class="panel c-7"><h3>Lineage &middot; <span id="lin-badge"></span></h3><div class="sub">Silver and metadata tables feeding each Gold model</div><svg id="lineage" role="img" aria-label="Lineage from Silver to Gold"></svg></div>
+        <div class="c-5 grid" style="align-content:start">
+          <div class="panel"><h3>NDMO classification &middot; <span id="cat-n"></span></h3><div class="sub">Columns by tier</div><div class="tiers" id="tiers"></div>
+            <div class="row" style="margin-top:12px"><span>Legal hold</span><span id="holds"></span></div>
+            <div class="row"><span>Over-classified columns</span><span id="overc"></span></div></div>
+          <div class="panel"><h3>Data quality &middot; score vs threshold</h3><div class="sub">Gold NDMO scorecard</div><div class="dq" id="dq" style="margin-top:12px"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="platform" data-roles="CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Platform &middot; Spark and Fabric</div><h2>Skew tamed, and the same run on Microsoft Fabric</h2>
+        <p>In this synthetic benchmark one mega-merchant holds <span id="skew-share"></span> of 20 million rows. Without help one task does almost all the work; AQE skew-join and 16-bucket salting spread it. Rows and the SAR checksum are identical in all three runs.</p></div>
+        <div class="actions"><button class="btn" id="race-replay">&#9654; Race again</button></div></div>
+      <div class="grid g-12">
+        <div class="panel c-7"><h3>Slowest task vs median task</h3><div class="sub" id="race-sub"></div><div class="race" id="race" style="margin-top:16px"></div></div>
+        <div class="panel c-5"><h3>Fabric run &middot; <span id="fab-cap"></span></h3><div class="sub">Notebook jobs started by the service principal, seconds</div><div class="gantt" id="gantt" style="margin-top:14px"></div>
+          <div class="row" style="margin-top:10px"><span>dbt build on WH_MIZAN</span><span id="fab-dbt"></span></div>
+          <div class="row"><span>Eventhouse rows / KQL alerts</span><span id="fab-kql"></span></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">
+  <div><b style="color:var(--muted)">Provenance.</b> Every figure is exported by <span class="mono">scripts/build_command_center.py</span> from the dbt Gold tables, the Delta lakehouse, a re-run of the ZATCA engine, the stream replay and the Phase 11 proof runs. Money is exact (integer halalas); nothing is typed in by hand.</div>
+  <div class="mono" id="runs" style="font-size:11.5px"></div>
+  <div>Synthetic data, fixed seed <span id="seed" class="mono"></span>. MIZAN-KSA is an engineering reference architecture, not a regulator-certified product.</div>
+</div></footer>
+
+<div class="caption" id="caption" role="status" aria-live="polite"><span class="sc" id="cap-sc"></span><span class="tx" id="cap-tx"></span><button class="btn" id="cap-stop">Stop</button></div>
+<div class="palette" id="palette" hidden><div class="box" role="dialog" aria-label="Command palette"><input id="pal-input" placeholder="Jump to a scene or run an action" autocomplete="off"><ul id="pal-list" role="listbox"></ul></div></div>
+<div class="tip" id="tip"></div>
+
