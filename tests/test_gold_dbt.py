@@ -132,7 +132,7 @@ def test_fact_zatca_clearance_ledger(gold_main):
         SELECT COUNT(*), SUM(CASE WHEN state = 'CONFIRMED_REJECTION' THEN 1 ELSE 0 END),
                SUM(CASE WHEN corrects_invoice_uuid IS NOT NULL THEN 1 ELSE 0 END)
         FROM gld.fact_zatca_clearance_ledger""")
-    assert (n, rejected, corrections) == (25_000, 0, 1)   # 25,001 docs minus the retained rejection
+    assert (n, rejected, corrections) == (25_001, 1, 1)   # bug 1: the 400 rejection stays in the chain and the ledger
 
 
 def test_dim_date_saudi_weekend(gold_main):
@@ -225,7 +225,7 @@ def test_agent_money_answers_come_from_gold_sql(gold_main):
     assert a.route == "SQL" and a.rows == [(Decimal("0.00"), Decimal("0.00"), 0)]
     z = answer("How many invoices were cleared or reported, and the total amount?", cfo, [], set(), run)
     states = {r[0]: r[1] for r in z.rows}
-    assert z.template == "ZATCA_TOTALS" and sum(states.values()) == 25_000
+    assert z.template == "ZATCA_TOTALS" and sum(states.values()) == 25_001 and states["CONFIRMED_REJECTION"] == 1
     junior = User("junior", frozenset({"ALL_STAFF"}), "PUBLIC")
     assert answer("What is the total unexplained variance?", junior, [], set(), run).refusal == "NOT_ENTITLED"
 

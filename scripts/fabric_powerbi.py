@@ -27,12 +27,22 @@ from mizan.privacy.crypto import load_dotenv  # noqa: E402
 MODEL, REPORT = "MIZAN Control Tower Model", "MIZAN Control Tower"
 TABLES = ("fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard", "dim_date_saudi")
 OUT = REPO / "powerbi"
+REJ = 'fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION"'
+# Every filter inside CALCULATE is wrapped in KEEPFILTERS: a plain column filter REPLACES the filter coming from a
+# visual's category on that same column (bug 2: the NDMO donut showed 27 / 27 / 27 instead of 17 / 1 / 6 / 3).
 MEASURES = {
     "fact_merchant_settlement_recon": [
         ("Gross Captures SAR", "SUM(fact_merchant_settlement_recon[gross_captures_sar])", "#,0.00"),
         ("Refunds and Disputes SAR", "SUM(fact_merchant_settlement_recon[refunds_and_disputes_sar])", "#,0.00"),
         ("Acquirer Fees SAR", "SUM(fact_merchant_settlement_recon[acquirer_fees_sar])", "#,0.00"),
         ("Bank Paid SAR", "SUM(fact_merchant_settlement_recon[bank_paid_sar])", "#,0.00"),
+        # bug 5: a MID-day whose bank file has not arrived is NOT ASSESSED; its bank line is blank, never 0.00
+        ("Bank Paid SAR (Assessed)", "CALCULATE(SUM(fact_merchant_settlement_recon[bank_paid_sar]), "
+                                     "KEEPFILTERS(fact_merchant_settlement_recon[in_transit_sar] = 0))", "#,0.00"),
+        ("MID Days Assessed", "CALCULATE(COUNTROWS(fact_merchant_settlement_recon), "
+                              "KEEPFILTERS(fact_merchant_settlement_recon[in_transit_sar] = 0)) + 0", "#,0"),
+        ("MID Days Not Assessed", "CALCULATE(COUNTROWS(fact_merchant_settlement_recon), "
+                                  "KEEPFILTERS(fact_merchant_settlement_recon[in_transit_sar] <> 0)) + 0", "#,0"),
         ("In Transit SAR", "SUM(fact_merchant_settlement_recon[in_transit_sar])", "#,0.00"),
         ("GL Card Clearing SAR", "SUM(fact_merchant_settlement_recon[gl_card_clearing_sar])", "#,0.00"),
         ("Unexplained Bank Variance SAR", "SUM(fact_merchant_settlement_recon[unexplained_bank_variance_sar])",
@@ -41,28 +51,59 @@ MEASURES = {
         ("Halala Breaks", "COUNTROWS(FILTER(fact_merchant_settlement_recon, "
                           "fact_merchant_settlement_recon[unexplained_bank_variance_sar] <> 0 || "
                           "fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0)) + 0", "0"),
+        # bug 6: MID900001's share of SAR (73.8%) is not the skew test's 65%-of-rows setting; both are labelled
+        ("Largest Merchant Share of SAR Pct",
+         "DIVIDE(MAXX(VALUES(fact_merchant_settlement_recon[merchant_id]), "
+         "CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]))), "
+         "CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]), "
+         "REMOVEFILTERS(fact_merchant_settlement_recon[merchant_id]))) * 100", "0.0"),
         ("Merchants", "DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id])", "#,0"),
         ("MID Days", "COUNTROWS(fact_merchant_settlement_recon)", "#,0")],
     "fact_zatca_clearance_ledger": [
-        ("Accepted Documents", "COUNTROWS(fact_zatca_clearance_ledger)", "#,0"),
-        ("Documents Total SAR", "SUM(fact_zatca_clearance_ledger[total_incl_vat_sar])", "#,0.00"),
+        ("Documents in Chain", "COUNTROWS(fact_zatca_clearance_ledger)", "#,0"),
+        # bug 1: the ledger holds the confirmed rejection; "accepted" excludes it explicitly
+        ("Accepted Documents", f"CALCULATE(COUNTROWS(fact_zatca_clearance_ledger), KEEPFILTERS(NOT ({REJ}))) + 0",
+         "#,0"),
+        ("Rejected Documents", f"CALCULATE(COUNTROWS(fact_zatca_clearance_ledger), KEEPFILTERS({REJ})) + 0", "#,0"),
+        # bug 7: tax SAR (30.92M) = card invoices (22.39M = gross captures) + cash invoices + credit notes, all
+        # positive amounts with the document type carrying the sign; the report shows the parts and the net
+        ("Invoices SAR", "CALCULATE(SUM(fact_zatca_clearance_ledger[total_incl_vat_sar]), "
+                         f"KEEPFILTERS(NOT ({REJ})), "
+                         "KEEPFILTERS(fact_zatca_clearance_ledger[document_type] = \"INVOICE\"))", "#,0.00"),
+        ("Credit Notes SAR", "CALCULATE(SUM(fact_zatca_clearance_ledger[total_incl_vat_sar]), "
+                             f"KEEPFILTERS(NOT ({REJ})), "
+                             "KEEPFILTERS(fact_zatca_clearance_ledger[document_type] = \"CREDIT_NOTE\"))", "#,0.00"),
+        ("Net Invoiced SAR", "[Invoices SAR] - [Credit Notes SAR]", "#,0.00"),
         ("Corrections", "COUNTROWS(FILTER(fact_zatca_clearance_ledger, "
                         "NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid])))", "0"),
         ("Retried Documents", "COUNTROWS(FILTER(fact_zatca_clearance_ledger, "
                               "fact_zatca_clearance_ledger[attempts] > 1))", "#,0"),
         ("EGS Devices", "DISTINCTCOUNT(fact_zatca_clearance_ledger[egs_id])", "0")],
     "mart_ndmo_scorecard": [
-        ("Quality Checks Passing", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), mart_ndmo_scorecard[status] = \"PASS\", "
-                                   "mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\")", "0"),
-        ("Tables Needing Split", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
-                                 "mart_ndmo_scorecard[status] = \"SPLIT_RECOMMENDED\")", "0"),
         ("Scorecard Checks", "COUNTROWS(mart_ndmo_scorecard)", "0"),
+        # bug 3: ONE shared passing measure; families filter on top of it (6 data quality + 1 classification = 7)
+        ("Checks Passing", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
+                           "KEEPFILTERS(mart_ndmo_scorecard[status] = \"PASS\")) + 0", "0"),
+        ("Data Quality Checks", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
+                                "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\")) + 0", "0"),
+        ("Data Quality Checks Passing", "CALCULATE([Checks Passing], "
+                                        "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\"))", "0"),
+        ("Classification Checks", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
+                                  "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"CLASSIFICATION\")) + 0", "0"),
+        ("Classification Checks Passing",
+         "CALCULATE([Checks Passing], KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"CLASSIFICATION\"))", "0"),
+        # bug 4: 99.07% is the data-quality average only; classification has its own score
+        ("Data Quality Score Pct", "CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), "
+                                   "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\"))", "#,0.00"),
+        ("Classification Score Pct",
+         "CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), "
+         "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"CLASSIFICATION\"))", "#,0.00"),
+        ("Tables Needing Split", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
+                                 "KEEPFILTERS(mart_ndmo_scorecard[status] = \"SPLIT_RECOMMENDED\")) + 0", "0"),
         ("Average Score Pct", "AVERAGE(mart_ndmo_scorecard[score_pct])", "#,0.00"),
         ("Threshold Pct", "AVERAGE(mart_ndmo_scorecard[threshold_pct])", "#,0.00"),
-        ("Quality Score Pct", "CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), "
-                              "mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\")", "#,0.00"),
         ("Classified Tables", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
-                              "NOT ISBLANK(mart_ndmo_scorecard[table_classification]))", "0")],
+                              "KEEPFILTERS(NOT ISBLANK(mart_ndmo_scorecard[table_classification]))) + 0", "0")],
 }
 # Layout grid for a 1280 x 720 page. Each visual: (kind, role-spec, (x, y, w, h), title).
 # Roles: ("m", measure) or ("c", table, column). Charts sort descending by their first Y measure.
@@ -81,11 +122,12 @@ PAGES = [
     ("cfo_settlement", "CFO Settlement",
      "Every halala reconciled: captures vs mada/SADAD bank file vs ERP card clearing. Variance must be SAR 0.00.",
      _cards(["Gross Captures SAR", "Bank Paid SAR", "In Transit SAR", "Unexplained Bank Variance SAR",
-             "Unexplained GL Variance SAR", "Halala Breaks"]) + [
+             "Unexplained GL Variance SAR", "MID Days Not Assessed", "Largest Merchant Share of SAR Pct"]) + [
         ("lineChart", {"Category": [("c", D, "calendar_date")],
-                       "Y": [("m", "Gross Captures SAR"), ("m", "Bank Paid SAR"), ("m", "GL Card Clearing SAR")]},
+                       "Y": [("m", "Gross Captures SAR"), ("m", "Bank Paid SAR (Assessed)"),
+                             ("m", "GL Card Clearing SAR")]},
          (20, 168, 800, 270), "Captures vs bank paid vs GL clearing by business day "
-         "(last day: bank file not yet arrived, T+1 in transit)"),
+         "(no bank line where the bank file has not arrived: not assessed)"),
         ("clusteredBarChart", {"Category": [("c", R, "merchant_id")], "Y": [("m", "Gross Captures SAR")]},
          (830, 168, 430, 270), "Top merchants by gross captures"),
         ("slicer", {"Values": [("c", R, "merchant_id")]}, (20, 450, 200, 255), "Merchant"),
@@ -95,14 +137,15 @@ PAGES = [
             "unexplained_gl_variance_sar")]}, (230, 450, 1030, 255), "Reconciliation by MID-day (key spine)")]),
     ("tax_zatca_health", "Tax ZATCA Health",
      "Phase-2 e-invoice chain: zero ICV gaps, transport failures (5xx/timeout) retried with identical UUID and bytes.",
-     _cards(["Accepted Documents", "Documents Total SAR", "Corrections", "Retried Documents", "EGS Devices"]) + [
-        ("donutChart", {"Category": [("c", Z, "state")], "Y": [("m", "Accepted Documents")]},
+     _cards(["Documents in Chain", "Accepted Documents", "Rejected Documents", "Net Invoiced SAR", "Corrections",
+             "Retried Documents"]) + [
+        ("donutChart", {"Category": [("c", Z, "state")], "Y": [("m", "Documents in Chain")]},
          (20, 168, 380, 270), "Documents by ZATCA outcome"),
-        ("clusteredColumnChart", {"Category": [("c", Z, "egs_id")], "Y": [("m", "Accepted Documents")]},
+        ("clusteredColumnChart", {"Category": [("c", Z, "egs_id")], "Y": [("m", "Documents in Chain")]},
          (410, 168, 420, 270), "Documents per EGS device"),
         ("clusteredColumnChart", {"Category": [("c", Z, "invoice_flow")],
-                                  "Y": [("m", "Documents Total SAR")]},
-         (840, 168, 420, 270), "SAR by flow (REPORTING = B2C, CLEARANCE = B2B)"),
+                                  "Y": [("m", "Net Invoiced SAR")]},
+         (840, 168, 420, 270), "Net invoiced SAR: Simplified (reporting) vs Standard (clearance)"),
         ("slicer", {"Values": [("c", Z, "document_type")]}, (20, 450, 200, 255), "Document type"),
         ("tableEx", {"Values": [("c", Z, c) for c in (
             "egs_id", "icv", "invoice_flow", "document_type", "state", "attempts", "issue_date_ksa",
@@ -110,7 +153,8 @@ PAGES = [
     ("cdo_data_trust", "CDO Data Trust",
      "NDMO scorecard: data quality checks against thresholds and 4-tier classification "
      "(TOP_SECRET / SECRET / CONFIDENTIAL / PUBLIC).",
-     _cards(["Scorecard Checks", "Quality Checks Passing", "Quality Score Pct", "Tables Needing Split"]) + [
+     _cards(["Data Quality Checks Passing", "Data Quality Score Pct", "Classification Checks Passing",
+             "Classification Score Pct", "Tables Needing Split"]) + [
         ("clusteredBarChart", {"Category": [("c", N, "dimension")],
                                "Y": [("m", "Average Score Pct"), ("m", "Threshold Pct")]},
          (20, 168, 620, 270), "Score vs threshold by quality dimension"),

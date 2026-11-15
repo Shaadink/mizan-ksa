@@ -18,6 +18,8 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 9b | Streaming (replay, KQL, docs) | DONE (local + Fabric: rows in EH_MIZAN, rules 1/1/2) | 222 |
 | 11 | Packaging (artifacts, README, ADRs, HONESTY) | DONE | 221 |
 | 12 | MIZAN Command Center (cinematic web control tower, ADR-011) | DONE | 231 |
+| 13 | Fabric App plan, Stage 1 "Truth" (bugs 1-9) | DONE, waiting for owner "go" | 240 |
+| 13 | Stage 2 Fabric App foundation / 3 app upgrade / 4 polish / 5 ship | NOT STARTED | |
 
 ## Environment (checked 2026-11-13)
 
@@ -271,6 +273,25 @@ story mode with captions, Ctrl+K palette, CFO/TAX/CDO roles, reduced-motion supp
 pinned scripts, determinism (skips without the local lake). Published privately:
 https://claude.ai/artifact/HeSui14YJRiTUwiFDAkXqD (rebuild: run the script, then republish index.html).
 Screenshots: `docs/artifacts/08_command_center_*.png`. ADR-011; HONESTY row 12.
+
+## Phase 13 — Fabric App plan (owner's 5-stage brief, 2026-11-15)
+
+Stage 1 "Truth" DONE (tests `tests/test_stage1_truth.py`, one per bug; findings `docs/design/DATA_NOTES.md`):
+1. `gld.fact_zatca_clearance_ledger` now keeps CONFIRMED_REJECTION: 25,001 docs (dbt model + accepted_values; no
+   column change). Power BI: Documents in Chain / Accepted / Rejected. Rebuilt on WH_MIZAN (5/5 pass).
+2. NDMO donut 27/27/27 -> 17/1/6/3: every CALCULATE filter wrapped in KEEPFILTERS (test parses all measures).
+3./4. One shared `Checks Passing`; DQ 6/6 at 99.07% vs classification 1/27 at 22.09%, separate measures.
+5. Not assessed = `in_transit_sar <> 0`: 112 MID-days on 2026-03-03 (2,121 assessed); `Bank Paid SAR (Assessed)`
+   blank that day. Measures + export only (a Gold `assessment_status` column would need owner approval).
+6. MID900001 = 73.8% of SAR (measure + export) vs skew test 65% of rows (read from skew.py).
+7. Tax SAR 30,917,841.76 = card invoices 22,390,730.16 (= gross captures; corrections inherit the original's
+   capture) + cash 7,545,182.44 + credit notes 981,929.16. New Invoices / Credit Notes / Net Invoiced measures.
+8. EGS-05 = MID900001 only (Silver join). 9. Published run (dbt run_results + Fabric 65/65) vs candidate (demo build,
+   breaker FAIL) in export `runs` and Command Center footer.
+Verified on Fabric by DAX (executeQueries). Store city exists only in `data/generated/reference/merchants.csv`;
+proposal: dbt seed `merchant_store_reference` (needs owner yes). Windows now blocks `dbt.exe`: run dbt as
+`python -c "from dbt.cli.main import dbtRunner; ..."`. Design reference saved: `docs/design/MIZAN_Command_Center.html`.
+`docs/design/FINAL_DESIGN_SPEC.md` not yet provided by the owner (needed for Stages 3-4 tokens/mirroring rules).
 
 ## Open issues
 

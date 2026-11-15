@@ -1,17 +1,41 @@
 table mart_ndmo_scorecard
 	lineageTag: 69fde750-5760-5067-b71e-362b1d8af421
 
-	measure 'Quality Checks Passing' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), mart_ndmo_scorecard[status] = "PASS", mart_ndmo_scorecard[metric_family] = "DATA_QUALITY")
-		formatString: 0
-		lineageTag: b6660c02-4635-53a6-bea9-a5af7cd496e7
-
-	measure 'Tables Needing Split' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), mart_ndmo_scorecard[status] = "SPLIT_RECOMMENDED")
-		formatString: 0
-		lineageTag: 72a02a13-d36e-5b81-84eb-5799730b778e
-
 	measure 'Scorecard Checks' = COUNTROWS(mart_ndmo_scorecard)
 		formatString: 0
 		lineageTag: 14e8e880-ee93-5cd7-b338-a95e0b7d51b8
+
+	measure 'Checks Passing' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), KEEPFILTERS(mart_ndmo_scorecard[status] = "PASS")) + 0
+		formatString: 0
+		lineageTag: 68ead7b9-1a4d-5b3d-89ed-e46d93ca29ce
+
+	measure 'Data Quality Checks' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "DATA_QUALITY")) + 0
+		formatString: 0
+		lineageTag: d82cf8dc-18a3-5191-b809-490321c04015
+
+	measure 'Data Quality Checks Passing' = CALCULATE([Checks Passing], KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "DATA_QUALITY"))
+		formatString: 0
+		lineageTag: 3abd6804-3e8a-530f-972d-0b671f803f8b
+
+	measure 'Classification Checks' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "CLASSIFICATION")) + 0
+		formatString: 0
+		lineageTag: 357e22a7-7e11-5a2a-abc1-a703bd0f9209
+
+	measure 'Classification Checks Passing' = CALCULATE([Checks Passing], KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "CLASSIFICATION"))
+		formatString: 0
+		lineageTag: b9729dc5-e365-5503-be6d-67a334343070
+
+	measure 'Data Quality Score Pct' = CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "DATA_QUALITY"))
+		formatString: #,0.00
+		lineageTag: 67dbce03-7d69-5c07-b7ad-76a7dae63004
+
+	measure 'Classification Score Pct' = CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "CLASSIFICATION"))
+		formatString: #,0.00
+		lineageTag: 9b10486e-9ed8-513d-b12b-be15d5908ed9
+
+	measure 'Tables Needing Split' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), KEEPFILTERS(mart_ndmo_scorecard[status] = "SPLIT_RECOMMENDED")) + 0
+		formatString: 0
+		lineageTag: 72a02a13-d36e-5b81-84eb-5799730b778e
 
 	measure 'Average Score Pct' = AVERAGE(mart_ndmo_scorecard[score_pct])
 		formatString: #,0.00
@@ -21,11 +45,7 @@ table mart_ndmo_scorecard
 		formatString: #,0.00
 		lineageTag: 9aeddacd-6214-52a5-894c-9160b147b783
 
-	measure 'Quality Score Pct' = CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), mart_ndmo_scorecard[metric_family] = "DATA_QUALITY")
-		formatString: #,0.00
-		lineageTag: a2fd92d0-ed9a-54ea-a0de-144697b5c5a7
-
-	measure 'Classified Tables' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), NOT ISBLANK(mart_ndmo_scorecard[table_classification]))
+	measure 'Classified Tables' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), KEEPFILTERS(NOT ISBLANK(mart_ndmo_scorecard[table_classification]))) + 0
 		formatString: 0
 		lineageTag: ed871c52-f221-51b3-938d-d04f199d1d2c
 

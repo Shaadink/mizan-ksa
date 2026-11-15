@@ -1,13 +1,29 @@
 table fact_zatca_clearance_ledger
 	lineageTag: ffbcb044-a4ff-51eb-bcdc-dc3a4d109577
 
-	measure 'Accepted Documents' = COUNTROWS(fact_zatca_clearance_ledger)
+	measure 'Documents in Chain' = COUNTROWS(fact_zatca_clearance_ledger)
+		formatString: #,0
+		lineageTag: 358c6f81-0aef-53d2-8149-2a9721542c6d
+
+	measure 'Accepted Documents' = CALCULATE(COUNTROWS(fact_zatca_clearance_ledger), KEEPFILTERS(NOT (fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION"))) + 0
 		formatString: #,0
 		lineageTag: 098eef0d-e1f4-5d8e-b54b-f3161b0e148a
 
-	measure 'Documents Total SAR' = SUM(fact_zatca_clearance_ledger[total_incl_vat_sar])
+	measure 'Rejected Documents' = CALCULATE(COUNTROWS(fact_zatca_clearance_ledger), KEEPFILTERS(fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION")) + 0
+		formatString: #,0
+		lineageTag: 15610e7f-e290-5747-bb31-f380b5cf6de2
+
+	measure 'Invoices SAR' = CALCULATE(SUM(fact_zatca_clearance_ledger[total_incl_vat_sar]), KEEPFILTERS(NOT (fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION")), KEEPFILTERS(fact_zatca_clearance_ledger[document_type] = "INVOICE"))
 		formatString: #,0.00
-		lineageTag: cacc862e-8969-5e53-856d-471c817aee3c
+		lineageTag: 5b2c02fe-ca89-5e1c-a829-ec46f5d6f18a
+
+	measure 'Credit Notes SAR' = CALCULATE(SUM(fact_zatca_clearance_ledger[total_incl_vat_sar]), KEEPFILTERS(NOT (fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION")), KEEPFILTERS(fact_zatca_clearance_ledger[document_type] = "CREDIT_NOTE"))
+		formatString: #,0.00
+		lineageTag: 51116512-3bff-50ca-9cce-5d23a8ae598d
+
+	measure 'Net Invoiced SAR' = [Invoices SAR] - [Credit Notes SAR]
+		formatString: #,0.00
+		lineageTag: be661433-e62e-5f3f-90fa-02445e5b77eb
 
 	measure 'Corrections' = COUNTROWS(FILTER(fact_zatca_clearance_ledger, NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid])))
 		formatString: 0

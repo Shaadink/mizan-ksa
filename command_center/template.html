@@ -458,7 +458,7 @@ footer .wrap { display: grid; gap: 8px }
   <section class="scene" id="platform" data-roles="CDO">
     <div class="wrap">
       <div class="scene-head"><div><div class="tag">Platform &middot; Spark and Fabric</div><h2>Skew tamed, and the same run on Microsoft Fabric</h2>
-        <p>One mega-merchant holds 65% of 20 million rows. Without help one task does almost all the work; AQE skew-join and 16-bucket salting spread it. Rows and the SAR checksum are identical in all three runs.</p></div>
+        <p>In this synthetic benchmark one mega-merchant holds <span id="skew-share"></span> of 20 million rows. Without help one task does almost all the work; AQE skew-join and 16-bucket salting spread it. Rows and the SAR checksum are identical in all three runs.</p></div>
         <div class="actions"><button class="btn" id="race-replay">&#9654; Race again</button></div></div>
       <div class="grid g-12">
         <div class="panel c-7"><h3>Slowest task vs median task</h3><div class="sub" id="race-sub"></div><div class="race" id="race" style="margin-top:16px"></div></div>
@@ -472,6 +472,7 @@ footer .wrap { display: grid; gap: 8px }
 
 <footer><div class="wrap">
   <div><b style="color:var(--muted)">Provenance.</b> Every figure is exported by <span class="mono">scripts/build_command_center.py</span> from the dbt Gold tables, the Delta lakehouse, a re-run of the ZATCA engine, the stream replay and the Phase 11 proof runs. Money is exact (integer halalas); nothing is typed in by hand.</div>
+  <div class="mono" id="runs" style="font-size:11.5px"></div>
   <div>Synthetic data, fixed seed <span id="seed" class="mono"></span>. MIZAN-KSA is an engineering reference architecture, not a regulator-certified product.</div>
 </div></footer>
 
@@ -527,7 +528,7 @@ const SCENES = [
   { id: "mdm", n: "07", label: "Arabic MDM", cap: "Mojibake, tashkeel, ligatures, Arabic-Indic digits and an English nickname resolve to one golden customer. Brothers stay apart." },
   { id: "stream", n: "08", label: "Risk stream", cap: "91,513 events replayed. The velocity burst, the mule ring and two late ZATCA reports are caught exactly where they happen." },
   { id: "trust", n: "09", label: "Data trust", cap: "64 of 64 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
-  { id: "platform", n: "10", label: "Platform", cap: "A 65% mega-merchant skew, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
+  { id: "platform", n: "10", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
 ];
 const ROLE_SCENES = { ALL: SCENES.map(s => s.id), CFO: ["top", "pulse", "flow", "ledger", "recon"], TAX: ["top", "pulse", "ledger", "zatca", "stream"], CDO: ["top", "pulse", "pdpl", "mdm", "stream", "trust", "platform"] };
 let role = "ALL";
@@ -556,9 +557,10 @@ function heroCopy() {
   $("#h-range").textContent = `${R.from} → ${R.to}`;
   $("#h-mids").textContent = fmtI(R.mid_days);
   $("#h-identity").innerHTML = `<span>Expected net <b>${fmtH(H(R.net))}</b></span><span class="op">=</span><span>bank paid <b>${fmtH(H(R.bank))}</b></span><span class="op">+</span><span>in transit <b>${fmtH(H(R.transit))}</b></span><span class="op">+</span><span>quarantined <b>${fmtH(H(R.quarantined))}</b></span>`;
-  const chips = [["Bank variance SAR " + R.bank_variance], ["GL variance SAR " + R.gl_variance], [`ZATCA chain breaks ${D.chain.violations}`],
+  const T = D.truth;
+  const chips = [[`Bank variance SAR ${R.bank_variance} on ${fmtI(T.assessed_mid_days)} assessed MID-days`], ["GL variance SAR " + R.gl_variance], [`${fmtI(T.not_assessed_mid_days)} MID-days not assessed (bank file pending)`, "warn"], [`ZATCA chain breaks ${D.chain.violations}`],
     [`Lineage ${D.lineage.covered}/${D.lineage.gold_columns} Gold columns`], ["PDPL erasure + Restore Guard verified"], [`Fabric dbt ${D.fabric.dbt_build_WH_MIZAN.pass}/${D.fabric.dbt_build_WH_MIZAN.pass} PASS`]];
-  $("#h-chips").innerHTML = chips.map(c => `<span class="chip"><i></i>${c[0]}</span>`).join("");
+  $("#h-chips").innerHTML = chips.map(c => `<span class="chip ${c[1] || ""}"><i></i>${c[0]}</span>`).join("");
   $("#h-counter").textContent = fmtH(H(R.gross));
 }
 function heroScene() {
@@ -703,16 +705,16 @@ function sparkline(svg, vals, color, opts = {}) {
 const pulse = { play() {} };
 function pulseScene() {
   const dl = D.daily, z = D.zatca, dq = D.ndmo.scorecard.filter(r => r.family === "DATA_QUALITY");
-  const docs = D.fabric.notebook_jobs.zatca_chain.documents, recs = D.fabric.notebook_jobs.mdm_resolve.records;
+  const docs = Object.values(D.zatca.states).reduce((a, b) => a + b, 0), recs = D.fabric.notebook_jobs.mdm_resolve.records;
   const tiles = [
     { l: "Gross captures", v: H(R.gross), cur: true, s: dl.map(d => H(d.gross)), c: C.em, note: `${fmtI(R.merchants)} merchants · ${fmtI(R.mid_days)} merchant-days` },
     { l: "Bank paid", v: H(R.bank), cur: true, s: dl.map(d => H(d.bank)), c: C.cyan, note: "mada / SADAD settlement files" },
     { l: "In transit (T+1)", v: H(R.transit), cur: true, s: dl.map(d => H(d.transit)), c: C.warn, note: "bank file not yet arrived", zero: true },
-    { l: "Bank variance", v: H(R.bank_variance), cur: true, zero: true, c: C.ok, note: "sum of |unexplained|, all MID-days", ok: true },
+    { l: "Bank variance", v: H(R.bank_variance), cur: true, zero: true, c: C.ok, note: `on ${fmtI(D.truth.assessed_mid_days)} assessed MID-days · ${fmtI(D.truth.not_assessed_mid_days)} not assessed`, ok: true },
     { l: "GL variance", v: H(R.gl_variance), cur: true, zero: true, c: C.ok, note: "vs ERP card clearing (ACDOCA)", ok: true },
-    { l: "ZATCA documents", v: docs, s: z.daily.map(d => d.docs), c: C.gold, note: `${fmtI(z.states.REPORTED || 0)} reported · ${fmtI(z.states.CLEARED || 0)} cleared · 1 rejected` },
+    { l: "ZATCA documents", v: docs, s: z.daily.map(d => d.docs), c: C.gold, note: `${fmtI(z.states.REPORTED || 0)} reported · ${fmtI(z.states.CLEARED || 0)} cleared · ${fmtI(z.states.CONFIRMED_REJECTION || 0)} rejected (stays in chain)` },
     { l: "Golden customers", v: D.mdm_gold.goldens, c: C.gold, note: `from ${fmtI(recs)} source records · 1 steward case` },
-    { l: "Quality checks", v: dq.filter(r => r.status === "PASS").length, of: dq.length, c: C.ok, note: `lineage ${D.lineage.covered}/${D.lineage.gold_columns} Gold columns`, ok: true },
+    { l: "Data-quality checks", v: dq.filter(r => r.status === "PASS").length, of: dq.length, c: C.ok, note: `lineage ${D.lineage.covered}/${D.lineage.gold_columns} Gold columns`, ok: true },
   ];
   $("#kpis").innerHTML = tiles.map((t, i) => `<div class="panel kpi ${t.ok ? "zero" : ""}" style="--accent:${t.c}">
       <div class="k-top"><span class="k-lbl">${t.l}</span>${t.ok ? '<span class="pill ok">OK</span>' : ""}</div>
@@ -813,7 +815,7 @@ function reconScene() {
   const hm = D.heat, cv = $("#heat"), ctx = cv.getContext("2d");
   $("#r-rows").textContent = fmtI(R.mid_days); $("#r-uncl").textContent = R.unclassified; $("#r-merch").textContent = fmtI(R.merchants);
   const topRow = hm.cells[0].reduce((a, c) => a + (c ? H(c) : 0), 0);
-  $("#r-top").textContent = `${hm.merchants[0]} · ${Math.round(topRow / H(R.gross) * 100)}% of SAR`;
+  $("#r-top").textContent = `${D.truth.largest_merchant.merchant} · ${D.truth.largest_merchant.share_of_sar_pct}% of SAR`;
   const vals = hm.cells.flat().filter(Boolean).map(H).filter(v => v > 0), lmin = Math.log(Math.min(...vals)), lmax = Math.log(Math.max(...vals));
   let defects = false, reveal = 1, pulseT = 0, hover = null;
   const L = { l: 86, t: 26, b: 8 };
@@ -887,15 +889,15 @@ function zatcaScene() {
     const d = desc[h.event] || [h.event, "info", "&bull;"]; return [d[0], d[1], d[2], h.event]; });
   $("#steps").innerHTML = steps.map(s => `<div class="step ${s[1]}"><span class="dot">${s[2]}</span><span>${s[0]}</span><span class="pill ${s[1] === "crit" ? "crit" : s[1]}">${s[3]}</span></div>`).join("");
   // donut
-  const st = D.zatca.states, data = Object.entries(st).map(([k, v]) => ({ k, v })), colors = { REPORTED: C.em, CLEARED: C.cyan };
+  const st = D.zatca.states, data = Object.entries(st).map(([k, v]) => ({ k, v })), colors = { REPORTED: C.em, CLEARED: C.cyan, CONFIRMED_REJECTION: C.crit };
   const svg = d3.select("#donut"), arc = d3.arc().innerRadius(64).outerRadius(96).cornerRadius(4).padAngle(.02);
   const pie = d3.pie().value(d => d.v).sort(null)(data);
   const g = svg.append("g").attr("transform", "translate(110,110)");
   const arcs = g.selectAll("path").data(pie).join("path").attr("fill", d => colors[d.data.k] || C.gold).attr("d", arc).style("filter", d => `drop-shadow(0 0 6px ${colors[d.data.k] || C.gold})`)
     .on("mousemove", (e, d) => showTip(`<b>${d.data.k}</b><br>${fmtI(d.data.v)} documents`, e.clientX, e.clientY)).on("mouseleave", hideTip);
   g.append("text").attr("text-anchor", "middle").attr("y", -4).style("font", "600 22px IBM Plex Mono").style("fill", "#e9eff6").text(fmtI(data.reduce((a, d) => a + d.v, 0)));
-  g.append("text").attr("text-anchor", "middle").attr("y", 16).text("accepted");
-  $("#donut-legend").innerHTML = data.map(d => `<span><i style="background:${colors[d.k] || C.gold}"></i>${d.k} ${fmtI(d.v)}</span>`).join("") + `<span><i style="background:${C.crit}"></i>REJECTED 1 (in chain)</span>`;
+  g.append("text").attr("text-anchor", "middle").attr("y", 16).text("in chain");
+  $("#donut-legend").innerHTML = data.map(d => `<span><i style="background:${colors[d.k] || C.gold}"></i>${d.k} ${fmtI(d.v)}</span>`).join("");
   const mx = Math.max(...D.zatca.egs.map(e => e.docs));
   $("#egs").innerHTML = D.zatca.egs.map(e => `<div class="lane" style="grid-template-columns:62px 1fr 110px"><span>${e.egs}</span><div class="track" style="height:14px"><div class="max" data-w="${e.docs / mx}" style="top:0;bottom:0;width:${e.docs / mx * 100}%;background:linear-gradient(90deg,var(--emerald-deep),var(--emerald))"></div></div><span class="num" style="text-align:right">${fmtI(e.docs)}</span></div>`).join("");
   const fl = Object.fromEntries(D.zatca.flows.map(f => [f.flow, f]));
@@ -1122,6 +1124,9 @@ addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLower
   if (e.key === "ArrowRight" || e.key === "j") { goTo(ids[Math.min(ids.length - 1, i + 1)]); } if (e.key === "ArrowLeft" || e.key === "k") { goTo(ids[Math.max(0, i - 1)]); } });
 
 $("#seed").textContent = D.meta.seed;
+{ const P = D.runs.published, Q = D.runs.candidate;
+  $("#runs").textContent = `Published run ${P.status} (dbt ${P.nodes} nodes, ${P.generated_at}; Fabric ${P.fabric.dbt_pass} pass on ${P.fabric.run_date}) · candidate run ${Q.status}: ${Q.reason} · git ${D.runs.git_sha}`; }
+{ const el = $("#skew-share"); if (el) el.textContent = Math.round(parseFloat(D.skew_setup.mega_share_of_rows) * 100) + "%"; }
 safe("heroCopy", heroCopy); safe("hero", heroScene);
 safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene); safe("recon", reconScene); safe("zatca", zatcaScene);
 safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("trust", trustScene); safe("platform", platformScene);

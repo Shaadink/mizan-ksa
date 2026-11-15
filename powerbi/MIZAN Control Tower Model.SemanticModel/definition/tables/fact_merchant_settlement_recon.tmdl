@@ -17,6 +17,18 @@ table fact_merchant_settlement_recon
 		formatString: #,0.00
 		lineageTag: 9ba4e20c-1425-52de-bdb1-3f4553677604
 
+	measure 'Bank Paid SAR (Assessed)' = CALCULATE(SUM(fact_merchant_settlement_recon[bank_paid_sar]), KEEPFILTERS(fact_merchant_settlement_recon[in_transit_sar] = 0))
+		formatString: #,0.00
+		lineageTag: 02cad85e-703f-5d3b-b02d-3e1f30780266
+
+	measure 'MID Days Assessed' = CALCULATE(COUNTROWS(fact_merchant_settlement_recon), KEEPFILTERS(fact_merchant_settlement_recon[in_transit_sar] = 0)) + 0
+		formatString: #,0
+		lineageTag: 5a520015-c524-59bb-8742-b6ca4cffea88
+
+	measure 'MID Days Not Assessed' = CALCULATE(COUNTROWS(fact_merchant_settlement_recon), KEEPFILTERS(fact_merchant_settlement_recon[in_transit_sar] <> 0)) + 0
+		formatString: #,0
+		lineageTag: 0d676467-380d-5d96-a106-bb20104bf42c
+
 	measure 'In Transit SAR' = SUM(fact_merchant_settlement_recon[in_transit_sar])
 		formatString: #,0.00
 		lineageTag: b3e97285-7f4e-563d-8c28-23a6367d034f
@@ -36,6 +48,10 @@ table fact_merchant_settlement_recon
 	measure 'Halala Breaks' = COUNTROWS(FILTER(fact_merchant_settlement_recon, fact_merchant_settlement_recon[unexplained_bank_variance_sar] <> 0 || fact_merchant_settlement_recon[unexplained_gl_variance_sar] <> 0)) + 0
 		formatString: 0
 		lineageTag: 48956889-54fe-5776-b43e-f2b18563c241
+
+	measure 'Largest Merchant Share of SAR Pct' = DIVIDE(MAXX(VALUES(fact_merchant_settlement_recon[merchant_id]), CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]))), CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]), REMOVEFILTERS(fact_merchant_settlement_recon[merchant_id]))) * 100
+		formatString: 0.0
+		lineageTag: 9d42dce7-6653-52c8-8659-fd047097ce54
 
 	measure 'Merchants' = DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id])
 		formatString: #,0

@@ -99,6 +99,9 @@ def test_export_is_deterministic(tmp_path, monkeypatch):
     import sys
     sys.path.insert(0, str(REPO / "scripts"))
     import build_command_center as B
-    first = json.dumps(B.build_data(), sort_keys=True)
-    assert first == json.dumps(B.build_data(), sort_keys=True)
-    assert json.loads(first) == json.loads((CC / "data.json").read_text(encoding="utf-8"))
+    first, second = B.build_data(), B.build_data()
+    assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
+    committed = json.loads((CC / "data.json").read_text(encoding="utf-8"))
+    for d in (first, committed):           # run ids and the git SHA change with every build/commit by design
+        d.pop("runs", None)
+    assert first == committed

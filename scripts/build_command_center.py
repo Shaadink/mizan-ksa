@@ -76,7 +76,8 @@ def gold_section(con) -> dict:
     egs = [{"egs": e, "docs": n, "sar": money(s)} for e, n, s in
            _q(con, f"SELECT egs_id, COUNT(*), SUM(total_incl_vat_sar) FROM {z} GROUP BY 1 ORDER BY 1")]
     flows = [{"flow": f, "docs": n, "sar": money(s)} for f, n, s in
-             _q(con, f"SELECT invoice_flow, COUNT(*), SUM(total_incl_vat_sar) FROM {z} GROUP BY 1 ORDER BY 1")]
+             _q(con, f"""SELECT invoice_flow, COUNT(*), SUM(total_incl_vat_sar) FROM {z}
+                      WHERE state <> 'CONFIRMED_REJECTION' GROUP BY 1 ORDER BY 1""")]   # accepted only
     (zsar, corr, retried), = _q(con, f"""SELECT SUM(total_incl_vat_sar), COUNT(corrects_invoice_uuid),
                                        COUNT(*) FILTER (WHERE attempts > 1) FROM {z}""")
     zdaily = [{"d": str(d), "docs": n} for d, n in
@@ -273,6 +274,77 @@ def lineage_section() -> dict:
             "edges": [{"from": a, "to": b} for a, b in edges]}
 
 
+# ----------------------------------------------------------------------------- Stage 1 truth facts
+NOT_ASSESSED = "in_transit_sar <> 0"     # bank file for that MID-day has not arrived: not assessed, never "balanced"
+
+
+def truth_section(con) -> dict:
+    """Facts behind the 'Fix first' bugs, each computed from Gold (plus Silver for the payment link)."""
+    R = "gld.fact_merchant_settlement_recon"
+    Z = "gld.fact_zatca_clearance_ledger"
+    (assessed, not_assessed, na_net), = _q(con, f"""SELECT COUNT(*) FILTER (WHERE NOT ({NOT_ASSESSED})),
+        COUNT(*) FILTER (WHERE {NOT_ASSESSED}), COALESCE(SUM(expected_net_payable_sar) FILTER (WHERE {NOT_ASSESSED}), 0)
+        FROM {R}""")
+    na_days = [str(d) for d, in _q(con, f"SELECT DISTINCT business_date_ksa FROM {R} WHERE {NOT_ASSESSED} ORDER BY 1")]
+    na_cells = [[m, str(d)] for m, d in _q(con, f"""SELECT merchant_id, business_date_ksa FROM {R}
+                                                  WHERE {NOT_ASSESSED} ORDER BY 1, 2""")]
+    (top_mid, top_sar, all_sar), = _q(con, f"""SELECT merchant_id, g, SUM(g) OVER () FROM (SELECT merchant_id,
+        SUM(gross_captures_sar) g FROM {R} GROUP BY 1) ORDER BY g DESC LIMIT 1""")
+    con.execute("INSTALL delta; LOAD delta")
+    pl = (LAKE / "LH_MIZAN" / "slv" / "payment_lifecycle").as_posix()
+    # card-paid = an accepted INVOICE with a card CAPTURE in Silver, directly or through the rejected original it
+    # corrects (the capture keeps the original UUID); the rest of the invoices were paid in cash
+    (card, cash, cn, rej, acc), = _q(con, f"""
+        WITH cap AS (SELECT DISTINCT invoice_uuid FROM delta_scan(?) WHERE event_type = 'CAPTURE')
+        SELECT SUM(total_incl_vat_sar) FILTER (WHERE document_type = 'INVOICE' AND state <> 'CONFIRMED_REJECTION'
+                                                AND (invoice_uuid IN (SELECT invoice_uuid FROM cap)
+                                                     OR corrects_invoice_uuid IN (SELECT invoice_uuid FROM cap))),
+               SUM(total_incl_vat_sar) FILTER (WHERE document_type = 'INVOICE' AND state <> 'CONFIRMED_REJECTION'
+                                                AND invoice_uuid NOT IN (SELECT invoice_uuid FROM cap)
+                                                AND COALESCE(corrects_invoice_uuid, '') NOT IN
+                                                    (SELECT invoice_uuid FROM cap)),
+               SUM(total_incl_vat_sar) FILTER (WHERE document_type = 'CREDIT_NOTE' AND state <> 'CONFIRMED_REJECTION'),
+               COALESCE(SUM(total_incl_vat_sar) FILTER (WHERE state = 'CONFIRMED_REJECTION'), 0),
+               SUM(total_incl_vat_sar) FILTER (WHERE state <> 'CONFIRMED_REJECTION')
+        FROM {Z}""", pl)
+    assert card + cash + cn == acc
+    (gross,), = _q(con, f"SELECT SUM(gross_captures_sar) FROM {R}")
+    assert card == gross, f"card-paid invoices {card} != gross captures {gross}"
+    egs_map = {e: sorted(m) for e, m in _q(con, f"""SELECT z.egs_id, LIST(DISTINCT p.merchant_id) FROM {Z} z
+        JOIN delta_scan(?) p ON p.invoice_uuid = z.invoice_uuid GROUP BY 1 ORDER BY 1""", pl)}
+    return {"assessed_mid_days": assessed, "not_assessed_mid_days": not_assessed,
+            "not_assessed_dates": na_days, "not_assessed_cells": na_cells,
+            "not_assessed_expected_net": money(na_net),
+            "largest_merchant": {"merchant": top_mid, "share_of_sar_pct": str((Decimal(top_sar) / Decimal(all_sar)
+                                                                               * 100).quantize(Decimal("0.1")))},
+            "zatca_sar": {"card_invoices": money(card), "cash_invoices": money(cash), "credit_notes": money(cn),
+                          "accepted_total": money(acc), "rejected": money(rej),
+                          "net_invoiced": money(Decimal(card) + Decimal(cash) - Decimal(cn))},
+            "egs_merchants": egs_map}
+
+
+def runs_section() -> dict:
+    """Published run = the last passing main build; candidate = the demo-flag build that the breaker stopped."""
+    from mizan.lineage.openlineage import git_sha
+    rr = REPO / "dbt" / "target" / "run_results.json"
+    pub = {"status": "UNKNOWN"}
+    if rr.exists():
+        d = json.loads(rr.read_text(encoding="utf-8"))
+        bad = [r for r in d["results"] if r["status"] not in ("pass", "success")]
+        pub = {"run_id": d["metadata"]["invocation_id"], "generated_at": d["metadata"]["generated_at"][:19] + "Z",
+               "target": d["args"].get("target"), "nodes": len(d["results"]),
+               "status": "PASS" if not bad else "FAIL", "source": "dbt/target/run_results.json"}
+    fab = json.loads((ART / "10_fabric_run_evidence.json").read_text(encoding="utf-8"))
+    pub["fabric"] = {"run_date": fab["run_date"], "dbt_pass": fab["dbt_build_WH_MIZAN"]["pass"],
+                     "dbt_error": fab["dbt_build_WH_MIZAN"]["error"]}
+    board = (ART / "html" / "02_halala_recon_board.html").read_text(encoding="utf-8")
+    assert "circuit breaker on the demo build: FAIL" in board
+    cand = {"run_id": "demo-flag build (planted defects)", "status": "FAIL",
+            "reason": "dbt circuit breaker: 2 unexplained MID-days (orphan bank line; 0.01 SAR float bug)",
+            "published": False, "source": "docs/artifacts/html/02_halala_recon_board.html"}
+    return {"published": pub, "candidate": cand, "git_sha": git_sha()[:12]}
+
+
 def build_data() -> dict:
     import duckdb
     _check_demo_breaks()
@@ -280,6 +352,7 @@ def build_data() -> dict:
     try:
         data = gold_section(con)
         data["ndmo"]["catalog"] = tiers(con)
+        data["truth"] = truth_section(con)
     finally:
         con.close()
     data["chain"] = chain_section()
@@ -288,6 +361,13 @@ def build_data() -> dict:
     data["stream"] = stream_section()
     data["lineage"] = lineage_section()
     data["skew"] = json.loads((ART / "05_skew_benchmark_20m.json").read_text(encoding="utf-8"))
+    import inspect
+
+    from mizan.spark import skew as skew_mod
+    data["skew_setup"] = {"mega_share_of_rows": str(inspect.signature(skew_mod.skewed_facts)
+                                                    .parameters["mega_share"].default),
+                          "source": "src/mizan/spark/skew.py skewed_facts(mega_share)"}
+    data["runs"] = runs_section()
     data["fabric"] = json.loads((ART / "10_fabric_run_evidence.json").read_text(encoding="utf-8"))
     data["meta"] = {"seed": 20261112, "timezone": "Asia/Riyadh", "currency": "SAR",
                     "note": "Synthetic data, fixed seed. Every figure is exported from Gold or a proof run."}

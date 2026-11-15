@@ -20,7 +20,7 @@ models:
       - name: state
         data_tests:
           - accepted_values:
-              arguments: {values: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS"]}
+              arguments: {values: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS", "CONFIRMED_REJECTION"]}
       - name: invoice_flow
         data_tests:
           - accepted_values:
