@@ -92,7 +92,7 @@ def gold_section(con) -> dict:
         "recon": {"gross": money(gross), "refunds": money(refunds), "fees": money(fees), "net": money(net),
                   "bank": money(bank), "transit": money(transit), "quarantined": money(quar), "gl": money(gl),
                   "bank_variance": money(bvar), "gl_variance": money(gvar), "unclassified": int(uncl),
-                  "mid_days": rows, "merchants": mids, "from": str(d0), "to": str(d1)},
+                  "mid_days": rows, "merchants": mids, "from": str(d0), "to": str(d1), **residuals(con, R)},
         "daily": daily, "calendar": cal,
         "heat": {"days": days, "merchants": order, "cells": [cells[m] for m in order],
                  # demo-flag overlay from the Phase 11 recon board: the two planted breaks the circuit breaker catches
@@ -255,8 +255,10 @@ def stream_section() -> dict:
                    and e["invoice_event"] == "ISSUED")
         rep = [e for e in ev if e["event_kind"] == "INVOICE" and e["invoice_uuid"] == u
                and e["invoice_event"] == "REPORTED"]
+        lag_min = int((min(t(e["event_ts"]) for e in rep) - t(iss["event_ts"])).total_seconds() // 60) if rep else None
         alerts.append({"rule": "REPORTING_SLA", "key": iss["request_id"], "at": iss["event_ts"],
-                       "detail": "reported after 24 h" if rep else "never reported (rejected)"})
+                       "detail": "reported after 24 h" if rep else "never reported (rejected)",
+                       "lag_minutes": lag_min})
     alerts.sort(key=lambda a: a["at"])
     return {"total": len(ev), "kinds": dict(sorted(kinds.items())), "from": ev[0]["event_ts"], "to": ev[-1]["event_ts"],
             "histogram": hist, "alerts": alerts, "fabric_rows": {"CHECKOUT": 23511, "INVOICE": 50002, "PAYMENT": 18000},
@@ -272,6 +274,13 @@ def lineage_section() -> dict:
     edges = sorted({(i.rsplit(".", 1)[0], f"gld.{m}") for m, v in lin.items() for ins in v.values() for i in ins})
     return {"gold_columns": gold_cols, "covered": covered, "models": sorted(lin),
             "edges": [{"from": a, "to": b} for a, b in edges]}
+
+
+def residuals(con, R: str) -> dict:
+    """Net (signed) residuals and broken keys, next to the gross absolute residuals (bank_variance / gl_variance)."""
+    (bn, gn, broken), = _q(con, f"""SELECT SUM(unexplained_bank_variance_sar), SUM(unexplained_gl_variance_sar),
+        COUNT(*) FILTER (WHERE unexplained_bank_variance_sar <> 0 OR unexplained_gl_variance_sar <> 0) FROM {R}""")
+    return {"bank_net_residual": money(bn), "gl_net_residual": money(gn), "broken_keys": broken}
 
 
 def egs_detail(con, z: str) -> list[dict]:

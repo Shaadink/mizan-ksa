@@ -13,6 +13,7 @@
   </div>
   <button class="btn" id="open-palette" title="Command palette (Ctrl+K)"><span class="long">Jump to</span> <span class="kbd">Ctrl K</span></button>
   <button class="btn primary" id="play-story">&#9654; <span class="long">Play the story</span></button>
+  <button class="icon-btn" id="lang-btn" type="button" title="&#x627;&#x644;&#x639;&#x631;&#x628;&#x64a;&#x629;" style="font:700 15px var(--f-ar);color:var(--gold-hi)">&#x639;</button>
   <div class="profile" id="profile"></div>
 </header>
 <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
@@ -35,7 +36,7 @@
 <section class="hero" id="top">
   <canvas id="hero-canvas" aria-hidden="true"></canvas>
   <div class="watermark ar" aria-hidden="true">&#x645;&#x64A;&#x632;&#x627;&#x646;</div>
-  <div class="stamp" id="stamp">BALANCED &middot; SAR 0.00</div>
+  <div class="stamp" id="stamp">BALANCED</div>
   <div class="hero-copy">
     <div class="eyebrow">Control tower &middot; <span id="h-range"></span> &middot; Asia/Riyadh</div>
     <h1>Every halala, <em>reconciled.</em></h1>
@@ -74,7 +75,7 @@
     <div class="wrap">
       <div class="scene-head"><div><div class="tag">Daily ledger &middot; Gregorian and Hijri</div><h2>Captures, bank and GL move together</h2>
         <p>Business days in Asia/Riyadh on the Umm al-Qura calendar. The last day's bank file arrives tomorrow (T+1), so its money shows as in transit, never as a variance.</p></div>
-        <div class="legend"><span><i style="background:var(--emerald)"></i>Gross captures</span><span><i style="background:var(--gold)"></i>GL card clearing</span><span><i style="background:var(--cyan)"></i>Bank paid</span><span><i style="background:rgba(217,178,95,.25);height:10px"></i>Ramadan</span></div></div>
+        <div class="legend"><span><i style="background:#c3cee0"></i>Gross captures</span><span><i style="background:var(--gold)"></i>GL card clearing</span><span><i style="background:var(--cyan)"></i>Bank paid</span><span><i style="background:rgba(217,178,95,.25);height:10px"></i>Ramadan</span></div></div>
       <div class="panel"><svg id="ledger-svg" role="img" aria-label="Daily captures, GL clearing and bank paid"></svg></div>
     </div>
   </section>
@@ -87,13 +88,18 @@
       <div class="grid g-12">
         <div class="panel c-8 heat-wrap"><canvas id="heat" height="560"></canvas></div>
         <div class="c-4 grid" style="align-content:start">
-          <div class="breaker" id="breaker"><span class="lamp"></span><span id="breaker-text">dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days</span></div>
+          <div class="breaker" id="breaker"><span class="lamp"></span><span id="breaker-text">✓ dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days</span></div>
           <div class="panel"><h3>Reconciliation identity, per row</h3><div class="sub">Holds on all <span id="r-rows"></span> rows</div>
             <div class="row"><span>Expected net</span><span>bank paid + in transit + quarantined</span></div>
             <div class="row"><span>Net sales</span><span>GL card clearing</span></div>
             <div class="row"><span>Unclassified events</span><span id="r-uncl"></span></div>
             <div class="row"><span>Merchants</span><span id="r-merch"></span></div>
-            <div class="row"><span>Largest merchant</span><span id="r-top"></span></div></div>
+            <div class="row"><span>Largest merchant</span><span id="r-top"></span></div>
+            <div class="row"><span>Net residual (bank / GL)</span><span id="r-net"></span></div>
+            <div class="row"><span>Gross absolute residual (bank / GL)</span><span id="r-abs"></span></div>
+            <div class="row"><span>Broken keys</span><span id="r-broken"></span></div>
+            <div class="row"><span>Not assessed (no bank file)</span><span id="r-na"></span></div></div>
+          <div class="panel" id="runs-panel"><h3>Publishing</h3><div id="runs-rows"></div></div>
           <div class="panel" id="breaks-panel" hidden><h3>Planted defects caught</h3><div class="scroll-x"><table class="t" id="breaks"></table></div>
             <div class="sub" style="margin-top:8px">Demo overlay only; it never enters the main build.</div></div>
         </div>
@@ -111,10 +117,10 @@
       <div class="grid g-12" style="margin-top:16px">
         <div class="panel c-5"><h3>Incident replay &middot; ICV <span id="inc-icv"></span> &middot; <span id="inc-req"></span></h3>
           <div class="sub" id="inc-sub"></div><div class="steps" id="steps"></div></div>
-        <div class="panel c-3"><h3>Outcomes</h3><div class="sub">Gold clearance ledger</div><svg id="donut" viewBox="0 0 220 220" style="width:100%;max-width:240px;display:block;margin:10px auto 0"></svg><div id="donut-legend" class="legend" style="justify-content:center;margin-top:8px"></div></div>
+        <div class="panel c-3"><h3>Outcomes</h3><div class="sub">Gold clearance ledger</div><div id="outcome-bar" style="margin-top:14px"></div><div id="sla" style="margin-top:18px"></div></div>
         <div class="panel c-4"><h3>By EGS device</h3><div class="sub">Documents and SAR including VAT</div><div id="egs" class="race" style="margin-top:14px"></div>
-          <div class="row" style="margin-top:10px" data-f="flow" data-v="REPORTING"><span>B2C simplified (REPORTING)</span><span id="f-rep"></span></div>
-          <div class="row" data-f="flow" data-v="CLEARANCE"><span>B2B standard (CLEARANCE)</span><span id="f-clr"></span></div></div>
+          <div class="row" style="margin-top:10px" data-f="flow" data-v="REPORTING"><span>Simplified: reporting (B2C)</span><span id="f-rep"></span></div>
+          <div class="row" data-f="flow" data-v="CLEARANCE"><span>Standard: clearance (B2B)</span><span id="f-clr"></span></div></div>
       </div>
     </div>
   </section>

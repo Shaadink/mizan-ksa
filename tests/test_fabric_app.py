@@ -73,3 +73,22 @@ def test_stage3_shell_menu_scenes_and_profile_guard():
     assert 'id="search"' in tpl and "window.MIZAN_QUERY" in tpl
     prof = json.loads((REPO / "config" / "profile.json").read_text(encoding="utf-8"))
     assert prof["name"] and prof["linkedin"].startswith("https://www.linkedin.com/")
+
+
+def test_stage4_honesty_colour_zatca_language_and_presenter_rules():
+    tpl = (REPO / "command_center" / "template.html").read_text(encoding="utf-8")
+    assert re.search(r"[\u0600-\u06FF]", tpl) is None, "Arabic must be written as escapes/entities, never raw"
+    assert '{ name: "Gross captures", k: "gross", c: C.neutral }' in tpl           # captures are neutral, not green
+    assert "awaiting bank file" in tpl and "d3.line().defined(" in tpl            # bank line breaks on 03 Mar
+    assert 'id="r-net"' in tpl and 'id="r-broken"' in tpl and 'id="runs-rows"' in tpl
+    assert "Simplified: reporting" in tpl and "Standard: clearance" in tpl and 'id="outcome-bar"' in tpl
+    assert "24 h reporting window" in tpl and "lag_minutes" in tpl
+    assert "Govt payday (27th)" in tpl and "hero.setDefect" in tpl
+    for key in ('kk === "p"', 'kk === "t"', 'kk === "b"', 'kk === "l"', "/^[1-9]$/"):
+        assert key in tpl, key
+    assert "function updateProv" in tpl and "Historical replay" in tpl
+    data = json.loads((REPO / "command_center" / "data.json").read_text(encoding="utf-8"))
+    r = data["recon"]
+    assert (r["bank_net_residual"], r["gl_net_residual"], r["broken_keys"]) == ("0.00", "0.00", 0)
+    sla = [a for a in data["stream"]["alerts"] if a["rule"] == "REPORTING_SLA"]
+    assert [a["lag_minutes"] for a in sla] == [1560, None]                       # IR-0000102 26 h; IR-0000103 never

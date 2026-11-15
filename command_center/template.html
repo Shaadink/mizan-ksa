@@ -66,6 +66,15 @@ button { font: inherit; color: inherit }
 .rail a.on::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--gold) }
 .rail a.off { opacity: .3 }
 .rail .rail-foot { margin-top: auto; padding: 12px; font: 500 10.5px var(--f-mono); color: var(--dim); white-space: normal }
+body.presenter { --chrome: 0px; --rail: 0px } body.presenter .topbar, body.presenter .filterbar, body.presenter .rail, body.presenter .progress, body.presenter .mizan-source { display: none !important }
+[dir="rtl"] .rail { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--line-2) } [dir="rtl"] .rail a.on::before { left: auto; right: -10px }
+[dir="rtl"] .wrap, [dir="rtl"] .hero-copy { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(calc(var(--rail) + 24px), env(safe-area-inset-right, 0px)) }
+[dir="rtl"] .filterbar { padding-left: 16px; padding-right: max(calc(var(--rail) + 24px), env(safe-area-inset-right, 0px)) }
+[dir="rtl"] .stamp { right: auto; left: max(5vw, 16px); transform: rotate(6deg) }
+[dir="rtl"] .hero::after { background: linear-gradient(270deg, rgba(6,11,22,.92) 0%, rgba(6,11,22,.7) 34%, rgba(6,11,22,0) 58%) }
+[dir="rtl"] svg, [dir="rtl"] canvas, [dir="rtl"] .chain, [dir="rtl"] .mono, [dir="rtl"] .num, [dir="rtl"] table.t, [dir="rtl"] .counter, [dir="rtl"] .identity, [dir="rtl"] .prov { direction: ltr }
+[dir="rtl"] main p, [dir="rtl"] .row, [dir="rtl"] .breaker, [dir="rtl"] .sub, [dir="rtl"] .k-note, [dir="rtl"] .step, [dir="rtl"] .legend, [dir="rtl"] .kpi .k-lbl { direction: ltr }
+[lang="ar"] .scene-head h2, [lang="ar"] .scene-head .tag, [lang="ar"] .rail a span, [lang="ar"] .hero h1, [lang="ar"] .hero .lede, [lang="ar"] .btn { font-family: var(--f-ar); letter-spacing: 0 }
 body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail-collapsed .rail .rail-foot { display: none }
 .icon-btn { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; cursor: pointer; color: var(--muted) }
 .icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round }
@@ -86,8 +95,8 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .egs-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px }
 .egs-card { padding: 14px; border-radius: 14px; border: 1px solid var(--line-2); background: linear-gradient(180deg, rgba(20, 34, 60, .85), rgba(12, 21, 38, .85)) }
 .egs-card.sel { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(217, 178, 95, .3) }
-.egs-card .top { display: flex; align-items: center; gap: 10px } .egs-card .badge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(47, 191, 143, .12); border: 1px solid rgba(47, 191, 143, .35) }
-.egs-card .badge svg { width: 18px; height: 18px; stroke: var(--emerald); fill: none; stroke-width: 1.7 } .egs-card b { font: 700 15px var(--f-display) }
+.egs-card .top { display: flex; align-items: center; gap: 10px } .egs-card .badge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(217, 178, 95, .12); border: 1px solid rgba(217, 178, 95, .35) }
+.egs-card .badge svg { width: 18px; height: 18px; stroke: var(--gold); fill: none; stroke-width: 1.7 } .egs-card b { font: 700 15px var(--f-display) }
 .egs-card .kv { display: flex; justify-content: space-between; font: 12px var(--f-mono); color: var(--muted); margin-top: 6px } .egs-card .kv span:last-child { color: var(--ink) }
 .delta { font: 600 11px var(--f-mono) } .delta.up { color: var(--ok) } .delta.down { color: var(--warn) }
 /* map + life cycle */
@@ -97,7 +106,7 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .dlc { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: auto auto auto; gap: 22px 18px }
 .dlc-node { position: relative; z-index: 1; text-align: left; padding: 14px; border-radius: 14px; border: 1px solid var(--line-2); background: rgba(14, 25, 45, .95); cursor: pointer; color: var(--ink); font: inherit }
 .dlc-node:hover { border-color: var(--gold); transform: translateY(-2px); transition: .15s } .dlc-node .k { font: 600 10px var(--f-mono); letter-spacing: .14em; color: var(--gold); text-transform: uppercase }
-.dlc-node b { display: block; font: 700 15px var(--f-display); margin: 4px 0 } .dlc-node .d { font-size: 12px; color: var(--muted) } .dlc-node .n { margin-top: 8px; font: 600 12px var(--f-mono); color: var(--emerald) }
+.dlc-node b { display: block; font: 700 15px var(--f-display); margin: 4px 0 } .dlc-node .d { font-size: 12px; color: var(--muted) } .dlc-node .n { margin-top: 8px; font: 600 12px var(--f-mono); color: var(--gold-hi) }
 .dlc-node.side { border-style: dashed } #dlc-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0 }
 .progress { position: fixed; top: calc(env(safe-area-inset-top, 0px) + var(--chrome)); left: 0; height: 2px; width: 0; z-index: 51;
   background: linear-gradient(90deg, var(--emerald), var(--gold), var(--cyan)) }
@@ -120,6 +129,7 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .drill { position: fixed; z-index: 58; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(var(--chrome) + 16px); width: min(380px, calc(100% - 32px));
   padding: 18px; border-radius: 16px; background: rgba(9, 16, 30, .97); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, .55) }
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
+.prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
 .empty-note { padding: 40px 10px; text-align: center; color: var(--muted); font: 500 13px var(--f-mono) }
 
 /* ---------- hero ---------- */
@@ -255,8 +265,8 @@ table.t td.r, table.t th.r { text-align: right }
 .theater { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px }
 .act h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px }
 .keys { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap }
-.key { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--emerald);
-  color: var(--emerald); background: rgba(47,191,143,.08); font: 600 18px var(--f-mono); box-shadow: 0 0 18px rgba(47,191,143,.2) }
+.key { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--cyan);
+  color: var(--cyan); background: rgba(92,200,255,.08); font: 600 18px var(--f-mono); box-shadow: 0 0 18px rgba(92,200,255,.2) }
 .key.shred { border-color: var(--dim); color: var(--dim); background: transparent; box-shadow: none }
 .key.restored { border-color: var(--warn); color: var(--warn); box-shadow: 0 0 18px rgba(242,169,59,.3) }
 .row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(140,160,190,.12); font-size: 13px }
@@ -357,6 +367,7 @@ footer .wrap { display: grid; gap: 8px }
   </div>
   <button class="btn" id="open-palette" title="Command palette (Ctrl+K)"><span class="long">Jump to</span> <span class="kbd">Ctrl K</span></button>
   <button class="btn primary" id="play-story">&#9654; <span class="long">Play the story</span></button>
+  <button class="icon-btn" id="lang-btn" type="button" title="&#x627;&#x644;&#x639;&#x631;&#x628;&#x64a;&#x629;" style="font:700 15px var(--f-ar);color:var(--gold-hi)">&#x639;</button>
   <div class="profile" id="profile"></div>
 </header>
 <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
@@ -379,7 +390,7 @@ footer .wrap { display: grid; gap: 8px }
 <section class="hero" id="top">
   <canvas id="hero-canvas" aria-hidden="true"></canvas>
   <div class="watermark ar" aria-hidden="true">&#x645;&#x64A;&#x632;&#x627;&#x646;</div>
-  <div class="stamp" id="stamp">BALANCED &middot; SAR 0.00</div>
+  <div class="stamp" id="stamp">BALANCED</div>
   <div class="hero-copy">
     <div class="eyebrow">Control tower &middot; <span id="h-range"></span> &middot; Asia/Riyadh</div>
     <h1>Every halala, <em>reconciled.</em></h1>
@@ -418,7 +429,7 @@ footer .wrap { display: grid; gap: 8px }
     <div class="wrap">
       <div class="scene-head"><div><div class="tag">Daily ledger &middot; Gregorian and Hijri</div><h2>Captures, bank and GL move together</h2>
         <p>Business days in Asia/Riyadh on the Umm al-Qura calendar. The last day's bank file arrives tomorrow (T+1), so its money shows as in transit, never as a variance.</p></div>
-        <div class="legend"><span><i style="background:var(--emerald)"></i>Gross captures</span><span><i style="background:var(--gold)"></i>GL card clearing</span><span><i style="background:var(--cyan)"></i>Bank paid</span><span><i style="background:rgba(217,178,95,.25);height:10px"></i>Ramadan</span></div></div>
+        <div class="legend"><span><i style="background:#c3cee0"></i>Gross captures</span><span><i style="background:var(--gold)"></i>GL card clearing</span><span><i style="background:var(--cyan)"></i>Bank paid</span><span><i style="background:rgba(217,178,95,.25);height:10px"></i>Ramadan</span></div></div>
       <div class="panel"><svg id="ledger-svg" role="img" aria-label="Daily captures, GL clearing and bank paid"></svg></div>
     </div>
   </section>
@@ -431,13 +442,18 @@ footer .wrap { display: grid; gap: 8px }
       <div class="grid g-12">
         <div class="panel c-8 heat-wrap"><canvas id="heat" height="560"></canvas></div>
         <div class="c-4 grid" style="align-content:start">
-          <div class="breaker" id="breaker"><span class="lamp"></span><span id="breaker-text">dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days</span></div>
+          <div class="breaker" id="breaker"><span class="lamp"></span><span id="breaker-text">✓ dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days</span></div>
           <div class="panel"><h3>Reconciliation identity, per row</h3><div class="sub">Holds on all <span id="r-rows"></span> rows</div>
             <div class="row"><span>Expected net</span><span>bank paid + in transit + quarantined</span></div>
             <div class="row"><span>Net sales</span><span>GL card clearing</span></div>
             <div class="row"><span>Unclassified events</span><span id="r-uncl"></span></div>
             <div class="row"><span>Merchants</span><span id="r-merch"></span></div>
-            <div class="row"><span>Largest merchant</span><span id="r-top"></span></div></div>
+            <div class="row"><span>Largest merchant</span><span id="r-top"></span></div>
+            <div class="row"><span>Net residual (bank / GL)</span><span id="r-net"></span></div>
+            <div class="row"><span>Gross absolute residual (bank / GL)</span><span id="r-abs"></span></div>
+            <div class="row"><span>Broken keys</span><span id="r-broken"></span></div>
+            <div class="row"><span>Not assessed (no bank file)</span><span id="r-na"></span></div></div>
+          <div class="panel" id="runs-panel"><h3>Publishing</h3><div id="runs-rows"></div></div>
           <div class="panel" id="breaks-panel" hidden><h3>Planted defects caught</h3><div class="scroll-x"><table class="t" id="breaks"></table></div>
             <div class="sub" style="margin-top:8px">Demo overlay only; it never enters the main build.</div></div>
         </div>
@@ -455,10 +471,10 @@ footer .wrap { display: grid; gap: 8px }
       <div class="grid g-12" style="margin-top:16px">
         <div class="panel c-5"><h3>Incident replay &middot; ICV <span id="inc-icv"></span> &middot; <span id="inc-req"></span></h3>
           <div class="sub" id="inc-sub"></div><div class="steps" id="steps"></div></div>
-        <div class="panel c-3"><h3>Outcomes</h3><div class="sub">Gold clearance ledger</div><svg id="donut" viewBox="0 0 220 220" style="width:100%;max-width:240px;display:block;margin:10px auto 0"></svg><div id="donut-legend" class="legend" style="justify-content:center;margin-top:8px"></div></div>
+        <div class="panel c-3"><h3>Outcomes</h3><div class="sub">Gold clearance ledger</div><div id="outcome-bar" style="margin-top:14px"></div><div id="sla" style="margin-top:18px"></div></div>
         <div class="panel c-4"><h3>By EGS device</h3><div class="sub">Documents and SAR including VAT</div><div id="egs" class="race" style="margin-top:14px"></div>
-          <div class="row" style="margin-top:10px" data-f="flow" data-v="REPORTING"><span>B2C simplified (REPORTING)</span><span id="f-rep"></span></div>
-          <div class="row" data-f="flow" data-v="CLEARANCE"><span>B2B standard (CLEARANCE)</span><span id="f-clr"></span></div></div>
+          <div class="row" style="margin-top:10px" data-f="flow" data-v="REPORTING"><span>Simplified: reporting (B2C)</span><span id="f-rep"></span></div>
+          <div class="row" data-f="flow" data-v="CLEARANCE"><span>Standard: clearance (B2B)</span><span id="f-clr"></span></div></div>
       </div>
     </div>
   </section>
@@ -584,7 +600,7 @@ footer .wrap { display: grid; gap: 8px }
 let D = JSON.parse(document.getElementById("mizan-data").textContent);
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (s, r = document) => r.querySelector(s);
-const C = { gold: "#d9b25f", goldHi: "#f3d99c", em: "#2fbf8f", cyan: "#5cc8ff", crit: "#ff5d63", warn: "#f2a93b", ok: "#3ad29f", muted: "#8d9bb1", dim: "#5d6b82" };
+const C = { neutral: "#c3cee0", violet: "#9b8cff", fee: "#8d9bb1", gold: "#d9b25f", goldHi: "#f3d99c", em: "#2fbf8f", cyan: "#5cc8ff", crit: "#ff5d63", warn: "#f2a93b", ok: "#3ad29f", muted: "#8d9bb1", dim: "#5d6b82" };
 
 /* ---------- exact money: integer halalas, never float ---------- */
 function H(s) { s = String(s); const neg = s[0] === "-"; if (neg) s = s.slice(1); const [i, f = "0"] = s.split(".");
@@ -647,7 +663,7 @@ SCENES.forEach(s => { const a = document.createElement("a"); a.href = "#" + s.id
 rail.insertAdjacentHTML("beforeend", `<div class="rail-foot">Synthetic data &middot; live DAX on the Fabric semantic model</div>`);
 $("#menu-btn").addEventListener("click", () => { if (innerWidth <= 900) document.body.classList.toggle("rail-open"); else document.body.classList.toggle("rail-collapsed"); });
 function goTo(id, smooth = true) { const el = document.getElementById(id); if (!el) return;
-  const y = el.getBoundingClientRect().top + scrollY - (id === "top" ? 0 : 108);
+  const y = el.getBoundingClientRect().top + scrollY - (id === "top" ? 0 : chromeH());
   window.scrollTo({ top: y, behavior: smooth && !REDUCED ? "smooth" : "auto" }); }
 function setRole(r) { role = r; document.querySelectorAll(".roles button").forEach(b => b.setAttribute("aria-pressed", b.dataset.role === r));
   document.querySelectorAll("main .scene").forEach(s => s.hidden = !ROLE_SCENES[r].includes(s.id));
@@ -669,8 +685,12 @@ function heroCopy() {
   const T = D.truth;
   const chips = [[`Bank variance SAR ${R.bank_variance} on ${fmtI(T.assessed_mid_days)} assessed MID-days`], ["GL variance SAR " + R.gl_variance], [`${fmtI(T.not_assessed_mid_days)} MID-days not assessed (bank file pending)`, "warn"], [`ZATCA chain breaks ${D.chain.violations}`],
     [`Lineage ${D.lineage.covered}/${D.lineage.gold_columns} Gold columns`], ["PDPL erasure + Restore Guard verified"], [`Fabric dbt ${D.fabric.dbt_build_WH_MIZAN.pass}/${D.fabric.dbt_build_WH_MIZAN.pass} PASS`]];
-  $("#h-chips").innerHTML = chips.map(c => `<span class="chip ${c[1] || ""}"><i></i>${c[0]}</span>`).join("");
+  $("#h-chips").innerHTML = chips.map(c => `<span class="chip ${c[1] || ""}"><i></i>${c[1] === "warn" ? "\u23f3" : "\u2713"} ${c[0]}</span>`).join("");
   $("#h-counter").textContent = fmtH(H(R.gross));
+  const st = $("#stamp"), demo = D.heat.demo_breaks.reduce((a, b) => a + Math.abs(H(b.bank_variance)) + Math.abs(H(b.gl_variance)), 0);
+  hero.setDefect = on => { hero.defect = on; st.style.borderColor = st.style.color = on ? C.crit : "";
+    st.textContent = on ? `\u2717 UNBALANCED \u00b7 SAR ${fmtH(demo)} \u00b7 candidate run` : `\u2713 BALANCED \u00b7 ${fmtI(D.truth.assessed_mid_days)} assessed MID-days`; };
+  hero.setDefect(!!hero.defect);
 }
 function heroScene() {
   const canvas = $("#hero-canvas");
@@ -685,7 +705,7 @@ function heroScene() {
   const key = new THREE.DirectionalLight(0xffcf7a, 2.6); key.position.set(4, 7, 6); scene.add(key);
   const fill = new THREE.DirectionalLight(0xffb84d, 1.1); fill.position.set(-2, 2, 9); scene.add(fill);
   const rim = new THREE.PointLight(0xd9b25f, 3.2, 16); rim.position.set(0, 3.5, -4); scene.add(rim);
-  const lEm = new THREE.PointLight(0x2fbf8f, 2.6, 10); lEm.position.set(-4.2, 0.4, 2.2); scene.add(lEm);
+  const lEm = new THREE.PointLight(0xc9d4e4, 1.8, 10); lEm.position.set(-4.2, 0.4, 2.2); scene.add(lEm);
   const lCy = new THREE.PointLight(0x5cc8ff, 2.2, 10); lCy.position.set(4.2, 0.4, 2.2); scene.add(lCy);
   const gold = new THREE.MeshStandardMaterial({ color: 0xc9922c, metalness: 0.7, roughness: 0.28, emissive: 0x3d2503, emissiveIntensity: 0.6 });
   const goldDark = new THREE.MeshStandardMaterial({ color: 0x8c6220, metalness: 0.7, roughness: 0.34, emissive: 0x2a1802, emissiveIntensity: .55 });
@@ -711,7 +731,7 @@ function heroScene() {
       const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(a) * 0.95, -1.75, Math.sin(a) * 0.95)]);
       hang.add(new THREE.Line(g, chainMat)); }
     const glow = new THREE.Mesh(new THREE.SphereGeometry(0.62, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: sgn < 0 ? 0x2fbf8f : 0x5cc8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+      new THREE.MeshBasicMaterial({ color: sgn < 0 ? 0xc9d4e4 : 0x5cc8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
     glow.rotation.x = Math.PI; glow.position.y = -1.78; glow.scale.set(1, 0.001, 1); hang.add(glow);
     sides.push({ sgn, hang, glow, fill: 0 });
   });
@@ -733,7 +753,7 @@ function heroScene() {
         c: new THREE.Vector3(side * (1.5 + Math.random() * 2.5), 3 + Math.random() * 3, -1 + Math.random() * 2), t: -Math.random() * 3.2, sp: 0.28 + Math.random() * 0.35 }); }
     return { pts, pos, ps, mat };
   }
-  const left = stream(0x2fbf8f, 1400, -1), right = stream(0x5cc8ff, 1400, 1);
+  const left = stream(0xc9d4e4, 1400, -1), right = stream(0x5cc8ff, 1400, 1);
   const dustN = 900, dpos = new Float32Array(dustN * 3); for (let i = 0; i < dustN; i++) { dpos[i * 3] = (Math.random() - .5) * 26; dpos[i * 3 + 1] = (Math.random() - .5) * 14; dpos[i * 3 + 2] = -Math.random() * 18 + 3; }
   const dgeo = new THREE.BufferGeometry(); dgeo.setAttribute("position", new THREE.BufferAttribute(dpos, 3));
   const dust = new THREE.Points(dgeo, new THREE.PointsMaterial({ color: 0xd9b25f, size: 0.035, map: sprite, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -754,9 +774,9 @@ function heroScene() {
     narrow = w < 900; const halfW = Math.tan(THREE.MathUtils.degToRad(17)) * 11.5 * camera.aspect;
     camera.position.set(0, narrow ? 1.6 : 0.9, narrow ? 17 : 11.5); camera.lookAt(0, narrow ? -2.2 : 0.1, 0);
     const sc = narrow ? 0.8 : Math.min(0.8, halfW * 0.5 / 3.7); rig.scale.setScalar(sc); ticks.scale.setScalar(sc);
-    const x = narrow ? 0 : halfW * 0.93 - 3.75 * sc; rig.position.x = x; ticks.position.x = x; ticks.position.y = -2.42 * sc;
+    const x = narrow ? 0 : (document.documentElement.dir === "rtl" ? -1 : 1) * (halfW * 0.93 - 3.75 * sc); rig.position.x = x; ticks.position.x = x; ticks.position.y = -2.42 * sc;
     camera.updateProjectionMatrix(); }
-  new ResizeObserver(resize).observe(canvas); resize();
+  new ResizeObserver(resize).observe(canvas); resize(); hero.relayout = resize;
   let last = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);
@@ -766,7 +786,7 @@ function heroScene() {
     const fl = Math.max(0, Math.min(1, (el - START.L) / FILL_DUR)), fr = Math.max(0, Math.min(1, (el - START.R) / FILL_DUR));
     const eL = 1 - Math.pow(1 - fl, 2.2), eR = 1 - Math.pow(1 - fr, 2.2);
     sides[0].fill = eL; sides[1].fill = eR;
-    const target = Math.max(-0.3, Math.min(0.3, (eL - eR) * 0.5));
+    const target = Math.max(-0.3, Math.min(0.3, (eL - eR) * 0.5)) + (hero.defect ? 0.16 : 0);
     omega += (-(theta - target) * 18 - omega * 3.1) * dt; theta += omega * dt;
     if (REDUCED) theta = 0;
     pivot.rotation.z = theta;
@@ -816,7 +836,7 @@ function pulseScene() {
   const dl = D.daily, z = D.zatca, dq = D.ndmo.scorecard.filter(r => r.family === "DATA_QUALITY");
   const docs = Object.values(D.zatca.states).reduce((a, b) => a + b, 0), recs = D.fabric.notebook_jobs.mdm_resolve.records;
   const tiles = [
-    { l: "Gross captures", v: H(R.gross), cur: true, s: dl.map(d => H(d.gross)), c: C.em, note: `${fmtI(R.merchants)} merchants · ${fmtI(R.mid_days)} merchant-days` },
+    { l: "Gross captures", v: H(R.gross), cur: true, s: dl.map(d => H(d.gross)), c: C.neutral, note: `${fmtI(R.merchants)} merchants · ${fmtI(R.mid_days)} merchant-days` },
     { l: "Bank paid", v: H(R.bank), cur: true, s: dl.map(d => H(d.bank)), c: C.cyan, note: "mada / SADAD settlement files" },
     { l: "In transit (T+1)", v: H(R.transit), cur: true, s: dl.map(d => H(d.transit)), c: C.warn, note: "bank file not yet arrived", zero: true },
     { l: "Bank variance", v: H(R.bank_variance), cur: true, zero: true, c: C.ok, note: `on ${fmtI(D.truth.assessed_mid_days)} assessed MID-days · ${fmtI(D.truth.not_assessed_mid_days)} not assessed`, ok: true },
@@ -826,7 +846,7 @@ function pulseScene() {
     { l: "Data-quality checks", v: dq.filter(r => r.status === "PASS").length, of: dq.length, c: C.ok, note: `lineage ${D.lineage.covered}/${D.lineage.gold_columns} Gold columns`, ok: true },
   ];
   $("#kpis").innerHTML = tiles.map((t, i) => `<div class="panel kpi ${t.ok ? "zero" : ""}" style="--accent:${t.c}">
-      <div class="k-top"><span class="k-lbl">${t.l}</span>${t.ok ? '<span class="pill ok">OK</span>' : ""}</div>
+      <div class="k-top"><span class="k-lbl">${t.l}</span>${t.ok ? '<span class="pill ok">\u2713 OK</span>' : ""}</div>
       <div class="k-val num">${t.cur ? "<small>SAR</small>" : ""}<span data-i="${i}">${t.cur ? fmtH(t.v) : fmtI(t.v)}</span>${t.of ? `<small style="margin-left:4px">/ ${t.of}</small>` : ""}</div>
       <div class="k-note">${t.note}</div>${t.s ? `<svg data-s="${i}" aria-hidden="true"></svg>` : `<svg aria-hidden="true"></svg>`}</div>`).join("");
   tiles.forEach((t, i) => { const svg = $(`svg[data-s="${i}"]`); if (svg) sparkline(svg, t.s, t.c, { zero: t.zero }); });
@@ -846,8 +866,8 @@ function flowScene() {
   if (H(R.gross) <= 0) { svg.attr("viewBox", `0 0 ${W} 120`).append("text").attr("x", W / 2).attr("y", 60).attr("text-anchor", "middle").text("No captures for the current filters"); return; }
   svg.attr("viewBox", `0 0 ${W} ${Hh}`);
   const v = k => H(R[k]);
-  const nodes = [{ name: "Gross captures", k: "gross", c: C.em }, { name: "Refunds & chargebacks", k: "refunds", c: C.crit }, { name: "Net sales = GL card clearing", k: "gl", c: C.gold },
-    { name: "Acquirer fees (MDR + VAT)", k: "fees", c: C.warn }, { name: "Expected net payable", k: "net", c: C.goldHi }, { name: "Bank paid", k: "bank", c: C.cyan }, { name: "In transit (T+1)", k: "transit", c: C.warn }];
+  const nodes = [{ name: "Gross captures", k: "gross", c: C.neutral }, { name: "Refunds & chargebacks", k: "refunds", c: C.violet }, { name: "Net sales = GL card clearing", k: "gl", c: C.gold },
+    { name: "Acquirer fees (MDR + VAT)", k: "fees", c: C.fee }, { name: "Expected net payable", k: "net", c: C.goldHi }, { name: "Bank paid", k: "bank", c: C.cyan }, { name: "In transit (T+1)", k: "transit", c: C.warn }];
   const links = [[0, 1, "refunds"], [0, 2, "gl"], [2, 3, "fees"], [2, 4, "net"], [4, 5, "bank"], [4, 6, "transit"]].map(([s, t, k]) => ({ source: s, target: t, value: v(k) }));
   const narrow = W < 700;
   const sk = d3.sankey().nodeWidth(14).nodePadding(narrow ? 18 : 30).extent([[4, 16], [W - (narrow ? 120 : 220), Hh - 16]]).nodeAlign(d3.sankeyLeft);
@@ -875,6 +895,9 @@ function flowScene() {
   new IntersectionObserver(es => vis = es[0].isIntersecting).observe(svg.node());
   (function tick(now) { if (myGen !== GEN) return; requestAnimationFrame(tick); const dt = Math.min(.05, (now - lastT) / 1000); lastT = now; if (!run || !vis) return;
     for (const p of parts) { p.t = (p.t + dt * p.sp) % 1; const pt = p.path.getPointAtLength(p.t * p.len); p.el.setAttribute("cx", pt.x); p.el.setAttribute("cy", pt.y + p.off); } })(lastT);
+  flow.trace = () => { if (!window.gsap) return; const seq = [1, 3, 4].map(i => linkPaths.nodes()[i]); const dot = svg.append("circle").attr("r", 9).attr("fill", C.goldHi).style("filter", `drop-shadow(0 0 12px ${C.goldHi})`);
+    const tl = gsap.timeline({ onComplete: () => dot.transition().duration(600).attr("r", 0).remove() });
+    seq.forEach(pth => { const L = pth.getTotalLength(), o = { t: 0 }; tl.to(o, { t: 1, duration: REDUCED ? .01 : 1.2, ease: "power1.inOut", onUpdate: () => { const pt = pth.getPointAtLength(o.t * L); dot.attr("cx", pt.x).attr("cy", pt.y); } }); }); };
   flow.play = () => { if (!window.gsap || REDUCED) return;
     linkPaths.each(function () { const L = this.getTotalLength(); gsap.fromTo(this, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 1.6, ease: "power2.inOut", onComplete: () => this.style.strokeDasharray = "none" }); });
     gsap.fromTo(nodeG.nodes(), { opacity: 0, x: -14 }, { opacity: 1, x: 0, duration: .6, stagger: .1, delay: .2, overwrite: true }); };
@@ -895,26 +918,33 @@ function ledgerScene() {
   if (ram.length) { svg.append("rect").attr("x", x(ram[0].date) - step / 2).attr("y", m.t).attr("width", x(ram[ram.length - 1].date) - x(ram[0].date) + step).attr("height", Hh - m.b - m.t)
       .attr("fill", "rgba(217,178,95,.07)").attr("stroke", "rgba(217,178,95,.18)");
     svg.append("text").attr("x", x(ram[0].date) - step / 2 + 8).attr("y", m.t + 14).attr("fill", C.gold).style("fill", C.gold).text(ram[0].cal.hijri.replace(/(\d+) (\S+) (\d+)/, (m, d, mo, y) => `${d} ${mo[0] + mo.slice(1).toLowerCase()} ${y}`) + " \u00b7 " + ram[0].d.slice(8) + " Feb"); }
-  dl.filter(d => d.cal && d.cal.weekend).forEach(d => svg.append("rect").attr("x", x(d.date) - 2).attr("y", Hh - m.b + 4).attr("width", 4).attr("height", 4).attr("fill", C.dim));
+  dl.filter(d => d.cal && d.cal.weekend).forEach(d => svg.append("rect").attr("x", x(d.date) - step / 2).attr("y", m.t).attr("width", step).attr("height", Hh - m.b - m.t).attr("fill", "rgba(140,160,190,.06)"));
+  const pay = dl.find(d => d.d.slice(8) === "27");
+  if (pay) { svg.append("line").attr("x1", x(pay.date)).attr("x2", x(pay.date)).attr("y1", m.t).attr("y2", Hh - m.b).attr("stroke", C.cyan).attr("stroke-dasharray", "3 4").attr("stroke-opacity", .7);
+    svg.append("text").attr("x", x(pay.date) + 6).attr("y", Hh - m.b - 8).style("fill", C.cyan).text("Govt payday (27th)"); }
+  const naDays = new Set(D.truth.not_assessed_dates || []);
+  const hatch = svg.append("defs").append("pattern").attr("id", "hatch").attr("width", 7).attr("height", 7).attr("patternUnits", "userSpaceOnUse").attr("patternTransform", "rotate(45)");
+  hatch.append("rect").attr("width", 7).attr("height", 7).attr("fill", "rgba(242,169,59,.06)"); hatch.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 7).attr("stroke", "rgba(242,169,59,.5)").attr("stroke-width", 2);
+  dl.filter(d => naDays.has(d.d)).forEach(d => { svg.append("rect").attr("x", x(d.date) - step / 2).attr("y", m.t).attr("width", step).attr("height", Hh - m.b - m.t).attr("fill", "url(#hatch)");
+    svg.append("text").attr("x", x(d.date) - step / 2 - 6).attr("y", m.t + 32).attr("text-anchor", "end").style("fill", C.warn).text(`\u23f3 ${d.d.slice(8)} ${d.date.toLocaleString("en-GB", { month: "short", timeZone: "UTC" })}: awaiting bank file \u00b7 not assessed`); });
   svg.append("g").attr("class", "axis").attr("transform", `translate(0,${Hh - m.b})`).call(d3.axisBottom(x).ticks(W < 600 ? 4 : 10).tickFormat(d3.utcFormat("%d %b")).tickSizeOuter(0));
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(v => compact(v)).tickSize(-(W - m.l - m.r))).call(g => g.selectAll(".tick line").attr("stroke-opacity", .35)).call(g => g.select(".domain").remove());
   svg.append("text").attr("x", m.l).attr("y", Hh - 10).text("▪ Saudi weekend (Fri, Sat)");
   const defs = svg.append("defs"); const gr = defs.append("linearGradient").attr("id", "ga").attr("x1", 0).attr("x2", 0).attr("y1", 0).attr("y2", 1);
-  gr.append("stop").attr("offset", 0).attr("stop-color", C.em).attr("stop-opacity", .38); gr.append("stop").attr("offset", 1).attr("stop-color", C.em).attr("stop-opacity", 0);
+  gr.append("stop").attr("offset", 0).attr("stop-color", C.neutral).attr("stop-opacity", .22); gr.append("stop").attr("offset", 1).attr("stop-color", C.neutral).attr("stop-opacity", 0);
   const curve = d3.curveMonotoneX;
   svg.append("path").datum(dl).attr("fill", "url(#ga)").attr("d", d3.area().x(d => x(d.date)).y0(y(0)).y1(d => y(d.g)).curve(curve));
-  const lines = [["g", C.em, 2.4, null], ["gl", C.gold, 2, "5 4"], ["b", C.cyan, 2.2, null]].map(([k, c, w, dash]) =>
+  const lines = [["g", C.neutral, 2.4, null], ["gl", C.gold, 2, "5 4"], ["b", C.cyan, 2.2, null]].map(([k, c, w, dash]) =>
     svg.append("path").datum(dl).attr("fill", "none").attr("stroke", c).attr("stroke-width", w).attr("stroke-dasharray", dash).style("filter", `drop-shadow(0 0 6px ${c})`)
-      .attr("d", d3.line().x(d => x(d.date)).y(d => y(d[k])).curve(curve)));
+      .attr("d", d3.line().defined(d => k !== "b" || !naDays.has(d.d)).x(d => x(d.date)).y(d => y(d[k])).curve(curve)));
   const lastD = dl[dl.length - 1];
-  svg.append("circle").attr("cx", x(lastD.date)).attr("cy", y(lastD.b)).attr("r", 5).attr("fill", C.warn);
-  svg.append("text").attr("x", x(lastD.date) - 8).attr("y", y(lastD.b) - 12).attr("text-anchor", "end").style("fill", C.warn).text(`T+1 · SAR ${fmtH(lastD.tr)} in transit`);
+  if (naDays.has(lastD.d)) svg.append("text").attr("x", x(lastD.date) - step / 2 - 6).attr("y", m.t + 48).attr("text-anchor", "end").style("fill", C.warn).text(`SAR ${fmtH(lastD.tr)} in transit (T+1)`);
   // crosshair
   const ch = svg.append("line").attr("y1", m.t).attr("y2", Hh - m.b).attr("stroke", "rgba(243,217,156,.4)").attr("opacity", 0);
   svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", W - m.l - m.r).attr("height", Hh - m.b - m.t).attr("fill", "transparent")
     .on("mousemove", e => { const [mx] = d3.pointer(e); const i = Math.max(0, Math.min(dl.length - 1, Math.round((mx - m.l) / step))); const d = dl[i];
       ch.attr("x1", x(d.date)).attr("x2", x(d.date)).attr("opacity", 1);
-      showTip(`<b>${d.d}</b> &middot; <span class="ar">${d.cal ? d.cal.hijri : ""}</span>${d.cal && d.cal.weekend ? " &middot; weekend" : ""}<br>Captures ${fmtH(d.g)}<br>GL clearing ${fmtH(d.gl)}<br>Bank paid ${fmtH(d.b)}<br>In transit ${fmtH(d.tr)}<br><span class="clickable-hint">Click to filter to this day</span>`, e.clientX, e.clientY); })
+      showTip(`<b>${d.d}</b>${d.cal && d.cal.weekend ? " &middot; weekend" : ""}${d.d.slice(8) === "27" ? " &middot; govt payday" : ""}<br><span style="color:var(--gold)">${d.cal ? d.cal.hijri : ""} (Hijri)</span><br>Captures ${fmtH(d.g)}<br>GL clearing ${fmtH(d.gl)}<br>Bank paid ${naDays.has(d.d) ? "\u23f3 awaiting bank file" : fmtH(d.b)}<br>In transit ${fmtH(d.tr)}<br><span class="clickable-hint">Click to filter to this day</span>`, e.clientX, e.clientY); })
     .on("click", e => { const [mx] = d3.pointer(e); const i = Math.max(0, Math.min(dl.length - 1, Math.round((mx - m.l) / step))); hideTip(); setFilters({ from: dl[i].d, to: dl[i].d }); })
     .on("mouseleave", () => { ch.attr("opacity", 0); hideTip(); });
   ledger.play = () => { if (!window.gsap || REDUCED) return; lines.forEach((l, i) => { const p = l.node(), L = p.getTotalLength(), dash = p.getAttribute("stroke-dasharray");
@@ -925,10 +955,20 @@ function ledgerScene() {
 const recon = { play() {} };
 function reconScene() {
   const hm = D.heat, myGen = GEN, cv = (() => { const o = $("#heat"), n = o.cloneNode(false); o.replaceWith(n); return n; })(), ctx = cv.getContext("2d");
+  { const z = v => H(v) === 0; const sgn = v => (H(v) > 0 ? "+" : "") + v;
+    $("#r-net").innerHTML = `<span style="color:${z(R.bank_net_residual) && z(R.gl_net_residual) ? C.ok : C.crit}">${z(R.bank_net_residual) && z(R.gl_net_residual) ? "\u2713" : "\u2717"} ${sgn(R.bank_net_residual)} / ${sgn(R.gl_net_residual)}</span>`;
+    $("#r-abs").innerHTML = `<span style="color:${z(R.bank_variance) && z(R.gl_variance) ? C.ok : C.crit}">${z(R.bank_variance) && z(R.gl_variance) ? "\u2713" : "\u2717"} ${R.bank_variance} / ${R.gl_variance}</span>`;
+    $("#r-broken").innerHTML = `<span style="color:${R.broken_keys ? C.crit : C.ok}">${R.broken_keys ? "\u2717" : "\u2713"} ${fmtI(R.broken_keys)}</span>`;
+    $("#r-na").innerHTML = `<span style="color:${D.truth.not_assessed_mid_days ? C.warn : C.ok}">${D.truth.not_assessed_mid_days ? "\u23f3" : "\u2713"} ${fmtI(D.truth.not_assessed_mid_days)} MID-days</span>`;
+    const P = D.runs.published, Q = D.runs.candidate;
+    $("#runs-rows").innerHTML = `<div class="row"><span>Published run</span><span style="color:${C.ok}">\u2713 ${P.status} \u00b7 ${String(P.run_id || "").slice(0, 8)}</span></div>` +
+      `<div class="row" id="cand-row"><span>Candidate run</span><span style="color:${C.crit}">\u2717 ${Q.status} \u00b7 not published</span></div><div class="sub" style="margin-top:6px">${Q.reason}</div>`; }
   $("#r-rows").textContent = fmtI(R.mid_days); $("#r-uncl").textContent = R.unclassified; $("#r-merch").textContent = fmtI(R.merchants);
   $("#r-top").textContent = !D.truth.largest_merchant || !D.truth.largest_merchant.merchant ? "\u2014" : `${D.truth.largest_merchant.merchant} · ${D.truth.largest_merchant.share_of_sar_pct}% of SAR`;
   const vals = hm.cells.flat().filter(Boolean).map(H).filter(v => v > 0), lmin = vals.length ? Math.log(Math.min(...vals)) : 0, lmax = vals.length ? Math.log(Math.max(...vals)) : 1;
   let defects = false, reveal = 1, pulseT = 0, hover = null;
+  const NA = new Set((D.truth.not_assessed_cells || []).map(c => c[0] + "|" + c[1]));
+  const hatchPat = (() => { const c = document.createElement("canvas"); c.width = c.height = 6; const g = c.getContext("2d"); g.fillStyle = "rgba(140,160,190,.10)"; g.fillRect(0, 0, 6, 6); g.strokeStyle = "rgba(242,169,59,.55)"; g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.stroke(); return ctx.createPattern(c, "repeat"); })();
   const L = { l: 86, t: 26, b: 8 };
   function layout() { const w = cv.clientWidth; const rows = hm.merchants.length; const ch = Math.max(4, Math.min(6, Math.floor(560 / rows)));
     const hgt = L.t + rows * ch + L.b; cv.style.height = hgt + "px"; const dpr = Math.min(devicePixelRatio, 2); cv.width = w * dpr; cv.height = hgt * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -944,11 +984,12 @@ function reconScene() {
       if (i === 0 || i % 20 === 0) { ctx.fillStyle = i === 0 ? C.goldHi : C.dim; ctx.fillText(i === 0 ? m : `#${i + 1}`, L.l - 8, yy + ch); }
       hm.cells[i].forEach((c, j) => { if (j / hm.days.length > reveal) return; const x = L.l + j * cw;
         if (!c) { ctx.fillStyle = "rgba(140,160,190,.05)"; ctx.fillRect(x + .5, yy + .5, cw - 1, ch - 1); return; }
+        if (NA.has(m + "|" + hm.days[j])) { ctx.fillStyle = hatchPat; ctx.fillRect(x + .5, yy + .5, cw - 1, ch - 1); return; }
         const hv = H(c); if (hv <= 0) { ctx.fillStyle = "rgba(92,200,255,.35)"; ctx.fillRect(x + .5, yy + .5, cw - 1, ch - 1); return; }
         const t = (Math.log(hv) - lmin) / (lmax - lmin);
         const br = defects && breaks.get(m + "|" + hm.days[j]);
         if (br) { const a = .6 + .4 * Math.sin(pulseT * 6); ctx.fillStyle = `rgba(255,93,99,${a})`; ctx.shadowColor = C.crit; ctx.shadowBlur = 14; ctx.fillRect(x - 2, yy - 2, cw + 3, ch + 3); ctx.shadowBlur = 0; return; }
-        ctx.fillStyle = `rgba(${Math.round(20 + 27 * t)},${Math.round(90 + 101 * t)},${Math.round(80 + 63 * t)},${.25 + .75 * t})`; ctx.fillRect(x + .5, yy + .5, cw - 1, ch - 1); }); });
+        ctx.fillStyle = `rgba(217,178,95,${.12 + .78 * t})`; ctx.fillRect(x + .5, yy + .5, cw - 1, ch - 1); }); });
     if (defects) hm.demo_breaks.forEach(b => { const i = hm.merchants.indexOf(b.merchant), j = hm.days.indexOf(b.d); if (i < 0 || j < 0) return;
       const x = L.l + j * cw + cw / 2, yy = L.t + i * ch + ch / 2, r = 10 + 30 * ((pulseT * .8) % 1);
       ctx.strokeStyle = `rgba(255,93,99,${1 - (pulseT * .8) % 1})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, yy, r, 0, Math.PI * 2); ctx.stroke(); });
@@ -967,14 +1008,15 @@ function reconScene() {
     const spark = (() => { const mx = Math.max(1, ...row7), w = 120, h = 28; const pts = row7.map((v, k) => `${(row7.length > 1 ? k / (row7.length - 1) : 1) * w},${h - 3 - v / mx * (h - 6)}`).join(" ");
       return `<svg width="${w}" height="${h}" style="display:block;margin:6px 0"><polyline points="${pts}" fill="none" stroke="${C.em}" stroke-width="1.8"/></svg>`; })();
     const store = (BASE.stores || []).find(x => x.merchant === m);
-    showTip(`<b>${m}</b> &middot; ${d}${store ? ` &middot; ${store.channel} ${store.city} ${store.egs}` : ""}<br>${spark}<span class="clickable-hint">Captures, last 7 days to ${d.slice(5)}</span><br>${c ? "Captures SAR " + fmtH(H(c)) : "No activity"}<br>${br ? `<span style="color:${C.crit}">Bank var ${br.bank_variance} · GL var ${br.gl_variance}<br>${br.cause}</span>` : "Bank var 0.00 · GL var 0.00"}<br><span class="clickable-hint">Click for this MID-day</span>`, e.clientX, e.clientY); });
+    showTip(`<b>${m}</b> &middot; ${d}${store ? ` &middot; ${store.channel} ${store.city} ${store.egs}` : ""}<br>${spark}<span class="clickable-hint">Captures, last 7 days to ${d.slice(5)}</span><br>${c ? "Captures SAR " + fmtH(H(c)) : "No activity"}<br>${br ? `<span style="color:${C.crit}">\u2717 Bank var ${br.bank_variance} · GL var ${br.gl_variance}<br>${br.cause}</span>` : NA.has(m + "|" + d) ? `<span style="color:${C.warn}">\u23f3 Awaiting bank file \u00b7 not assessed</span>` : "\u2713 Bank var 0.00 · GL var 0.00"}<br><span class="clickable-hint">Click for this MID-day</span>`, e.clientX, e.clientY); });
   cv.addEventListener("mouseleave", () => { hover = null; hideTip(); });
   $("#breaks").innerHTML = `<tr><th>MID</th><th>Day</th><th class="r">Bank var</th><th class="r">GL var</th></tr>` +
     hm.demo_breaks.map(b => `<tr><td>${b.merchant}</td><td>${b.d.slice(5)}</td><td class="r" style="color:${H(b.bank_variance) ? C.crit : C.muted}">${b.bank_variance}</td><td class="r" style="color:${H(b.gl_variance) ? C.crit : C.muted}">${b.gl_variance}</td></tr><tr><td colspan="4" style="color:var(--dim)">${b.cause}</td></tr>`).join("");
   const btn = (() => { const o = $("#inject"), n = o.cloneNode(true); o.replaceWith(n); return n; })();
   recon.setDefects = on => { defects = on; btn.setAttribute("aria-pressed", on); btn.innerHTML = on ? "&#10003; Restore main build" : "&#9888; Inject planted defects";
-    $("#breaker").classList.toggle("fail", on); $("#breaks-panel").hidden = !on;
-    $("#breaker-text").innerHTML = on ? "dbt circuit breaker &middot; FAIL &middot; 2 unexplained MID-days &middot; build halted" : "dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days";
+    $("#breaker").classList.toggle("fail", on); $("#breaks-panel").hidden = !on; recon.defects = on; hero.setDefect && hero.setDefect(on);
+    const cr = $("#cand-row"); if (cr) cr.classList.toggle("flash", on);
+    $("#breaker-text").innerHTML = on ? "\u2717 dbt circuit breaker &middot; FAIL &middot; 2 unexplained MID-days &middot; build halted" : "\u2713 dbt circuit breaker &middot; PASS &middot; 0 unexplained MID-days";
     if (on && window.gsap && !REDUCED) gsap.fromTo("#breaker", { x: -8 }, { x: 0, duration: .5, ease: "elastic.out(1,.3)" }); };
   btn.addEventListener("click", () => recon.setDefects(!defects));
   recon.play = () => { if (!window.gsap || REDUCED) return; const o = { r: 0 }; gsap.to(o, { r: 1, duration: 1.6, ease: "power2.inOut", onUpdate: () => reveal = o.r }); };
@@ -990,7 +1032,7 @@ function zatcaScene() {
     if (prev && b.icv - prev.icv > 1) html += `<div class="gap">&middot;&middot;&middot;<br>${b.icv - prev.icv - 1} more<br>linked</div>`;
     else html += `<div class="link"><span>PIH &#10003;</span></div>`;
     const cls = b.state === "CONFIRMED_REJECTION" ? "reject" : b.sends > 1 ? "incident" : "";
-    const pill = b.state === "CONFIRMED_REJECTION" ? '<span class="pill crit">400 REJECTED</span>' : b.sends > 1 ? '<span class="pill warn">RETRIED</span>' : '<span class="pill ok">' + b.state + "</span>";
+    const pill = b.state === "CONFIRMED_REJECTION" ? '<span class="pill crit">\u2717 400 REJECTED</span>' : b.sends > 1 ? '<span class="pill warn">\u21bb RETRIED</span>' : '<span class="pill ok">\u2713 ' + b.state + "</span>";
     html += `<div class="block ${cls}" data-icv="${b.icv}"><div class="icv">${b.icv}<small>ICV</small></div><div style="margin:6px 0">${pill}</div>
       <div class="kv"><span>req</span><span>${b.request}</span></div><div class="kv"><span>uuid</span><span>${b.uuid}</span></div>
       <div class="kv"><span>PIH</span><span>${b.pih.slice(0, 8)}&hellip;</span></div><div class="kv"><span>hash</span><span>${b.hash.slice(0, 8)}&hellip;</span></div>
@@ -1005,16 +1047,21 @@ function zatcaScene() {
   const steps = inc.history.map(h => { if (h.event === "RESPONSE") return h.http === "timeout" ? ["Transport failure (timeout): not definitive, retry", "warn", "&#9203;", "timeout"] : [`HTTP ${h.http}: REPORTED, identical UUID and bytes`, "ok", "&#10003;", String(h.http)];
     const d = desc[h.event] || [h.event, "info", "&bull;"]; return [d[0], d[1], d[2], h.event]; });
   $("#steps").innerHTML = steps.map(s => `<div class="step ${s[1]}"><span class="dot">${s[2]}</span><span>${s[0]}</span><span class="pill ${s[1] === "crit" ? "crit" : s[1]}">${s[3]}</span></div>`).join("");
-  // donut
-  const st = D.zatca.states, data = Object.entries(st).map(([k, v]) => ({ k, v })), colors = { REPORTED: C.em, CLEARED: C.cyan, CONFIRMED_REJECTION: C.crit };
-  const svg = d3.select("#donut"); svg.selectAll("*").remove(); const arc = d3.arc().innerRadius(64).outerRadius(96).cornerRadius(4).padAngle(.02);
-  const pie = d3.pie().value(d => d.v).sort(null)(data);
-  const g = svg.append("g").attr("transform", "translate(110,110)");
-  const arcs = g.selectAll("path").data(pie).join("path").attr("data-f", "state").attr("data-v", d => d.data.k).attr("fill", d => colors[d.data.k] || C.gold).attr("d", arc).style("filter", d => `drop-shadow(0 0 6px ${colors[d.data.k] || C.gold})`)
-    .on("mousemove", (e, d) => showTip(`<b>${d.data.k}</b><br>${fmtI(d.data.v)} documents`, e.clientX, e.clientY)).on("mouseleave", hideTip);
-  g.append("text").attr("text-anchor", "middle").attr("y", -4).style("font", "600 22px IBM Plex Mono").style("fill", "#e9eff6").text(fmtI(data.reduce((a, d) => a + d.v, 0)));
-  g.append("text").attr("text-anchor", "middle").attr("y", 16).text("in chain");
-  $("#donut-legend").innerHTML = data.map(d => `<span><i style="background:${colors[d.k] || C.gold}"></i>${d.k} ${fmtI(d.v)}</span>`).join("");
+  // three-part outcome bar (accepted reporting, accepted clearance, confirmed rejection), every part labelled
+  const OUT = [["REPORTED", "\u2713", C.ok, "Reported (simplified)"], ["CLEARED", "\u2713", C.cyan, "Cleared (standard)"], ["CONFIRMED_REJECTION", "\u2717", C.crit, "Rejected (HTTP 400, stays in chain)"]];
+  const st = D.zatca.states, tot = Object.values(st).reduce((a, b) => a + b, 0) || 1;
+  $("#outcome-bar").innerHTML = `<div style="display:flex;height:22px;border-radius:8px;overflow:hidden;border:1px solid var(--line-2)">` +
+    OUT.map(([k, , c]) => st[k] ? `<div data-f="state" data-v="${k}" title="${k}: ${fmtI(st[k])}" style="flex:${Math.max(st[k] / tot, 0.012)};background:${c};opacity:${F.state && F.state !== k ? .3 : .9}"></div>` : "").join("") + `</div>` +
+    `<div style="display:grid;gap:6px;margin-top:10px">` + OUT.map(([k, ic, c, lab]) => `<div class="row" data-f="state" data-v="${k}" style="padding:4px 0"><span><b style="color:${c}">${ic}</b> ${lab}</span><span>${fmtI(st[k] || 0)} \u00b7 ${(() => { const v = (st[k] || 0) / tot * 100; return v > 0 && v < 0.01 ? "<0.01" : v.toFixed(2); })()}%</span></div>`).join("") + `</div>`;
+  // 24 h reporting window for simplified invoices (historical replay of the stream)
+  const sla = (D.stream.alerts || []).filter(a => a.rule === "REPORTING_SLA");
+  $("#sla").innerHTML = `<h3 style="margin-bottom:6px">24 h reporting window</h3><div class="sub">Simplified invoices must reach ZATCA within 24 hours \u00b7 historical replay, synthetic data</div>` +
+    sla.map(a => { const late = a.lag_minutes, pct = late === null ? 1 : Math.min(1, late / 1440), over = late === null ? null : late - 1440;
+      const hm = m => `${Math.floor(Math.abs(m) / 60)} h ${String(Math.abs(m) % 60).padStart(2, "0")} m`;
+      return `<div style="display:grid;grid-template-columns:54px 1fr;gap:12px;align-items:center;margin-top:12px">
+        <svg viewBox="0 0 54 54" width="54" height="54"><circle cx="27" cy="27" r="22" fill="none" stroke="rgba(140,160,190,.15)" stroke-width="6"/>
+          <circle class="sla-ring" cx="27" cy="27" r="22" fill="none" stroke="${C.crit}" stroke-width="6" stroke-dasharray="${(2 * Math.PI * 22).toFixed(1)}" stroke-dashoffset="${((1 - pct) * 2 * Math.PI * 22).toFixed(1)}" transform="rotate(-90 27 27)"/></svg>
+        <div><b class="mono">${a.key}</b><div class="sub sla-txt" data-lag="${late === null ? "" : late}">${late === null ? "\u2717 never reported: rejected (HTTP 400), corrected by a new document" : `\u2717 reported after ${hm(late)} \u00b7 window exceeded by ${hm(over)}`}</div></div></div>`; }).join("");
   const mx = Math.max(...D.zatca.egs.map(e => e.docs));
   safe("egsCards", egsCards);
   $("#egs").innerHTML = D.zatca.egs.map(e => `<div class="lane" data-f="egs" data-v="${e.egs}" title="Filter to ${e.egs}" style="grid-template-columns:62px 1fr 110px"><span>${e.egs}</span><div class="track" style="height:14px"><div class="max" data-w="${e.docs / mx}" style="top:0;bottom:0;width:${e.docs / mx * 100}%;background:linear-gradient(90deg,var(--emerald-deep),var(--emerald))"></div></div><span class="num" style="text-align:right">${fmtI(e.docs)}</span></div>`).join("");
@@ -1025,7 +1072,7 @@ function zatcaScene() {
     tl.fromTo("#steps .step", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .4, stagger: .55, ease: "power2.out", overwrite: true });
     const b = el.querySelector(`[data-icv="${inc.icv}"]`); if (b) { el.scrollTo({ left: b.offsetLeft - 240, behavior: "smooth" }); tl.fromTo(b, { scale: 1 }, { scale: 1.06, yoyo: true, repeat: 3, duration: .3 }, 0.2); } };
   zatca.play = () => { if (!window.gsap || REDUCED) return; gsap.fromTo("#chain .block, #chain .link, #chain .gap", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .45, stagger: .05, ease: "power2.out", overwrite: true });
-    arcs.transition().duration(1200).attrTween("d", d => { const i = d3.interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d); return t => arc(i(t)); });
+    document.querySelectorAll("#sla .sla-ring").forEach(c => { const end = c.getAttribute("stroke-dashoffset"); gsap.fromTo(c, { strokeDashoffset: 2 * Math.PI * 22 }, { strokeDashoffset: end, duration: 2.2, ease: "power1.inOut" }); });
     zatca.incident(); };
 }
 
@@ -1068,7 +1115,7 @@ const mdm = { play() {} };
 function mdmScene() {
   const st = $("#mdm-stage"), five = D.mdm.five;
   const issues = ["Arabic, clean", "Latin nickname", "CP1256 mojibake → repaired", "Tashkeel + lam-alef ligature, Arabic-Indic digits", "Full English name"];
-  const isAr = s => /[؀-ۿ]/.test(s);
+  const isAr = s => /[\u0600-\u06FF]/.test(s);
   st.insertAdjacentHTML("beforeend", five.map((r, i) => `<div class="src" data-i="${i}"><div class="meta"><span>${r.source}</span><span class="issue">${issues[i] || ""}</span></div>
       <div class="nm ${isAr(r.received) ? "ar" : ""}">${r.received}</div><div class="meta"><span>ID <span class="ltr">${r.id_masked}</span></span><span>${r.action} · ${r.rule}</span></div></div>`).join("") +
     `<div class="golden" id="golden"><div class="gid">${five[0].golden}</div><div class="gname ar">${five[0].repaired}</div><div class="sub">5 members &middot; anchor ${five[0].rule.replace("ANCHOR_", "")} &middot; append-only merge ledger</div></div>`);
@@ -1097,7 +1144,7 @@ function mdmScene() {
 /* =========================================================== 08 STREAM */
 const stream = { play() {} };
 function streamScene() {
-  const S = D.stream, kinds = Object.keys(S.histogram), color = { CHECKOUT: C.em, INVOICE: C.gold, PAYMENT: C.cyan };
+  const S = D.stream, kinds = Object.keys(S.histogram), color = { CHECKOUT: C.violet, INVOICE: C.gold, PAYMENT: C.cyan };
   $("#counters").innerHTML = kinds.map(k => `<div class="panel counter-tile" style="border-color:${color[k]}33"><span class="k-lbl" style="font:600 11px var(--f-mono);letter-spacing:.12em;color:var(--muted)">${k}</span><b class="num" data-k="${k}">${fmtI(S.kinds[k])}</b><span class="sub">Fabric EH_MIZAN: ${fmtI(S.fabric_rows[k])}</span></div>`).join("") +
     `<div class="panel counter-tile"><span style="font:600 11px var(--f-mono);letter-spacing:.12em;color:var(--muted)">ALERTS</span><b class="num" id="alert-n">${S.alerts.length}</b><span class="sub">Fabric KQL: velocity ${S.fabric_rules.VelocityAlerts} \u00b7 mule ${S.fabric_rules.MuleRingAlerts} \u00b7 SLA ${S.fabric_rules.InvoiceReportingSlaBreaches}</span></div>`;
   const t0 = Date.parse(S.from), t1 = Date.parse(S.to);
@@ -1238,7 +1285,14 @@ $("#pal-input").addEventListener("keydown", e => { const items = renderPal();
   if (e.key === "Enter" && items[palSel]) { closePal(); items[palSel].run(); } if (e.key === "Escape") closePal(); });
 addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").hidden ? openPal() : closePal(); }
   if (e.key === "Escape") { stopStory(); closePal(); }
-  if (!$("#palette").hidden || /input|textarea/i.test(document.activeElement.tagName)) return;
+  if (!$("#palette").hidden || /input|textarea|select/i.test(document.activeElement.tagName)) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const kk = e.key.toLowerCase();
+  if (kk === "p") { document.body.classList.toggle("presenter"); window.ScrollTrigger && ScrollTrigger.refresh(); return; }
+  if (/^[1-9]$/.test(e.key)) { const ids = SCENES.map(s => s.id).slice(1); if (ids[+e.key - 1]) goTo(ids[+e.key - 1]); return; }
+  if (kk === "t") { tracePerRiyal(); return; }
+  if (kk === "b") { goTo("recon"); setTimeout(() => recon.setDefects && recon.setDefects(!recon.defects), 600); return; }
+  if (kk === "l") { setLang(lang === "ar" ? "en" : "ar"); return; }
   const ids = ROLE_SCENES[role]; const cur = rail.querySelector("a.on"); const i = Math.max(0, ids.indexOf(cur ? cur.dataset.id : "top"));
   if (e.key === "ArrowRight" || e.key === "j") { goTo(ids[Math.min(ids.length - 1, i + 1)]); } if (e.key === "ArrowLeft" || e.key === "k") { goTo(ids[Math.max(0, i - 1)]); } });
 
@@ -1296,7 +1350,7 @@ function showDrill() {
 function rerender(next) {
   D = next; R = D.recon; GEN++;
   safe("heroCopy", heroCopy); safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene);
-  safe("recon", reconScene); safe("zatca", zatcaScene); safe("map", mapScene); safe("lifecycle", lifecycleScene);
+  safe("recon", reconScene); safe("zatca", zatcaScene); safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("prov", updateProv);
   window.ScrollTrigger && ScrollTrigger.refresh();
 }
 function initFilterBar() {
@@ -1362,7 +1416,7 @@ function mapScene() {
   const g = svg.append("g");
   cities.forEach(x => { if (!x.g) return; const [cx, cy] = P(CITY[x.c]); const mx = (cx + hub[0]) / 2, my = Math.min(cy, hub[1]) - 60;
     g.append("path").attr("class", REDUCED ? "" : "route").attr("d", x.c === "Riyadh" ? `M${cx} ${cy} L${hub[0]} ${hub[1]}` : `M${cx} ${cy} Q${mx} ${my} ${hub[0]} ${hub[1]}`)
-      .attr("fill", "none").attr("stroke", C.em).attr("stroke-opacity", .55).attr("stroke-width", 1 + 3 * Math.sqrt(x.g / maxG)); });
+      .attr("fill", "none").attr("stroke", C.neutral).attr("stroke-opacity", .55).attr("stroke-width", 1 + 3 * Math.sqrt(x.g / maxG)); });
   g.append("path").attr("class", REDUCED ? "" : "route").attr("d", `M${hub[0]} ${hub[1]} Q${hub[0] + 50} ${hub[1] - 10} ${bank[0]} ${bank[1]}`).attr("fill", "none").attr("stroke", C.cyan).attr("stroke-width", 3);
   // stores: spread around their city on a golden-angle spiral (the store reference holds the city only)
   cities.forEach(x => { const [cx, cy] = P(CITY[x.c]);
@@ -1431,12 +1485,60 @@ function runSearch(q) {
   toast(`No match for "${q}". Try a MID, EGS-05, a city, an ICV or an invoice UUID prefix.`);
 }
 function initHeader() {
+  $("#lang-btn").addEventListener("click", () => setLang(lang === "ar" ? "en" : "ar"));
   $("#search").addEventListener("keydown", e => { if (e.key === "Enter") { runSearch(e.target.value); e.target.blur(); } });
   const pr = D.profile || {}; if (!pr.name) return;
   const initials = pr.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const safeUrl = /^https:\/\/(www\.)?linkedin\.com\//.test(pr.linkedin || "") ? pr.linkedin : "";
   $("#profile").innerHTML = `<span class="avatar">${pr.photo ? `<img src="${pr.photo}" alt="">` : initials}</span><span class="who">${pr.name}<small>${pr.role || ""}</small></span>` +
     (safeUrl ? `<a class="li-btn" href="${safeUrl}" target="_blank" rel="noopener noreferrer"><span class="li-badge">in</span><span>LinkedIn</span></a>` : "");
+}
+
+/* =========================================================== provenance on every scene */
+const PROV = { pulse: "live", flow: "live", ledger: "live", recon: "live", map: "live", lifecycle: "live",
+  zatca: "live+Chain tape: proof run, ZATCA engine re-run on EGS-05",
+  pdpl: "proof:docs/artifacts/html/03_pdpl_shred_restore.html", mdm: "proof:docs/artifacts/html/04_arabic_mdm_board.html",
+  stream: "replay:Historical replay \u00b7 synthetic data \u00b7 counts confirmed in Fabric EH_MIZAN",
+  trust: "proof:dbt manifest column lineage + LH_MIZAN meta.column_classification + Gold NDMO scorecard",
+  platform: "proof:docs/artifacts/05_skew_benchmark_20m.json + docs/artifacts/10_fabric_run_evidence.json" };
+function updateProv() {
+  const live = typeof window.MIZAN_QUERY === "function", P = D.runs.published, Q = D.runs.candidate;
+  const base = `${live ? "Live DAX on MIZAN Control Tower Model" : "Export snapshot of Gold"} \u00b7 published run ${P.status} ${String(P.run_id || "").slice(0, 8)} (${P.generated_at || "?"}) \u00b7 candidate run ${Q.status} \u00b7 git ${D.runs.git_sha} \u00b7 data as of ${R.to || "\u2014"}`;
+  for (const [id, kind] of Object.entries(PROV)) {
+    const sec = document.getElementById(id); if (!sec) continue;
+    let el = sec.querySelector(".prov"); if (!el) { el = document.createElement("div"); el.className = "prov"; sec.querySelector(".wrap").appendChild(el); }
+    const [k, rest] = kind.split(/:(.*)/s);
+    el.textContent = k === "live" ? base : k === "live+Chain tape" ? `${base} \u00b7 chain tape: ${rest}` : k === "proof" ? `Proof run \u00b7 source: ${rest}` : rest;
+  }
+}
+
+/* =========================================================== EN / AR (headings, menu, controls) */
+// Mirroring rules: the layout flips to right-to-left; charts, time axes, IDs, hashes and numbers stay left-to-right;
+// digits stay Western. Scene body text stays English in this version.
+const AR = {"menu": {"top": "\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629", "pulse": "\u0627\u0644\u0646\u0628\u0636", "flow": "\u062a\u062f\u0641\u0642 \u0627\u0644\u0623\u0645\u0648\u0627\u0644", "ledger": "\u0627\u0644\u062f\u0641\u062a\u0631 \u0627\u0644\u064a\u0648\u0645\u064a", "recon": "\u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0629", "zatca": "\u0632\u0627\u062a\u0643\u0627", "pdpl": "\u062d\u0645\u0627\u064a\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a", "mdm": "\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629", "stream": "\u062a\u062f\u0641\u0642 \u0627\u0644\u0645\u062e\u0627\u0637\u0631", "map": "\u0627\u0644\u062e\u0631\u064a\u0637\u0629", "trust": "\u0645\u0648\u062b\u0648\u0642\u064a\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a", "platform": "\u0627\u0644\u0645\u0646\u0635\u0629", "lifecycle": "\u062f\u0648\u0631\u0629 \u062d\u064a\u0627\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a"}, "scenes": {"pulse": ["\u0627\u0644\u0646\u0628\u0636 \u0627\u0644\u062a\u0646\u0641\u064a\u0630\u064a", "\u0627\u0644\u0645\u0646\u0635\u0629 \u0643\u0627\u0645\u0644\u0629 \u0641\u064a \u0634\u0627\u0634\u0629 \u0648\u0627\u062d\u062f\u0629"], "flow": ["\u062a\u062f\u0641\u0642 \u0627\u0644\u0623\u0645\u0648\u0627\u0644", "\u0623\u064a\u0646 \u0630\u0647\u0628 \u0643\u0644 \u0631\u064a\u0627\u0644"], "ledger": ["\u0627\u0644\u062f\u0641\u062a\u0631 \u0627\u0644\u064a\u0648\u0645\u064a \u00b7 \u0645\u064a\u0644\u0627\u062f\u064a \u0648\u0647\u062c\u0631\u064a", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a \u0648\u0627\u0644\u0628\u0646\u0643 \u0648\u062f\u0641\u062a\u0631 \u0627\u0644\u0623\u0633\u062a\u0627\u0630 \u062a\u062a\u062d\u0631\u0643 \u0645\u0639\u0627\u064b"], "recon": ["\u0645\u0637\u0627\u0628\u0642\u0629 \u0627\u0644\u0647\u0644\u0644\u0629", "\u0643\u0644 \u062a\u0627\u062c\u0631 \u0641\u064a \u0643\u0644 \u064a\u0648\u0645\u060c \u0628\u0623\u0637\u0631\u0627\u0641\u0647 \u0627\u0644\u062b\u0644\u0627\u062b\u0629"], "zatca": ["\u0633\u0644\u0633\u0644\u0629 \u0632\u0627\u062a\u0643\u0627 \u00b7 \u0627\u0644\u0645\u0631\u062d\u0644\u0629 \u0627\u0644\u062b\u0627\u0646\u064a\u0629", "\u0633\u0644\u0633\u0644\u0629 \u062a\u062c\u0632\u0626\u0629 \u0644\u0627 \u062a\u0646\u0642\u0637\u0639\u060c \u062d\u062a\u0649 \u0639\u0646\u062f \u0627\u0644\u0627\u0646\u0647\u064a\u0627\u0631"], "pdpl": ["\u062d\u0642 \u0627\u0644\u0645\u062d\u0648 \u00b7 \u0646\u0638\u0627\u0645 \u062d\u0645\u0627\u064a\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629", "\u0627\u0645\u062d\u064f \u0627\u0644\u0634\u062e\u0635\u060c \u0648\u0627\u062d\u062a\u0641\u0638 \u0628\u0627\u0644\u062f\u0644\u064a\u0644 \u0627\u0644\u0636\u0631\u064a\u0628\u064a"], "mdm": ["\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629 \u062b\u0646\u0627\u0626\u064a\u0629 \u0627\u0644\u0644\u063a\u0629", "\u062e\u0645\u0633 \u062a\u0647\u062c\u0626\u0627\u062a\u060c \u0639\u0645\u064a\u0644 \u0648\u0627\u062d\u062f\u060c \u0628\u0644\u0627 \u062f\u0645\u062c \u062e\u0627\u0637\u0626"], "stream": ["\u062a\u062f\u0641\u0642 \u0627\u0644\u0645\u062e\u0627\u0637\u0631 \u0627\u0644\u0644\u062d\u0638\u064a", "\u0639\u0634\u0631\u0648\u0646 \u064a\u0648\u0645\u0627\u064b \u0645\u0646 \u0627\u0644\u0623\u062d\u062f\u0627\u062b \u062a\u064f\u0639\u0627\u062f \u0641\u064a \u062b\u0648\u0627\u0646\u064d"], "map": ["\u062e\u0631\u064a\u0637\u0629 \u0627\u0644\u0645\u062a\u0627\u062c\u0631 \u00b7 \u0627\u0644\u0645\u0645\u0644\u0643\u0629 \u0627\u0644\u0639\u0631\u0628\u064a\u0629 \u0627\u0644\u0633\u0639\u0648\u062f\u064a\u0629", "\u0623\u064a\u0646 \u062a\u064f\u062d\u0635\u064e\u0651\u0644 \u0627\u0644\u0623\u0645\u0648\u0627\u0644\u060c \u0648\u0623\u064a\u0646 \u062a\u064f\u0633\u0648\u0651\u0649"], "trust": ["\u0645\u0648\u062b\u0648\u0642\u064a\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a \u00b7 NDMO", "\u0643\u0644 \u0639\u0645\u0648\u062f \u0630\u0647\u0628\u064a \u0645\u062a\u062a\u0628\u064e\u0651\u0639\u060c \u0648\u0643\u0644 \u0639\u0645\u0648\u062f \u0645\u0635\u0646\u064e\u0651\u0641"], "platform": ["\u0627\u0644\u0645\u0646\u0635\u0629 \u00b7 Spark \u0648 Fabric", "\u062a\u0631\u0648\u064a\u0636 \u0627\u0644\u0627\u0646\u062d\u0631\u0627\u0641\u060c \u0648\u0627\u0644\u062a\u0634\u063a\u064a\u0644 \u0646\u0641\u0633\u0647 \u0639\u0644\u0649 Microsoft Fabric"], "lifecycle": ["\u062f\u0648\u0631\u0629 \u062d\u064a\u0627\u0629 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a", "\u0645\u0646 \u0625\u064a\u0635\u0627\u0644 \u0627\u0644\u0643\u0627\u0634\u064a\u0631 \u0625\u0644\u0649 \u0631\u0642\u0645 \u0645\u0648\u062b\u0648\u0642"]}, "h1": "\u0643\u0644 \u0647\u0644\u0644\u0629\u060c <em>\u0645\u0637\u0627\u0628\u0642\u0629.</em>", "lede": "\u0645\u0639\u0627\u0645\u0644\u0629 \u062a\u062c\u0627\u0631\u064a\u0629 \u0648\u0627\u062d\u062f\u0629 \u0645\u0646 \u0627\u0644\u0628\u062f\u0627\u064a\u0629 \u0625\u0644\u0649 \u0627\u0644\u0646\u0647\u0627\u064a\u0629: \u0627\u0644\u0637\u0644\u0628\u060c \u0648\u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629 \u0644\u0632\u0627\u062a\u0643\u0627\u060c \u0648\u062a\u0633\u0648\u064a\u0629 \u0645\u062f\u0649 \u0648\u0633\u062f\u0627\u062f \u0641\u064a \u0627\u0644\u064a\u0648\u0645 \u0627\u0644\u062a\u0627\u0644\u064a\u060c \u0648\u062f\u0641\u062a\u0631 \u0627\u0644\u0623\u0633\u062a\u0627\u0630 \u0627\u0644\u0639\u0627\u0645. \u0644\u0627 \u064a\u062a\u0648\u0627\u0632\u0646 \u0627\u0644\u0645\u064a\u0632\u0627\u0646 \u0625\u0644\u0627 \u062d\u064a\u0646 \u064a\u062a\u0637\u0627\u0628\u0642 \u0627\u0644\u0628\u0646\u0643 \u0648\u062f\u0641\u062a\u0631 \u0627\u0644\u0623\u0633\u062a\u0627\u0630 \u062d\u062a\u0649 \u0622\u062e\u0631 \u0647\u0644\u0644\u0629.", "search": "\u0631\u0642\u0645 \u0627\u0644\u062a\u0627\u062c\u0631\u060c \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629\u060c ICV\u060c EGS\u060c \u0627\u0644\u0645\u062f\u064a\u0646\u0629", "mid": "\u0631\u0642\u0645 \u0627\u0644\u062a\u0627\u062c\u0631", "ui": {"#play-story .long": "\u0634\u063a\u0651\u0644 \u0627\u0644\u0642\u0635\u0629", "#hero-play": "&#9654; \u0634\u063a\u0651\u0644 \u0627\u0644\u0642\u0635\u0629", "#hero-replay": "&#8635; \u0623\u0639\u062f \u0627\u0644\u0645\u064a\u0632\u0627\u0646", "#open-palette .long": "\u0627\u0646\u062a\u0642\u0627\u0644", "#flt-clear": "\u0645\u0633\u062d", "#inject": "&#9888; \u0623\u062f\u062e\u0644 \u0627\u0644\u0639\u064a\u0648\u0628 \u0627\u0644\u0645\u0632\u0631\u0648\u0639\u0629", "#flt-from option[value='']": "\u0645\u0646: \u0627\u0644\u0628\u062f\u0627\u064a\u0629", "#flt-to option[value='']": "\u0625\u0644\u0649: \u0627\u0644\u0646\u0647\u0627\u064a\u0629", "#flt-city option[value='']": "\u0643\u0644 \u0627\u0644\u0645\u062f\u0646", "#flt-status option[value='']": "\u0623\u064a \u062d\u0627\u0644\u0629 \u0628\u0646\u0643\u064a\u0629", "#flt-egs option[value='']": "\u0643\u0644 \u0627\u0644\u0623\u062c\u0647\u0632\u0629", "#flt-flow option[value='']": "\u0643\u0644 \u0627\u0644\u0641\u0648\u0627\u062a\u064a\u0631", "#flt-state option[value='']": "\u0643\u0644 \u0627\u0644\u0646\u062a\u0627\u0626\u062c"}};
+let lang = "en";
+function setLang(next) {
+  lang = next; const ar = lang === "ar"; document.documentElement.lang = ar ? "ar" : "en"; document.documentElement.dir = ar ? "rtl" : "ltr";
+  const swap = (el, txt) => { if (!el) return; if (el.dataset.en === undefined) el.dataset.en = el.innerHTML; el.innerHTML = ar ? txt : el.dataset.en; };
+  rail.querySelectorAll("a").forEach(a => swap(a.querySelector("span"), AR.menu[a.dataset.id] || a.querySelector("span").textContent));
+  for (const [id, t] of Object.entries(AR.scenes)) { const sec = document.getElementById(id); if (!sec) continue; swap(sec.querySelector(".scene-head .tag"), t[0]); swap(sec.querySelector(".scene-head h2"), t[1]); }
+  swap(document.querySelector(".hero h1"), AR.h1); swap(document.querySelector(".hero .lede"), AR.lede);
+  for (const [sel, t] of Object.entries(AR.ui)) document.querySelectorAll(sel).forEach(el => swap(el, t));
+  const se = $("#search"); if (se.dataset.enPh === undefined) se.dataset.enPh = se.placeholder; se.placeholder = ar ? AR.search : se.dataset.enPh;
+  const mi = $("#flt-mid"); if (mi.dataset.enPh === undefined) mi.dataset.enPh = mi.placeholder; mi.placeholder = ar ? AR.mid : mi.dataset.enPh;
+  $("#lang-btn").textContent = ar ? "EN" : "\u0639"; $("#lang-btn").title = ar ? "English" : "\u0627\u0644\u0639\u0631\u0628\u064a\u0629";
+  hero.relayout && hero.relayout();
+}
+
+/* =========================================================== presenter mode + trace one riyal */
+function chromeH() { return parseFloat(getComputedStyle(document.body).getPropertyValue("--chrome")) || 0; }
+function tracePerRiyal() {
+  const G = H(R.gross); if (G <= 0) return toast("No captures for the current filters");
+  const parts = [["refunded", H(R.refunds)], ["acquirer fees", H(R.fees)], ["paid by the bank", H(R.bank)], ["in transit (T+1)", H(R.transit)], ["quarantined", H(R.quarantined)]];
+  const raw = parts.map(([, v]) => v * 100 / G), fl = raw.map(Math.floor); let left = 100 - fl.reduce((a, b) => a + b, 0);
+  raw.map((v, i) => [v - fl[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { fl[i]++; left--; } });
+  goTo("flow"); setTimeout(() => flow.trace && flow.trace(), 700);
+  toast(`Of every SAR 1.00 captured: ` + parts.map(([n], i) => `${(fl[i] / 100).toFixed(2)} ${n}`).filter((_, i) => fl[i] > 0).join(" \u00b7 ") + " (largest-remainder rounding to the halala)");
 }
 
 $("#seed").textContent = D.meta.seed;
@@ -1447,7 +1549,7 @@ safe("heroCopy", heroCopy); safe("hero", heroScene);
 safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene); safe("recon", reconScene); safe("zatca", zatcaScene);
 safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("trust", trustScene); safe("platform", platformScene);
 safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("header", initHeader);
-safe("filters", initFilterBar);
+safe("filters", initFilterBar); safe("prov", updateProv);
 if (window.gsap && window.ScrollTrigger) { gsap.registerPlugin(ScrollTrigger);
   SCENES.slice(1).forEach(s => ScrollTrigger.create({ trigger: "#" + s.id, start: "top 70%", once: true, onEnter: () => { if (!story) safe(s.id, PLAY[s.id]); } }));
   gsap.fromTo(".hero-copy > *", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .9, stagger: .1, ease: "power3.out", delay: .2 }); }

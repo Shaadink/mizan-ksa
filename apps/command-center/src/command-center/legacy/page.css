@@ -61,6 +61,15 @@ button { font: inherit; color: inherit }
 .rail a.on::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--gold) }
 .rail a.off { opacity: .3 }
 .rail .rail-foot { margin-top: auto; padding: 12px; font: 500 10.5px var(--f-mono); color: var(--dim); white-space: normal }
+body.presenter { --chrome: 0px; --rail: 0px } body.presenter .topbar, body.presenter .filterbar, body.presenter .rail, body.presenter .progress, body.presenter .mizan-source { display: none !important }
+[dir="rtl"] .rail { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--line-2) } [dir="rtl"] .rail a.on::before { left: auto; right: -10px }
+[dir="rtl"] .wrap, [dir="rtl"] .hero-copy { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(calc(var(--rail) + 24px), env(safe-area-inset-right, 0px)) }
+[dir="rtl"] .filterbar { padding-left: 16px; padding-right: max(calc(var(--rail) + 24px), env(safe-area-inset-right, 0px)) }
+[dir="rtl"] .stamp { right: auto; left: max(5vw, 16px); transform: rotate(6deg) }
+[dir="rtl"] .hero::after { background: linear-gradient(270deg, rgba(6,11,22,.92) 0%, rgba(6,11,22,.7) 34%, rgba(6,11,22,0) 58%) }
+[dir="rtl"] svg, [dir="rtl"] canvas, [dir="rtl"] .chain, [dir="rtl"] .mono, [dir="rtl"] .num, [dir="rtl"] table.t, [dir="rtl"] .counter, [dir="rtl"] .identity, [dir="rtl"] .prov { direction: ltr }
+[dir="rtl"] main p, [dir="rtl"] .row, [dir="rtl"] .breaker, [dir="rtl"] .sub, [dir="rtl"] .k-note, [dir="rtl"] .step, [dir="rtl"] .legend, [dir="rtl"] .kpi .k-lbl { direction: ltr }
+[lang="ar"] .scene-head h2, [lang="ar"] .scene-head .tag, [lang="ar"] .rail a span, [lang="ar"] .hero h1, [lang="ar"] .hero .lede, [lang="ar"] .btn { font-family: var(--f-ar); letter-spacing: 0 }
 body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail-collapsed .rail .rail-foot { display: none }
 .icon-btn { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; cursor: pointer; color: var(--muted) }
 .icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round }
@@ -81,8 +90,8 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .egs-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px }
 .egs-card { padding: 14px; border-radius: 14px; border: 1px solid var(--line-2); background: linear-gradient(180deg, rgba(20, 34, 60, .85), rgba(12, 21, 38, .85)) }
 .egs-card.sel { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(217, 178, 95, .3) }
-.egs-card .top { display: flex; align-items: center; gap: 10px } .egs-card .badge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(47, 191, 143, .12); border: 1px solid rgba(47, 191, 143, .35) }
-.egs-card .badge svg { width: 18px; height: 18px; stroke: var(--emerald); fill: none; stroke-width: 1.7 } .egs-card b { font: 700 15px var(--f-display) }
+.egs-card .top { display: flex; align-items: center; gap: 10px } .egs-card .badge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(217, 178, 95, .12); border: 1px solid rgba(217, 178, 95, .35) }
+.egs-card .badge svg { width: 18px; height: 18px; stroke: var(--gold); fill: none; stroke-width: 1.7 } .egs-card b { font: 700 15px var(--f-display) }
 .egs-card .kv { display: flex; justify-content: space-between; font: 12px var(--f-mono); color: var(--muted); margin-top: 6px } .egs-card .kv span:last-child { color: var(--ink) }
 .delta { font: 600 11px var(--f-mono) } .delta.up { color: var(--ok) } .delta.down { color: var(--warn) }
 /* map + life cycle */
@@ -92,7 +101,7 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .dlc { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: auto auto auto; gap: 22px 18px }
 .dlc-node { position: relative; z-index: 1; text-align: left; padding: 14px; border-radius: 14px; border: 1px solid var(--line-2); background: rgba(14, 25, 45, .95); cursor: pointer; color: var(--ink); font: inherit }
 .dlc-node:hover { border-color: var(--gold); transform: translateY(-2px); transition: .15s } .dlc-node .k { font: 600 10px var(--f-mono); letter-spacing: .14em; color: var(--gold); text-transform: uppercase }
-.dlc-node b { display: block; font: 700 15px var(--f-display); margin: 4px 0 } .dlc-node .d { font-size: 12px; color: var(--muted) } .dlc-node .n { margin-top: 8px; font: 600 12px var(--f-mono); color: var(--emerald) }
+.dlc-node b { display: block; font: 700 15px var(--f-display); margin: 4px 0 } .dlc-node .d { font-size: 12px; color: var(--muted) } .dlc-node .n { margin-top: 8px; font: 600 12px var(--f-mono); color: var(--gold-hi) }
 .dlc-node.side { border-style: dashed } #dlc-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0 }
 .progress { position: fixed; top: calc(env(safe-area-inset-top, 0px) + var(--chrome)); left: 0; height: 2px; width: 0; z-index: 51;
   background: linear-gradient(90deg, var(--emerald), var(--gold), var(--cyan)) }
@@ -115,6 +124,7 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .drill { position: fixed; z-index: 58; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(var(--chrome) + 16px); width: min(380px, calc(100% - 32px));
   padding: 18px; border-radius: 16px; background: rgba(9, 16, 30, .97); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, .55) }
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
+.prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
 .empty-note { padding: 40px 10px; text-align: center; color: var(--muted); font: 500 13px var(--f-mono) }
 
 /* ---------- hero ---------- */
@@ -250,8 +260,8 @@ table.t td.r, table.t th.r { text-align: right }
 .theater { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px }
 .act h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px }
 .keys { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap }
-.key { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--emerald);
-  color: var(--emerald); background: rgba(47,191,143,.08); font: 600 18px var(--f-mono); box-shadow: 0 0 18px rgba(47,191,143,.2) }
+.key { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--cyan);
+  color: var(--cyan); background: rgba(92,200,255,.08); font: 600 18px var(--f-mono); box-shadow: 0 0 18px rgba(92,200,255,.2) }
 .key.shred { border-color: var(--dim); color: var(--dim); background: transparent; box-shadow: none }
 .key.restored { border-color: var(--warn); color: var(--warn); box-shadow: 0 0 18px rgba(242,169,59,.3) }
 .row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(140,160,190,.12); font-size: 13px }

@@ -69,6 +69,8 @@ export function shapeLive(res: LiveResults): MizanData {
         bank_variance: hundredths(t.bank_variance_h), gl_variance: hundredths(t.gl_variance_h),
         unclassified: int(t.unclassified), mid_days: int(t.mid_days), merchants: int(t.merchants),
         from: String(t.date_from), to: String(t.date_to),
+        bank_net_residual: hundredths(t.bank_net_h), gl_net_residual: hundredths(t.gl_net_h),
+        broken_keys: int(t.broken_keys),
     };
 
     const cells = records(res.recon_cells);
