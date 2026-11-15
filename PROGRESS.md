@@ -17,6 +17,7 @@ Read this first every session. Resume from the first phase that is not DONE.
 | 10 | Fabric deployment | DONE (Data Agent needs paid capacity: docs/PORTAL_STEPS.md) | 222 |
 | 9b | Streaming (replay, KQL, docs) | DONE (local + Fabric: rows in EH_MIZAN, rules 1/1/2) | 222 |
 | 11 | Packaging (artifacts, README, ADRs, HONESTY) | DONE | 221 |
+| 12 | MIZAN Command Center (cinematic web control tower, ADR-011) | DONE | 231 |
 
 ## Environment (checked 2026-11-13)
 
@@ -256,6 +257,20 @@ pages, from a 20M Docker run held open with HOLD=900), 06 Airflow DAG, 07 Marque
 embedded in README. README rewritten (artifacts first, Fabric results, architecture, run instructions). ADR-001..010.
 HONESTY.md covers every phase. Not produced: the spec's animated GIF of the Power BI Control Tower (the report lives in
 the owner's Fabric tenant behind their login; PNGs of the local UIs are provided instead).
+
+## Phase 12 — MIZAN Command Center (DONE, owner-approved addition 2026-11-15)
+
+`scripts/build_command_center.py` exports every figure (Gold DuckDB, Delta lake, ZATCA engine re-run on EGS-05,
+stream replay + rules, dbt manifest lineage, Phase 11 proof boards, Fabric evidence) into `command_center/data.json`
+and builds `command_center/index.html` from `template.html`. The page: Three.js golden scales hero (captures pan fills
+first, bank pan T+1, settles level at variance 0.00), 10 scenes (pulse, money-flow sankey with particles, Hijri daily
+ledger, 121 x 20 halala heatmap with planted-defect circuit breaker, ZATCA chain + ICV 102 incident replay, PDPL
+erasure theatre, Arabic MDM convergence, stream river replay with alerts, lineage + NDMO, Spark race + Fabric run),
+story mode with captions, Ctrl+K palette, CFO/TAX/CDO roles, reduced-motion support. Money = integer halalas in JS.
+`tests/test_command_center.py` (6): exact money, identities, story facts vs sources, PII masking, embedded data and
+pinned scripts, determinism (skips without the local lake). Published privately:
+https://claude.ai/artifact/HeSui14YJRiTUwiFDAkXqD (rebuild: run the script, then republish index.html).
+Screenshots: `docs/artifacts/08_command_center_*.png`. ADR-011; HONESTY row 12.
 
 ## Open issues
 

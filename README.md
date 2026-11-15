@@ -9,7 +9,7 @@ and can be erased under PDPL without touching signed tax evidence. It runs local
 
 **Stack:** Microsoft Fabric (OneLake Delta `LH_MIZAN`, PySpark notebooks, Warehouse `WH_MIZAN`, Eventhouse/Eventstream,
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
-Actions as the control plane. 222 automated tests; CI runs the full PySpark + dbt suite on every push.
+Actions as the control plane. 231 automated tests; CI runs the full PySpark + dbt suite on every push.
 
 > Scope and limits are stated in [HONESTY.md](HONESTY.md). It is a standards-informed engineering reference
 > architecture on synthetic data, not a regulator-certified tax product.
@@ -54,6 +54,22 @@ plus a Silver snapshot is re-shredded by the Restore Guard.
 Every Gold column has lineage (64/64), and the build fails otherwise. Each run manifest carries `run_id`, `git_sha` and
 Delta snapshot versions. The residency gate fails the build if a SECRET column targets an open zone.
 
+### 7. MIZAN Command Center: the cinematic control tower
+![Command Center hero](docs/artifacts/08_command_center_hero.png)
+A golden balance scale fills with captures first and the bank file a day later (T+1), then settles exactly level when
+bank and GL variance reach SAR 0.00. Ten scenes follow, each with a story-mode narration: executive pulse, money
+flow, the daily ledger on the Umm al-Qura calendar, the halala heatmap (switch on the planted defects and the circuit
+breaker halts the build), the ZATCA chain with an incident replay, PDPL erasure theatre, Arabic MDM resolution, the
+risk stream replay, lineage and NDMO, and the Spark skew race. CFO, Tax and CDO role views; `Ctrl K` command palette.
+
+| Money flow | Halala heatmap with planted defects | ZATCA chain and incident |
+|---|---|---|
+| ![Flow](docs/artifacts/08_command_center_flow.png) | ![Recon](docs/artifacts/08_command_center_recon.png) | ![ZATCA](docs/artifacts/08_command_center_zatca.png) |
+
+Every figure is exported by `scripts/build_command_center.py` from Gold and the proof runs; money stays exact as
+integer halalas, and `tests/test_command_center.py` checks the identities, masking and pinned scripts. Open
+`command_center/index.html` locally, or ask for the private link. Power BI remains the governed report (ADR-011).
+
 ## Results on Microsoft Fabric
 
 Workspace `mizan-ksa-dev`, Fabric trial capacity (UAE North). Evidence: [docs/artifacts/10_fabric_run_evidence.json](docs/artifacts/10_fabric_run_evidence.json).
@@ -88,7 +104,7 @@ WH_MIZAN  gld: fact_merchant_settlement_recon | fact_zatca_clearance_ledger | di
 Direct Lake Control Tower (CFO Settlement | Tax ZATCA Health | CDO Data Trust) | governed AI | EH_MIZAN KQL risk stream
 ```
 
-Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-010); the 14 invariants are in
+Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-011); the 14 invariants are in
 [invariants.md](invariants.md).
 
 ## Run it
@@ -101,7 +117,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m mizan.generator --out data/generated      # ~100K rows, fixed seed, byte-identical reruns
 .\.venv\Scripts\python.exe -m mizan.spark.pipeline --lake data/lake      # Bronze, Silver, MDM, ZATCA, AI index, NDMO catalog
 cd dbt; $env:MIZAN_LAKE_ROOT="../data/lake"; ..\.venv\Scripts\dbt.exe build --profiles-dir . --target duckdb; cd ..
-.\.venv\Scripts\python.exe -m pytest -q                                  # 222 tests, ~15 min; -m "not spark" for ~30 s
+.\.venv\Scripts\python.exe -m pytest -q                                  # 231 tests, ~15 min; -m "not spark" for ~30 s
 ```
 
 ### Docker
@@ -132,6 +148,7 @@ Credentials come only from the git-ignored `.env` (see `.env.example`).
 | `docker/` | Spark benchmark image, Airflow + Marquez compose |
 | `kql/` | EH_MIZAN table, mapping and rule functions |
 | `powerbi/` | TMDL semantic model and PBIR report definitions |
+| `command_center/` | Cinematic web control tower (template, exported data snapshot, built page) |
 | `scripts/` | Fabric provisioning/deploy/streaming/Power BI, artifact builder, seed builders |
-| `tests/` | 222 tests, one or more per invariant |
+| `tests/` | 231 tests, one or more per invariant |
 | `docs/` | ADRs, policies, streaming guide, portal steps, artifacts |
