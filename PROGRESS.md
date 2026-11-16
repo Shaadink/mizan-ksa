@@ -372,6 +372,20 @@ Stage 5 "ship" DONE (2026-11-15):
   `docs/linkedin/LINKEDIN_POST.md` (164 words), README "Demo" section with 8 screenshot placeholders
   (`docs/artifacts/demo/`), README/HONESTY updated (Fabric App row).
 
+Ask MIZAN (scene 13, 2026-11-16, owner request): guided questions over Gold in the Fabric App and the standalone page.
+- No language model. A question matches one of 10 fixed intents (day status, variance, not assessed, settlement, sales,
+  ZATCA rejections, ZATCA outcomes, payment-method fee rate, data quality, Ramadan); anything else is declined.
+- Role picker (Finance / Tax / Data office / All staff) checked against the same tiers and groups as
+  `mizan.ai.governed.GOLD_ACL` (test enforces parity); `fact_payment_method_daily` inherits the reconciliation ACL.
+- Personal data (national ID, iqama, phone, email, names, IBAN) and write requests are refused before anything is read;
+  forecasts are declined. Counters: role, blocked tiers, answers verified, declined.
+- Evidence panel: Gold table, query file, fields, filters, source and as-of. In the Fabric App the host passes the exact
+  DAX that ran (`window.MIZAN_DAX`, filtered with the bar); the standalone copy says it reads the export.
+- Tests: tests/test_ask_mizan.py (ACL parity, routing of 20 questions incl. Arabic, refusals leak no SAR, every answer
+  figure equals the Gold snapshot) via tests/ask_mizan_harness.cjs (node). Redeployed (`npx rayfin up staticapp deploy`).
+- The Fabric Data Agent is still blocked by the trial capacity; Fabric Apps have no data-agent connector (connectors doc,
+  2026-11-03), so a real agent chat cannot be embedded yet.
+
 ## Left for the owner after Phase 13
 1. Record the video from the shot list; save as docs/linkedin/demo.mp4 (or link it).
 2. Capture the 8 demo screenshots into docs/artifacts/demo/ with the README file names (green "Live" label visible).

@@ -126,6 +126,21 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
 .prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
 .scope-note { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(242,169,59,.4); background: rgba(242,169,59,.07); color: #f6d39a; font: 500 12.5px var(--f-mono) }
+.ask-roles button[aria-pressed="true"] { background: rgba(217,178,95,.22); border-color: var(--gold) }
+.ask-log { max-height: 440px; overflow: auto; margin-top: 10px; padding-right: 4px }
+.ask-msg { margin: 0 0 14px } .ask-msg .who { font: 600 10.5px var(--f-mono); letter-spacing: .12em; color: var(--dim); text-transform: uppercase }
+.ask-msg .txt { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--ink) } .ask-msg.you .txt { color: #c8d3e4 }
+.ask-msg.refused .txt { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(242,169,59,.55); background: rgba(242,169,59,.07); color: #f6d39a }
+.ask-msg.abstain .txt { padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--line-2); color: var(--muted) }
+.ask-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
+.ask-tag { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line-2); font: 500 11.5px var(--f-mono); color: #c3cee0; cursor: pointer; background: transparent }
+.ask-tag.ok { border-color: rgba(58,210,159,.5); color: var(--ok) } .ask-tag.warn { border-color: rgba(242,169,59,.55); color: var(--warn) } .ask-tag.crit { border-color: var(--crit); color: var(--crit) }
+.ask-sugg { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 }
+.ask-sugg button { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(217,178,95,.06); color: var(--ink); font: 500 12px var(--f-body); cursor: pointer }
+.ask-sugg button:hover { background: rgba(217,178,95,.16) } .ask-sugg button.neg { border-style: dashed; color: var(--muted) }
+.ask-form { display: flex; gap: 8px } .ask-form input { flex: 1; min-width: 0; border: 1px solid var(--line-2); border-radius: 10px; background: rgba(5,10,20,.6); color: var(--ink); padding: 10px 12px; font: 500 13px var(--f-body) }
+.ask-ev .row span:last-child { max-width: 65%; overflow-wrap: anywhere }
+.ask-ev pre { margin: 12px 0 0; padding: 12px; max-height: 360px; overflow: auto; border-radius: 10px; background: rgba(5,10,20,.65); border: 1px solid var(--line-2); font: 500 11.5px/1.5 var(--f-mono); color: #b9c6da; white-space: pre-wrap; word-break: break-word }
 .empty-note { padding: 40px 10px; text-align: center; color: var(--muted); font: 500 13px var(--f-mono) }
 
 /* ---------- hero ---------- */

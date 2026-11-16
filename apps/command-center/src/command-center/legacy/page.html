@@ -225,6 +225,20 @@
       <div class="panel" style="padding:24px"><div class="dlc" id="dlc"><svg id="dlc-lines" aria-hidden="true"></svg></div></div>
     </div>
   </section>
+  <section class="scene" id="ask" data-roles="CFO TAX CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Ask MIZAN &middot; guided questions over Gold</div><h2>Ask the Gold layer, and see the evidence</h2>
+        <p>Pick a role and ask. Answers come only from the semantic-model query results on this page, after the role's NDMO entitlements are checked. There is no language model: a question is matched to a fixed list of approved questions, anything else is declined, and personal data is never retrieved.</p></div>
+        <div class="actions ask-roles" id="ask-roles" role="group" aria-label="Ask as role"></div></div>
+      <div class="kpis" id="ask-kpis"></div>
+      <div class="grid g-12" style="margin-top:14px">
+        <div class="panel c-7 ask-chat"><h3>Chat</h3><div class="ask-log" id="ask-log" aria-live="polite"></div>
+          <div class="ask-sugg" id="ask-sugg"></div>
+          <form class="ask-form" id="ask-form" autocomplete="off"><input id="ask-input" maxlength="200" placeholder="Ask about variance, settlement, a day (03 Mar), ZATCA, fees, data quality" aria-label="Question"><button class="btn primary" type="submit">Ask</button></form></div>
+        <div class="panel c-5"><h3>Evidence panel</h3><div class="sub">query &middot; Gold table &middot; entitlement &middot; filters &middot; as of</div><div id="ask-ev" class="ask-ev"></div></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer><div class="wrap">

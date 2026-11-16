@@ -131,6 +131,21 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
 .prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
 .scope-note { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(242,169,59,.4); background: rgba(242,169,59,.07); color: #f6d39a; font: 500 12.5px var(--f-mono) }
+.ask-roles button[aria-pressed="true"] { background: rgba(217,178,95,.22); border-color: var(--gold) }
+.ask-log { max-height: 440px; overflow: auto; margin-top: 10px; padding-right: 4px }
+.ask-msg { margin: 0 0 14px } .ask-msg .who { font: 600 10.5px var(--f-mono); letter-spacing: .12em; color: var(--dim); text-transform: uppercase }
+.ask-msg .txt { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--ink) } .ask-msg.you .txt { color: #c8d3e4 }
+.ask-msg.refused .txt { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(242,169,59,.55); background: rgba(242,169,59,.07); color: #f6d39a }
+.ask-msg.abstain .txt { padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--line-2); color: var(--muted) }
+.ask-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
+.ask-tag { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line-2); font: 500 11.5px var(--f-mono); color: #c3cee0; cursor: pointer; background: transparent }
+.ask-tag.ok { border-color: rgba(58,210,159,.5); color: var(--ok) } .ask-tag.warn { border-color: rgba(242,169,59,.55); color: var(--warn) } .ask-tag.crit { border-color: var(--crit); color: var(--crit) }
+.ask-sugg { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 }
+.ask-sugg button { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(217,178,95,.06); color: var(--ink); font: 500 12px var(--f-body); cursor: pointer }
+.ask-sugg button:hover { background: rgba(217,178,95,.16) } .ask-sugg button.neg { border-style: dashed; color: var(--muted) }
+.ask-form { display: flex; gap: 8px } .ask-form input { flex: 1; min-width: 0; border: 1px solid var(--line-2); border-radius: 10px; background: rgba(5,10,20,.6); color: var(--ink); padding: 10px 12px; font: 500 13px var(--f-body) }
+.ask-ev .row span:last-child { max-width: 65%; overflow-wrap: anywhere }
+.ask-ev pre { margin: 12px 0 0; padding: 12px; max-height: 360px; overflow: auto; border-radius: 10px; background: rgba(5,10,20,.65); border: 1px solid var(--line-2); font: 500 11.5px/1.5 var(--f-mono); color: #b9c6da; white-space: pre-wrap; word-break: break-word }
 .empty-note { padding: 40px 10px; text-align: center; color: var(--muted); font: 500 13px var(--f-mono) }
 
 /* ---------- hero ---------- */
@@ -580,6 +595,20 @@ footer .wrap { display: grid; gap: 8px }
       <div class="panel" style="padding:24px"><div class="dlc" id="dlc"><svg id="dlc-lines" aria-hidden="true"></svg></div></div>
     </div>
   </section>
+  <section class="scene" id="ask" data-roles="CFO TAX CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Ask MIZAN &middot; guided questions over Gold</div><h2>Ask the Gold layer, and see the evidence</h2>
+        <p>Pick a role and ask. Answers come only from the semantic-model query results on this page, after the role's NDMO entitlements are checked. There is no language model: a question is matched to a fixed list of approved questions, anything else is declined, and personal data is never retrieved.</p></div>
+        <div class="actions ask-roles" id="ask-roles" role="group" aria-label="Ask as role"></div></div>
+      <div class="kpis" id="ask-kpis"></div>
+      <div class="grid g-12" style="margin-top:14px">
+        <div class="panel c-7 ask-chat"><h3>Chat</h3><div class="ask-log" id="ask-log" aria-live="polite"></div>
+          <div class="ask-sugg" id="ask-sugg"></div>
+          <form class="ask-form" id="ask-form" autocomplete="off"><input id="ask-input" maxlength="200" placeholder="Ask about variance, settlement, a day (03 Mar), ZATCA, fees, data quality" aria-label="Question"><button class="btn primary" type="submit">Ask</button></form></div>
+        <div class="panel c-5"><h3>Evidence panel</h3><div class="sub">query &middot; Gold table &middot; entitlement &middot; filters &middot; as of</div><div id="ask-ev" class="ask-ev"></div></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer><div class="wrap">
@@ -645,8 +674,9 @@ const SCENES = [
   { id: "trust", n: "10", label: "Data trust", cap: "64 of 64 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
   { id: "platform", n: "11", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
   { id: "lifecycle", n: "12", label: "Data life cycle", cap: "Sources to Bronze, Silver and Gold, then the Control Tower and this app: every box is a working, tested part." },
+  { id: "ask", n: "13", label: "Ask MIZAN", cap: "Guided questions over Gold: every answer shows the query, the Gold table and the entitlement check. Personal data is refused, and nothing is retrieved." },
 ];
-const ROLE_SCENES = { ALL: SCENES.map(s => s.id), CFO: ["top", "pulse", "flow", "ledger", "recon", "map"], TAX: ["top", "pulse", "ledger", "zatca", "stream"], CDO: ["top", "pulse", "pdpl", "mdm", "stream", "trust", "platform", "lifecycle"] };
+const ROLE_SCENES = { ALL: SCENES.map(s => s.id), CFO: ["top", "pulse", "flow", "ledger", "recon", "map", "ask"], TAX: ["top", "pulse", "ledger", "zatca", "stream", "ask"], CDO: ["top", "pulse", "pdpl", "mdm", "stream", "trust", "platform", "lifecycle", "ask"] };
 let role = "ALL";
 
 /* ---------- rail + roles ---------- */
@@ -657,9 +687,9 @@ const ICONS = { top: "M12 3v18M5 7h14M7 7l-3 7h6l-3-7M17 7l-3 7h6l-3-7M8 21h8", 
   pdpl: "M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6zM9 12l2 2 4-4", mdm: "M5 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0M13 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 20c0-3 2-5 5-5s5 2 5 5M11 20c0-3 2-5 5-5s5 2 5 5",
   stream: "M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0", map: "M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14",
   trust: "M12 3l8 4-8 4-8-4zM4 12l8 4 8-4M4 17l8 4 8-4", platform: "M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01",
-  lifecycle: "M4 12a8 8 0 0 1 14-5l2-2v6h-6l2-2a5 5 0 1 0 1 5" };
+  lifecycle: "M4 12a8 8 0 0 1 14-5l2-2v6h-6l2-2a5 5 0 1 0 1 5", ask: "M4 5h16v10H9l-5 4zM9 9h6M9 12h4" };
 const MENU = { top: "Home" , pulse: "Pulse", flow: "Money flow", ledger: "Ledger", recon: "Reconciliation", zatca: "ZATCA", pdpl: "PDPL", mdm: "MDM",
-  stream: "Risk stream", map: "Map", trust: "Data trust", platform: "Platform", lifecycle: "Data life cycle" };
+  stream: "Risk stream", map: "Map", trust: "Data trust", platform: "Platform", lifecycle: "Data life cycle", ask: "Ask MIZAN" };
 SCENES.forEach(s => { const a = document.createElement("a"); a.href = "#" + s.id; a.dataset.label = s.label; a.dataset.id = s.id; a.title = s.label;
   a.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[s.id] || ICONS.pulse}"/></svg><span>${MENU[s.id] || s.label}</span>`;
   a.addEventListener("click", e => { e.preventDefault(); document.body.classList.remove("rail-open"); goTo(s.id) }); rail.appendChild(a) });
@@ -845,6 +875,215 @@ function updateScope() {
     el.hidden = !F.method;
     el.textContent = F.method ? `\u24d8 Payment method (${PAYNAME[F.method] || F.method}) does not filter this scene: ${why}. Pulse and Money flow show ${PAYNAME[F.method] || F.method} only.` : "";
   }
+}
+
+/* =========================================================== 13 ASK MIZAN */
+// Guided questions over the Gold figures already on the page. There is no language model: a question is matched to a
+// fixed intent, the role is checked against the Gold allow-list (same tiers and groups as mizan.ai.governed.GOLD_ACL),
+// and the answer is read from the semantic-model query results (live DAX in the Fabric App, the export snapshot here).
+// Personal data is refused before anything is read. Money stays exact: integer halalas end to end.
+const ASK_TIERS = ["PUBLIC", "CONFIDENTIAL", "SECRET", "TOP_SECRET"];
+const ASK_TIER_NAME = { PUBLIC: "Public", CONFIDENTIAL: "Confidential", SECRET: "Secret", TOP_SECRET: "Top secret" };
+const ASK_ACL = {
+  fact_merchant_settlement_recon: ["CONFIDENTIAL", ["FINANCE", "CFO_OFFICE"]],
+  fact_zatca_clearance_ledger: ["CONFIDENTIAL", ["TAX_TEAM", "FINANCE", "CFO_OFFICE"]],
+  mart_ndmo_scorecard: ["CONFIDENTIAL", ["CDO_OFFICE", "CFO_OFFICE"]],
+  dim_date_saudi: ["PUBLIC", ["ALL_STAFF"]],
+  fact_payment_method_daily: ["CONFIDENTIAL", ["FINANCE", "CFO_OFFICE"]],   // same entitlement as the reconciliation it splits
+};
+const ASK_ROLES = {
+  FINANCE: { name: "Finance", clearance: "CONFIDENTIAL", groups: ["FINANCE"] },
+  TAX: { name: "Tax", clearance: "CONFIDENTIAL", groups: ["TAX_TEAM"] },
+  CDO: { name: "Data office", clearance: "CONFIDENTIAL", groups: ["CDO_OFFICE"] },
+  STAFF: { name: "All staff", clearance: "PUBLIC", groups: ["ALL_STAFF"] },
+};
+const ASK = { role: "FINANCE", answered: 0, declined: 0, last: null };
+const askEsc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sar = h => "SAR " + fmtH(h);
+function askEntitled(role, table) {
+  const [tier, groups] = ASK_ACL[table], u = ASK_ROLES[role];
+  return ASK_TIERS.indexOf(u.clearance) >= ASK_TIERS.indexOf(tier) && (groups.includes("ALL_STAFF") || groups.some(g => u.groups.includes(g)));
+}
+const ASK_MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+function askDate(q) {
+  const iso = q.match(/\b(20\d\d)-(\d\d)-(\d\d)\b/); if (iso) return iso[0];
+  const y = (BASE.heat.days[0] || "2026").slice(0, 4), t = q.toLowerCase();
+  const a = t.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/) || null;
+  const b = a ? null : t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(\d{1,2})(?:st|nd|rd|th)?\b/);
+  const day = a ? +a[1] : b ? +b[2] : 0, mon = a ? ASK_MON[a[2]] : b ? ASK_MON[b[1]] : 0;
+  return day && mon ? `${y}-${String(mon).padStart(2, "0")}-${String(day).padStart(2, "0")}` : null;
+}
+function bps10(feesH, capH) { return capH > 0 ? Math.round(feesH * 100000 / capH) : 0; }   // basis points x10, from halalas
+const fmtBps = v => (v / 10).toFixed(1) + " bps";
+
+// Declined before any data is read.
+const ASK_PII = /national.?id|\bnid\b|iqama|passport|phone|mobile|e-?mail|\biban\b|address|customer name|full name|date of birth|\u0647\u0648\u064a\u0629|\u062c\u0648\u0627\u0644|\u0627\u0642\u0627\u0645\u0629/i;
+const ASK_WRITE = /\b(delete|drop|update|insert|truncate|alter|grant|change the|fix the)\b/i;
+const ASK_GUESS = /forecast|predict|projection|next (week|month|year)|will be|what if|estimate/i;
+
+const ASK_INTENTS = [
+  { id: "DAY", q: "Why is 03 Mar not reconciled?", query: "recon_cells", tables: ["fact_merchant_settlement_recon"],
+    test: q => askDate(q) && /reconcil|settle|status|variance|bank|happen|why|\u062a\u0633\u0648\u064a\u0629/i.test(q) ? askDate(q) : null,
+    fields: "daily: gross, refunds, fees, bank, transit, gl; truth.not_assessed_cells",
+    run(d) {
+      const row = D.daily.find(x => x.d === d);
+      if (!row) return { abstain: `No Gold rows for ${d} under the current filters (window ${D.recon.from} to ${D.recon.to}).` };
+      const exp = H(row.gross) - H(row.refunds) - H(row.fees), bank = H(row.bank), tr = H(row.transit), gl = H(row.gl);
+      const pend = (D.truth.not_assessed_cells || []).filter(c => c[1] === d).length;
+      if (pend) return { text: `It is not assessed yet: the T+1 bank file for ${d} has not arrived for ${fmtI(pend)} merchant-days. Expected net receivable is ${sar(tr)}, carried as in transit, not missing.`,
+        tags: [["Calculation valid; coverage incomplete", "warn"]] };
+      const diff = exp - bank - tr, gld = gl - (H(row.gross) - H(row.refunds));
+      return { text: `${d} reconciles: expected net ${sar(exp)} = bank paid ${sar(bank)}${tr ? " + in transit " + sar(tr) : ""}. Unexplained bank difference ${sar(Math.abs(diff))}; GL card clearing ${sar(gl)} against net sales, difference ${sar(Math.abs(gld))}.`,
+        tags: [[diff || gld ? "\u2717 Difference found" : "\u2713 Balanced to the halala", diff || gld ? "crit" : "ok"]] };
+    } },
+  { id: "VARIANCE", q: "What is the unexplained bank variance?", query: "recon_totals", tables: ["fact_merchant_settlement_recon"],
+    test: q => /variance|unexplained|balanc|halala|break|\u0641\u0631\u0642/i.test(q),
+    fields: "recon_totals: bank_variance_h, gl_variance_h, broken_keys, unclassified, assessed, not_assessed",
+    run() {
+      const T = D.truth, b = H(D.recon.bank_variance), g = H(D.recon.gl_variance);
+      return { text: `Unexplained bank variance is ${sar(b)} on ${fmtI(T.assessed_mid_days)} assessed merchant-days, and GL variance is ${sar(g)}. Broken keys ${fmtI(D.recon.broken_keys)}, unclassified events ${fmtI(D.recon.unclassified)}.` +
+        (T.not_assessed_mid_days ? ` ${fmtI(T.not_assessed_mid_days)} merchant-days are not assessed yet because their bank file has not arrived.` : ""),
+        tags: [[b || g ? "\u2717 Variance found" : "\u2713 Zero to the halala", b || g ? "crit" : "ok"]].concat(T.not_assessed_mid_days ? [["Coverage incomplete", "warn"]] : []) };
+    } },
+  { id: "NOT_ASSESSED", q: "Which merchant-days are not assessed?", query: "recon_totals", tables: ["fact_merchant_settlement_recon"],
+    test: q => /not assessed|pending|awaiting|missing|in.transit|t\+1|arriv/i.test(q),
+    fields: "recon_totals: not_assessed, not_assessed_net_h; recon_cells: in_transit_sar <> 0",
+    run() {
+      const T = D.truth;
+      if (!T.not_assessed_mid_days) return { text: "Every merchant-day in the current filters is assessed: all bank files have arrived.", tags: [["\u2713 Coverage complete", "ok"]] };
+      return { text: `${fmtI(T.not_assessed_mid_days)} merchant-days are not assessed because their bank file has not arrived (${T.not_assessed_dates.join(", ")}). Their expected net receivable is ${sar(H(T.not_assessed_expected_net))}, carried as in transit. They are judged when the file lands.`,
+        tags: [["Calculation valid; coverage incomplete", "warn"]] };
+    } },
+  { id: "SETTLEMENT", q: "How much has the bank paid?", query: "recon_totals", tables: ["fact_merchant_settlement_recon"],
+    test: q => /bank|paid|settle|payout|receivable|quarantin|\u062a\u0633\u0648\u064a\u0629/i.test(q),
+    fields: "recon_totals: net_h, bank_h, transit_h, quarantined_h",
+    run() {
+      const R0 = D.recon, net = H(R0.net), b = H(R0.bank), t = H(R0.transit), q = H(R0.quarantined), d = net - b - t - q;
+      return { text: `Expected net payable is ${sar(net)}: bank paid ${sar(b)}, in transit ${sar(t)}, quarantined ${sar(q)}. The identity leaves ${sar(Math.abs(d))} unexplained.`,
+        tags: [[d ? "\u2717 Identity broken" : "\u2713 Net = paid + transit + quarantined", d ? "crit" : "ok"]] };
+    } },
+  { id: "SALES", q: "What were gross captures and net sales?", query: "recon_totals", tables: ["fact_merchant_settlement_recon"],
+    test: q => /gross|capture|sales|revenue|turnover|refund|chargeback|how much/i.test(q),
+    fields: "recon_totals: gross_h, refunds_h, fees_h, gl_h, merchants, mid_days, date_from, date_to",
+    run() {
+      const R0 = D.recon, g = H(R0.gross), rf = H(R0.refunds);
+      return { text: `From ${R0.from} to ${R0.to}, ${fmtI(R0.merchants)} merchants captured ${sar(g)} gross. Refunds and chargebacks were ${sar(rf)}, so net sales are ${sar(g - rf)}; the GL card clearing is ${sar(H(R0.gl))}. Bank fees (MDR + VAT, from the bank file) were ${sar(H(R0.fees))}.`,
+        tags: [[g - rf === H(R0.gl) ? "\u2713 Net sales = GL clearing" : "\u2717 GL differs", g - rf === H(R0.gl) ? "ok" : "crit"]] };
+    } },
+  { id: "REJECTED", q: "How many invoices did ZATCA reject?", query: "zatca", tables: ["fact_zatca_clearance_ledger"],
+    test: q => /reject|400|refus|correct/i.test(q),
+    fields: "zatca: STATE rows, corrections, retried",
+    run() {
+      const st = D.zatca.states, n = st.CONFIRMED_REJECTION || 0;
+      return { text: `${fmtI(n)} document${n === 1 ? " was a confirmed rejection" : "s were confirmed rejections"} (HTTP 400). A rejected document stays in the hash chain; the fix is a new document with a new ICV. Corrections issued: ${fmtI(D.zatca.corrections)}. Transport failures retried with identical bytes: ${fmtI(D.zatca.retried)}.`,
+        tags: [["Rejections stay in the chain", n ? "warn" : "ok"]] };
+    } },
+  { id: "ZATCA", q: "How many invoices were cleared or reported?", query: "zatca", tables: ["fact_zatca_clearance_ledger"],
+    test: q => /invoice|zatca|clear|report|e-?invoic|tax|vat|\u0641\u0627\u062a\u0648\u0631/i.test(q),
+    fields: "zatca: STATE rows, FLOW rows, sar",
+    run() {
+      const st = D.zatca.states, tot = Object.values(st).reduce((a, b) => a + b, 0);
+      return { text: `${fmtI(tot)} e-invoice documents: ` + Object.keys(st).sort().map(k => `${k} ${fmtI(st[k])}`).join(", ") + `. Total including VAT ${sar(H(D.zatca.sar))}.`,
+        tags: [["Outcomes from the clearance ledger", "ok"]] };
+    } },
+  { id: "METHOD", q: "Which payment method has the highest fee rate?", query: "payments", tables: ["fact_payment_method_daily"],
+    test: q => /\b(method|mada|cards?|visa|master\w*|bnpl|sadad|fees?|mdr|bps|scheme)\b/i.test(q),   // whole words: "Ramadan" contains "mada"
+    fields: "payments: METHOD rows, captures_h, fees_h, est_h",
+    run() {
+      const ms = (D.payments ? D.payments.methods : []).filter(m => m.method !== "UNMATCHED_BANK_LINE" && H(m.captures) > 0)
+        .map(m => ({ m: m.method, r: bps10(H(m.fees), H(m.captures)), e: H(m.estimated) })).sort((a, b) => b.r - a.r);
+      if (!ms.length) return { abstain: "No payment-method rows under the current filters." };
+      const top = ms[0], est = ms.reduce((a, x) => a + x.e, 0);
+      return { text: `${PAYNAME[top.m] || top.m} has the highest acquirer fee rate: ${fmtBps(top.r)} of captures. ` + ms.slice(1).map(x => `${PAYNAME[x.m] || x.m} ${fmtBps(x.r)}`).join(", ") + `. Fees are the bank's MDR + VAT from the settlement file${est ? `; ${sar(est)} of them are flagged as estimates in Gold` : ""}.`,
+        tags: [["Fees from the bank file, never recomputed", "ok"]] };
+    } },
+  { id: "QUALITY", q: "Do the data-quality checks pass?", query: "ndmo", tables: ["mart_ndmo_scorecard"],
+    test: q => /quality|ndmo|scorecard|complete|accura|classif|trust/i.test(q),
+    fields: "ndmo: family, dimension, score_x100, threshold_x100, status",
+    run() {
+      const dq = D.ndmo.scorecard.filter(x => x.family === "DATA_QUALITY"), ok = dq.filter(x => x.status === "PASS").length;
+      const low = dq.slice().sort((a, b) => H(a.score) - H(b.score))[0];
+      return { text: `${ok} of ${dq.length} data-quality checks pass their thresholds.` + (low ? ` Lowest: ${low.dimension} on ${low.table} at ${low.score} (threshold ${low.threshold}).` : ""),
+        tags: [[ok === dq.length ? "\u2713 All checks pass" : "Some checks below threshold", ok === dq.length ? "ok" : "warn"]] };
+    } },
+  { id: "RAMADAN", q: "When did Ramadan 1447 begin?", query: "calendar", tables: ["dim_date_saudi"],
+    test: q => /ramadan|hijri|umm al.qura|calendar|weekend|\u0631\u0645\u0636\u0627\u0646/i.test(q),
+    fields: "calendar: date, hijri label, is_ramadan, is_weekend",
+    run() {
+      const days = Object.keys(D.calendar).sort(), first = days.find(d => D.calendar[d].ramadan);
+      return first ? { text: `On the Umm al-Qura calendar, ${D.calendar[first].hijri.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())} is ${first}. ${days.filter(d => D.calendar[d].ramadan).length} of the ${days.length} days in this window fall in Ramadan.`, tags: [["Public calendar", "ok"]] }
+        : { abstain: "No Ramadan day falls inside the current window." };
+    } },
+];
+
+function askAnswer(q, role) {
+  const u = ASK_ROLES[role], base = { q, role, at: new Date().toISOString(), filters: Object.entries(F).filter(([, v]) => v) };
+  if (ASK_PII.test(q)) return { ...base, kind: "REFUSED", code: "PERSONAL_DATA", text: `Personal identifiers are held only as encrypted tokens in Secret and Top secret columns, which Ask MIZAN never reads for any role (yours: ${u.name}). Nothing was retrieved.` };
+  if (ASK_WRITE.test(q)) return { ...base, kind: "REFUSED", code: "READ_ONLY", text: "Ask MIZAN is read-only over Gold. It cannot change data. Nothing was run." };
+  if (ASK_GUESS.test(q)) return { ...base, kind: "ABSTAIN", code: "NO_APPROVED_QUERY", text: "Ask MIZAN reports Gold facts only. It does not forecast or compute figures that no query returned." };
+  for (const it of ASK_INTENTS) {
+    const arg = it.test(q); if (!arg) continue;
+    const denied = it.tables.filter(t => !askEntitled(role, t));
+    if (denied.length) return { ...base, kind: "REFUSED", code: "NOT_ENTITLED", intent: it, text: `Not available for your role (${u.name}): ${denied.map(t => "gld." + t).join(", ")} is ${ASK_TIER_NAME[ASK_ACL[denied[0]][0]]} and limited to ${ASK_ACL[denied[0]][1].join(", ")}. Nothing was retrieved.` };
+    const out = it.run(arg);
+    if (out.abstain) return { ...base, kind: "ABSTAIN", code: "NO_ROWS", intent: it, text: out.abstain };
+    return { ...base, kind: "ANSWER", intent: it, text: out.text, tags: out.tags || [] };
+  }
+  return { ...base, kind: "ABSTAIN", code: "NO_MATCH", text: "That is not one of the approved questions, so I will not guess. Try one of the suggestions below." };
+}
+
+function askKpis() {
+  const u = ASK_ROLES[ASK.role], allowed = ASK_TIERS.slice(0, ASK_TIERS.indexOf(u.clearance) + 1), blocked = ASK_TIERS.filter(t => !allowed.includes(t));
+  const tables = Object.keys(ASK_ACL).filter(t => askEntitled(ASK.role, t));
+  const card = (lbl, val, note, accent) => `<div class="panel kpi" style="--accent:${accent}"><div class="k-top"><span class="k-lbl">${lbl}</span></div><div class="k-val">${val}</div><div class="k-note">${note}</div></div>`;
+  $("#ask-kpis").innerHTML = card("Role", u.name, `\u24d8 tiers: ${allowed.map(t => ASK_TIER_NAME[t]).join(", ")} \u00b7 ${tables.length} Gold tables`, C.gold) +
+    card("Blocked tiers", blocked.length, `\u2014 ${blocked.map(t => ASK_TIER_NAME[t]).join(", ")}`, C.dim) +
+    card("Answers verified", ASK.answered || "\u2014", "\u2713 numbers from queries only", C.ok) +
+    card("Declined", ASK.declined || "\u2014", "\u2713 personal data never retrieved", C.ok);
+  document.querySelectorAll("#ask-roles button").forEach(b => b.setAttribute("aria-pressed", b.dataset.r === ASK.role));
+}
+
+function askEvidence(a) {
+  const box = $("#ask-ev"); if (!a) { box.innerHTML = `<div class="sub" style="margin-top:12px">Ask a question to see the query, the Gold table and the entitlement check behind the answer.</div>`; return; }
+  const live = typeof window.MIZAN_QUERY === "function" && window.MIZAN_DAX, P = D.runs && D.runs.published ? D.runs.published : {};
+  const row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
+  const it = a.intent, u = ASK_ROLES[a.role];
+  let html = row("Outcome", a.kind === "ANSWER" ? "\u2713 Answered" : a.kind === "REFUSED" ? `\u2715 Refused \u00b7 ${a.code}` : `\u2014 Declined \u00b7 ${a.code}`) +
+    row("Role", `${u.name} \u00b7 ${ASK_TIER_NAME[u.clearance]} \u00b7 ${u.groups.join(", ")}`);
+  if (it) html += row("Gold", it.tables.map(t => `gld.${t} (${ASK_TIER_NAME[ASK_ACL[t][0]]})`).join(", ")) + row("Query", `queries/${it.query}.dax`);
+  if (a.kind === "ANSWER") html += row("Fields", askEsc(it.fields)) + row("Filters", a.filters.length ? a.filters.map(([k, v]) => `${FLABEL[k]} ${askEsc(v)}`).join(" \u00b7 ") : "none") +
+    row("Source", live ? "Live DAX \u00b7 MIZAN Control Tower Model" : "Export snapshot \u00b7 this copy does not query") +
+    row("As of", live ? riyadh(a.at) + " (Riyadh)" : `${P.generated_at ? riyadh(P.generated_at) : ""} \u00b7 run ${String(P.run_id || "").slice(0, 8)}`);
+  const dax = a.kind === "ANSWER" && live ? window.MIZAN_DAX[it.query] : null;
+  const pre = a.kind !== "ANSWER" ? "-- Nothing was queried: the request was stopped before any data was read." :
+    dax || `-- queries/${it.query}.dax runs live in the Fabric App, wrapped with the active filters.\n-- This copy reads the export of run ${String(P.run_id || "").slice(0, 8)}.`;
+  box.innerHTML = html + `<pre>${askEsc(pre)}</pre>`;
+}
+
+function askLog(a) {
+  const log = $("#ask-log"), cls = a.kind === "ANSWER" ? "" : a.kind === "REFUSED" ? "refused" : "abstain";
+  const tags = a.kind === "ANSWER" ? `<div class="ask-tags">${a.intent.tables.map(t => `<span class="ask-tag mono">gld.${t}</span>`).join("")}${a.tags.map(([t, c]) => `<span class="ask-tag ${c}">${askEsc(t)}</span>`).join("")}</div>` : "";
+  log.insertAdjacentHTML("beforeend", `<div class="ask-msg you"><div class="who">You \u00b7 as ${ASK_ROLES[a.role].name}</div><div class="txt">${askEsc(a.q)}</div></div>` +
+    `<div class="ask-msg ${cls}"><div class="who">MIZAN</div><div class="txt">${askEsc(a.text)}</div>${tags}</div>`);
+  log.scrollTop = log.scrollHeight;
+}
+
+function ask(q) {
+  q = String(q || "").trim().slice(0, 200); if (!q) return;
+  const a = askAnswer(q, ASK.role);
+  if (a.kind === "ANSWER") ASK.answered++; else ASK.declined++;
+  ASK.last = a; askLog(a); askEvidence(a); askKpis();
+}
+
+function askScene() {
+  $("#ask-roles").innerHTML = Object.entries(ASK_ROLES).map(([k, u]) => `<button type="button" class="btn" data-r="${k}">${u.name}</button>`).join("");
+  $("#ask-roles").addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if (b) { ASK.role = b.dataset.r; askKpis(); } });
+  const sugg = ASK_INTENTS.map(it => it.q).concat(["Show the customers' national IDs", "Forecast next month's sales"]);
+  $("#ask-sugg").innerHTML = sugg.map((q, i) => `<button type="button" class="${i >= ASK_INTENTS.length ? "neg" : ""}" data-q="${askEsc(q)}">${askEsc(q)}</button>`).join("");
+  $("#ask-sugg").addEventListener("click", e => { const b = e.target.closest("button[data-q]"); if (b) ask(b.dataset.q); });
+  $("#ask-form").addEventListener("submit", e => { e.preventDefault(); const i = $("#ask-input"); ask(i.value); i.value = ""; });
+  $("#ask-log").innerHTML = `<div class="ask-msg"><div class="who">MIZAN</div><div class="txt">Ask me about reconciliation, settlement, a single day, ZATCA outcomes, payment-method fees, data quality or the calendar. I answer only from Gold query results, and I show the evidence on the right.</div></div>`;
+  askKpis(); askEvidence(null);
 }
 
 /* =========================================================== 01 PULSE */
@@ -1604,7 +1843,7 @@ $("#seed").textContent = D.meta.seed;
 safe("heroCopy", heroCopy); safe("hero", heroScene);
 safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene); safe("recon", reconScene); safe("zatca", zatcaScene);
 safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("trust", trustScene); safe("platform", platformScene);
-safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("header", initHeader);
+safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("ask", askScene); safe("header", initHeader);
 safe("filters", initFilterBar); safe("prov", updateProv);
 if (window.gsap && window.ScrollTrigger) { gsap.registerPlugin(ScrollTrigger);
   SCENES.slice(1).forEach(s => ScrollTrigger.create({ trigger: "#" + s.id, start: "top 70%", once: true, onEnter: () => { if (!story) safe(s.id, PLAY[s.id]); } }));

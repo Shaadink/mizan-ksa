@@ -7,8 +7,8 @@ import pageHtml from "./legacy/page.html?raw";
 import "./legacy/page.css";
 import "./app.css";
 import { mountScenes } from "./legacy/scenes.js";
-import type { Filters } from "./filters";
-import { CONNECTOR, loadData, queryFiltered, type Loaded, type Runner } from "./load";
+import { buildQueries, type Filters } from "./filters";
+import { CONNECTOR, QUERIES, loadData, queryFiltered, type Loaded, type Runner } from "./load";
 
 function runner(): Runner | null {
     if (!(CONNECTOR in connectorConfigs)) return null;
@@ -35,9 +35,16 @@ export function CommandCenter({ query }: { query?: (f: Filters) => Promise<unkno
         mounted.current = true;           // the scene module binds window listeners: mount exactly once
         installGlobals();
         const run = runner();
-        const w = window as unknown as { MIZAN_QUERY?: (f: Filters) => Promise<unknown> };
-        if (loaded.mode === "live" && run) w.MIZAN_QUERY = (f) => queryFiltered(run, f);   // live filter bar
-        else if (query) w.MIZAN_QUERY = query;
+        const w = window as unknown as { MIZAN_QUERY?: (f: Filters) => Promise<unknown>; MIZAN_DAX?: Record<string, string> };
+        delete w.MIZAN_DAX;
+        if (loaded.mode === "live" && run) {
+            w.MIZAN_DAX = { ...QUERIES };                    // the exact DAX behind the figures (Ask MIZAN evidence)
+            w.MIZAN_QUERY = async (f) => {                   // live filter bar
+                const data = await queryFiltered(run, f);
+                w.MIZAN_DAX = buildQueries(QUERIES, f);
+                return data;
+            };
+        } else if (query) w.MIZAN_QUERY = query;
         else delete w.MIZAN_QUERY;
         mountScenes(loaded.data);
     }, [loaded]);
