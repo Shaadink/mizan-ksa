@@ -22,6 +22,7 @@ from mizan.clearance.tlv_qr_and_state_machine import (
     zatca_invoice_hash,
 )
 from mizan.clearance.ubl import attach_signature_and_qr, build_unsigned_xml, read_refs
+from mizan.generator import catalog as cat
 
 ARABIC = st.text(alphabet=st.characters(min_codepoint=0x0600, max_codepoint=0x06FF), min_size=0, max_size=60)
 
@@ -42,7 +43,10 @@ def test_genesis_pih_is_base64_of_hex_string():
 
 def _signed(req, icv=1, pih=GENESIS_PIH, sig="U0lH", cert="Q0VSVA==", qr="UVI="):
     unsigned = build_unsigned_xml(req, icv=icv, pih=pih)
-    return unsigned, attach_signature_and_qr(unsigned, signature_b64=sig, certificate_b64=cert, qr_b64=qr)
+    # ds:SignedInfo carries the invoice digest; it lives inside UBLExtensions, which the hash excludes.
+    invoice_hash = base64.b64encode(invoice_digest(unsigned)).decode("ascii")
+    return unsigned, attach_signature_and_qr(unsigned, signature_b64=sig, certificate_b64=cert, qr_b64=qr,
+                                             invoice_hash=invoice_hash)
 
 
 def test_hash_ignores_signature_extensions_and_qr(sample_req):
@@ -120,13 +124,34 @@ def test_tlv_rejects_bad_tag_and_oversize():
 def test_qr_round_trip_and_raw_tag_enforcement():
     signer = signer_for("EGS-T")
     fields = {1: "\u0645\u062C\u0645\u0648\u0639\u0629", 2: "300000000000003", 3: "2026-02-12T10:00:00",
-              4: "115.00", 5: "15.00", 6: "aGFzaA==", 7: "c2ln", 8: signer.public_key_der,
+              4: "115.00", 5: "15.00", 6: "aGFzaA==", 7: b"sig", 8: signer.public_key_der,
               9: signer.certificate_signature}
     decoded = decode_qr_tlv(build_qr_tlv_base64(fields))
     assert decoded[1].decode("utf-8") == fields[1]
+    assert decoded[7] == b"sig"                                    # tag 7 is raw, like 8 and 9
     assert decoded[8] == signer.public_key_der and decoded[9] == signer.certificate_signature
     with pytest.raises(TypeError):
         build_qr_tlv_base64({**fields, 8: "not-bytes"})
+
+
+def test_qr_fits_zatca_500_char_limit():
+    """BR-CL-KSA-14 caps the QR at 500 characters, and the margin here is small.
+
+    Tag 7 holds the raw ECDSA signature rather than base64 text precisely because text pushes a real
+    document to 524-532 characters. The longest QR in the shipped dataset lands on 500 exactly, so this
+    test is the guard: lengthen the seller name, or let invoice totals grow by a few digits, and it
+    fails here with a clear reason instead of being rejected by ZATCA later.
+    """
+    signer = signer_for("EGS-T")
+    worst = {1: cat.SELLER_NAME_AR, 2: cat.SELLER_VAT, 3: "2026-02-12T10:00:00",
+             4: "1085.60", 5: "1023.30",                            # longest totals in the dataset
+             6: base64.b64encode(b"x" * 32).decode(),               # a SHA-256 digest, base64 = 44 chars
+             7: signer.sign_digest(hashlib.sha256(b"probe").digest()),
+             8: signer.public_key_der, 9: signer.certificate_signature}
+    qr = build_qr_tlv_base64(worst)
+    assert len(qr) <= 500, (
+        f"QR is {len(qr)} characters, over ZATCA's 500 limit (BR-CL-KSA-14). "
+        "Shorten the seller name, or move another tag to raw bytes.")
 
 
 # ---------------------------------------------------------------- state machine (I-03)

@@ -412,7 +412,48 @@ Ask MIZAN redesign + glossary (2026-11-16, owner feedback):
   badge when no data was read. Live re-test: ZATCA and MIZAN explained, weather declined, Arabic Data-office question
   answered "needs the Finance role", "not assessed" chained glossary + live query (112, SAR 1,125,184.70).
 
+Wave 1 - first impression (2026-11-16, owner-approved):
+- Hero: headline corrected to "Every assessed halala, reconciled. / Everything else, honestly flagged." (the old line
+  claimed 112 pending merchant-days were checked), plus three proof cards (0.00 variance, 25,001 invoices / 0 chain
+  breaks, 76/76 Gold columns) read live from the export.
+- Equilibrium ring + "Press B" invite after the scales settle; 5-chapter recruiter tour with a bottom dock;
+  jump-to-proof dock; "?" keyboard overlay; chaos bar (4 failure buttons naming what MIZAN catches and the test).
+- ZATCA scene: 3-step crash slider showing the identical bytes either side of the crash (distinct_bytes = 1).
+- Ask MIZAN: 4 gates light during planning, hover-a-number traces to its tool result, lock on refusal, "Show me on
+  the page"; 16 recorded, number-verified agent runs (command_center/agent_runs.json) replay when the live agent is
+  unreachable, so the assistant keeps working after the Azure credit expires 2026-12-14.
+- Verified-build badge -> docs/PROOF_MANIFEST.md (13 claims, each with its proof file's SHA-256,
+  scripts/build_proof_manifest.py). README hero rewritten around the three numbers.
+- Agent bug: "hi" was answered in Arabic; prompt rule 8 now names English as the default and Arabic script as the
+  only trigger (test_prompt_defaults_to_english_for_short_messages). Function redeployed and re-verified live.
+
+Wave 2 - public page + ZATCA SDK (2026-11-16, owner-approved):
+- Public snapshot site: scripts/build_public_site.py (refuses to build if the page contains an e-mail, the Function
+  endpoint, a tenant domain or a secret) -> Azure Static Web App `swa-mizan-public` (Free, eastus2, in rg-mizan-agent).
+  https://delightful-field-01a948c0f.4.azurestaticapps.net - no login. The rail footer now says "exported Gold
+  snapshot" off-host instead of claiming live DAX.
+- Smart App Control blocks DuckDB's unsigned `delta` extension on this machine, which broke the build and 15 tests.
+  Fixed without weakening the machine: src/mizan/common/delta_snapshot.py replays the _delta_log and reads the
+  current Parquet files with DuckDB's built-in reader. No new dependency; SAC stays on.
+- ZATCA SDK 3.0.8 (LGPL v3, downloaded by hand, git-ignored under vendor/): scripts/validate_with_zatca_sdk.py runs
+  it (finds Java in .tools, writes Configuration/config.json itself - the shipped install.bat runs `SETX PATH ""`
+  and would wipe the user PATH, so it is never used). tests/test_zatca_sdk_validation.py skips when absent.
+- Nine real defects the SDK found and we fixed: missing ds:SignedInfo (XSD); seller postal address (BR-08); 4-digit
+  additional number (BR-KSA-64); TaxSubtotal VAT breakdown (BR-CO-18/15); second TaxTotal (BR-KSA-EN16931-09);
+  UBLDocumentSignatures wrapper with both signature IDs (BR-KSA-28/29); QR timestamp needs the ISO "Z"; QR over the
+  500-char cap, fixed with the bare EC point and fixed-width r||s (BR-CL-KSA-14); six item prices whose 15% VAT was
+  not expressible in halalas (prices are now multiples of 0.20 SAR).
+- Result: XSD and EN 16931 PASS. The two residual failures are defects in the SDK, reproduced in HONESTY.md:
+  BR-KSA-50 compares line VAT in IEEE doubles (96.00 x 0.15 = 14.399999999999999) so it rejects our exact 14.40;
+  and the QR stage is unsatisfiable because BR-KSA-68 + BR-KSA-EN16931-09 force two TaxTotal elements which the QR
+  check then sums. Adding ds:SignedInfo changed 0 of 25,001 hashes (it lives inside UBLExtensions, which the digest
+  excludes); the price change deliberately changed every money figure, so the pipeline was regenerated.
+
 ## Left for the owner after Phase 13
+0. **Re-run the pipeline on the Fabric tenant** so `docs/artifacts/10_fabric_run_evidence.json` matches the
+   corrected prices (it still records the 2026-11-14 run: gross SAR 22,390,730.16 vs SAR 22,391,236.23 locally).
+   The dbt 65/65 PASS result is unaffected; only the money figures are from the earlier dataset. See HONESTY.md.
+   Also `data/lake.stale/` (135 MB, the pre-rebuild lake) can be deleted once you are happy with the new one.
 1. Record the video from the shot list; save as docs/linkedin/demo.mp4 (or link it).
 2. Capture the 8 demo screenshots into docs/artifacts/demo/ with the README file names (green "Live" label visible).
 3. Optional: profile photo -> apps/command-center/public/profile.jpg and "photo": "profile.jpg" in config/profile.json,

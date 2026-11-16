@@ -17,13 +17,13 @@ They measure different things, and they reconcile exactly:
 
 | Part (accepted documents, SAR incl. VAT) | SAR |
 |---|---|
-| Invoices paid by card (a CAPTURE in `slv.payment_lifecycle`) | 22,390,730.16 |
-| Invoices paid in cash (no card capture) | 7,545,182.44 |
-| Credit notes (stored as positive amounts; `document_type` carries the sign) | 981,929.16 |
-| **Total of accepted documents (old "Documents Total SAR")** | **30,917,841.76** |
-| Net invoiced = card + cash - credit notes | 28,953,983.44 |
+| Invoices paid by card (a CAPTURE in `slv.payment_lifecycle`) | 22,391,236.23 |
+| Invoices paid in cash (no card capture) | 7,545,066.74 |
+| Credit notes (stored as positive amounts; `document_type` carries the sign) | 981,934.86 |
+| **Total of accepted documents (old "Documents Total SAR")** | **30,918,237.83** |
+| Net invoiced = card + cash - credit notes | 28,954,368.11 |
 
-Card-paid invoices equal gross captures (22,390,730.16) to the halala. One subtlety: the rejected invoice's card
+Card-paid invoices equal gross captures (22,391,236.23) to the halala. One subtlety: the rejected invoice's card
 capture keeps the **original** invoice UUID, so its correction (ICV 104, SAR 1,987.09) is linked to the payment
 through `corrects_invoice_uuid`. The old card total "Documents Total SAR" added credit notes as if they were sales;
 the report now shows `Invoices SAR`, `Credit Notes SAR` and `Net Invoiced SAR`.
@@ -83,7 +83,7 @@ column changes. The map's money routes (store, acquirer, bank) can then be drawn
 
 `gld.fact_payment_method_daily` (merchant x business day x payment scheme): capture count, gross captures,
 refunds and disputes, the bank's fees (MDR + VAT summed from settlement lines, linked to the scheme through the
-payment event) and the part that is a T+1 estimate. Totals: captures SAR 22,390,730.16 and fees SAR 370,553.94,
+payment event) and the part that is a T+1 estimate. Totals: captures SAR 22,391,236.23 and fees SAR 370,561.55,
 equal to the reconciliation; `dbt/tests/assert_payment_methods_reconcile_to_recon.sql` checks every merchant-day.
 Fee rates: mada 99.5 bps, credit card 232.1 bps, BNPL 467.9 bps, SADAD 46.7 bps.
 

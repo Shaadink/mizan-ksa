@@ -116,10 +116,14 @@ BROTHERS = (
 )
 
 # Unit prices excl. VAT (SAR), aligned with ITEMS by index. Electronics skew to e-commerce.
+# Every price is a multiple of 0.20 SAR so that 15% VAT lands exactly on the halala. ZATCA's BR-KSA-50
+# compares the line VAT to net x rate/100 with NO rounding, so a price like 89.90 (VAT 13.485) can never
+# satisfy it: 13.485 is not expressible in halalas. Real Saudi retailers price around the same constraint.
+# This is a data choice only -- money stays Decimal with ROUND_HALF_UP everywhere.
 ITEM_PRICES = tuple(Decimal(p) for p in (
     "35.00", "48.00", "260.00", "120.00", "210.00", "340.00", "75.00", "2199.00",
-    "399.00", "6.50", "42.75", "9.95", "18.25", "89.90", "3499.00",
-    "899.00", "45.00", "59.00", "64.50", "38.40",
+    "399.00", "6.40", "42.80", "10.00", "18.20", "90.00", "3499.00",
+    "899.00", "45.00", "59.00", "64.40", "38.40",
 ))
 ECOM_ITEM_IDX = (2, 5, 7, 8, 13, 14, 15, 16, 0, 1, 3, 4)
 STORE_ITEM_IDX = tuple(range(20))
@@ -130,6 +134,17 @@ SELLER_NAME = "Najd Omnichannel Commerce Group"
 SELLER_NAME_AR = "\u0645\u062C\u0645\u0648\u0639\u0629 \u0646\u062C\u062F \u0644\u0644\u062A\u062C\u0627\u0631\u0629"
 SELLER_VAT = "300000000000003"
 SELLER_CR = "1010000001"
+# Seller postal address (BG-5). EN 16931 rule BR-08 requires it on every invoice, and ZATCA's SDK
+# rejects the document without it. Synthetic, like every other address in this project: ZATCA expects
+# a 4-digit building number and a 5-digit postal zone.
+SELLER_STREET_AR = "\u0637\u0631\u064A\u0642 \u0627\u0644\u0645\u0644\u0643 \u0641\u0647\u062F"
+SELLER_BUILDING_NUMBER = "8721"
+SELLER_ADDITIONAL_NUMBER = "2345"   # KSA-23, must be 4 digits (BR-KSA-64)
+SELLER_DISTRICT_AR = "\u062D\u064A \u0627\u0644\u0639\u0644\u064A\u0627"
+SELLER_CITY_AR = "\u0627\u0644\u0631\u064A\u0627\u0636"
+SELLER_POSTAL_ZONE = "12212"
+SELLER_REGION_AR = "\u0645\u0646\u0637\u0642\u0629 \u0627\u0644\u0631\u064A\u0627\u0636"
+SELLER_COUNTRY_CODE = "SA"
 
 # Acquirer fee schedule (synthetic). The BANK applies it and sends fees in the file;
 # MIZAN only re-uses it to estimate IN_TRANSIT expectation rows (spec Module 3).

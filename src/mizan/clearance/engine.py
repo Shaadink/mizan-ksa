@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from mizan.clearance.mock_fatoora import TransportFailure, WorkerCrash
-from mizan.clearance.signing import signer_for
+from mizan.clearance.signing import ecdsa_der_to_raw, signer_for
 from mizan.clearance.tlv_qr_and_state_machine import (
     GENESIS_PIH,
     RETRY_IDENTICAL,
@@ -147,11 +147,19 @@ class ZatcaWorker:
             sig_b64 = base64.b64encode(signature).decode("ascii")
             qr = build_qr_tlv_base64({
                 1: req["seller"]["name_ar"], 2: req["seller"]["vat_number"],
-                3: issue_ts_ksa(req["issue_ts_utc"]).strftime("%Y-%m-%dT%H:%M:%S"),
+                # ZATCA's QR validator compares tag 3 to IssueDate + IssueTime and wants the ISO 8601
+                # "Z" form; without it the check reports "timeStamp does not match". An explicit
+                # +03:00 offset would also satisfy it but costs 6 characters, and the QR has none to
+                # spare against the 500-character cap (BR-CL-KSA-14).
+                3: issue_ts_ksa(req["issue_ts_utc"]).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 4: req["total_incl_vat_sar"], 5: req["vat_total_sar"], 6: invoice_hash, 7: sig_b64,
-                8: signer.public_key_der, 9: signer.certificate_signature})
+                # Tags 8-9 carry the key and the certificate's signature as bytes. The bare EC point
+                # and the raw r||s form are what ZATCA's spec describes, and together they save 30
+                # bytes against the DER wrappers -- the difference between 532 and 492 characters.
+                8: signer.public_key_point, 9: ecdsa_der_to_raw(signer.certificate_signature)})
             signed = attach_signature_and_qr(unsigned, signature_b64=sig_b64,
-                                             certificate_b64=signer.certificate_der_b64, qr_b64=qr)
+                                             certificate_b64=signer.certificate_der_b64, qr_b64=qr,
+                                             invoice_hash=invoice_hash)
             row = OutboxRow(invoice_uuid=req["invoice_uuid"], request_id=req["request_id"], egs_id=egs, icv=icv,
                             pih=pih, invoice_hash=invoice_hash, signed_xml=signed, qr_tlv_b64=qr,
                             invoice_flow=req["invoice_flow"], document_type=req["document_type"],

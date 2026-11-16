@@ -108,6 +108,16 @@ def test_system_prompt_states_the_rules():
     assert "NOT ASSESSED" in p and "Never add, subtract" in p
 
 
+def test_prompt_defaults_to_english_for_short_messages():
+    """A greeting like "hi" was answered in Arabic because the prompt only said "the language of the
+    question"; the rule now names English as the default and Arabic script as the only trigger."""
+    p = A.system_prompt("FINANCE", {})
+    rule = p.split("8.")[1]
+    assert "Reply in English" in rule
+    assert "Arabic script" in rule
+    assert "greeting" in rule
+
+
 # ----------------------------------------------------------------------------- browser side (node)
 
 @pytest.fixture(scope="module")

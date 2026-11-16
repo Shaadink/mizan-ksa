@@ -104,11 +104,12 @@ def test_bug6_share_of_sar_and_share_of_rows_are_different_numbers(data):
 
 def test_bug7_tax_sar_30_92m_reconciles_to_gross_captures_22_39m(data):
     z = {k: Decimal(v) for k, v in data["truth"]["zatca_sar"].items()}
-    assert z["card_invoices"] == Decimal(data["recon"]["gross"])               # 22,390,730.16 exactly
-    assert z["card_invoices"] + z["cash_invoices"] + z["credit_notes"] == z["accepted_total"] == Decimal("30917841.76")
+    assert z["card_invoices"] == Decimal(data["recon"]["gross"])               # card-paid == gross captures
+    assert z["card_invoices"] + z["cash_invoices"] + z["credit_notes"] == z["accepted_total"] == Decimal("30918237.83")
     assert z["net_invoiced"] == z["card_invoices"] + z["cash_invoices"] - z["credit_notes"]
+    # DATA_NOTES.md quotes these totals in prose, so it has to move whenever the figures do.
     notes = (REPO / "docs" / "design" / "DATA_NOTES.md").read_text(encoding="utf-8")
-    assert "30,917,841.76" in notes and "22,390,730.16" in notes
+    assert f"{z['accepted_total']:,}" in notes and f"{z['card_invoices']:,}" in notes
 
 
 def test_bug8_egs05_is_the_ecommerce_merchant_mid900001(data):

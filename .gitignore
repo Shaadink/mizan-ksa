@@ -59,3 +59,13 @@ data/bench/
 
 # owner photo copies: never commit
 /1793806965611*
+
+# ZATCA's offline SDK: downloaded by hand behind their terms checkbox, no licence published.
+# Never redistribute it. scripts/validate_with_zatca_sdk.py finds it here or via ZATCA_SDK_HOME.
+vendor/zatca-sdk/
+
+# Generated public snapshot site (rebuild with scripts/build_public_site.py)
+public_site/
+
+# A lake moved aside before a rebuild (data/lake.stale and friends): generated, never committed.
+data/lake.*/

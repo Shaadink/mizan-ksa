@@ -130,7 +130,8 @@ def system_prompt(role: str, page_filters: dict) -> str:
         "1. Answer only from tool results. Call tools first; chain several calls when a question needs it "
         "(for example: find the day, then look at that day).\n"
         "2. Every number you write must appear exactly in a tool result. Copy money as SAR with two decimals and "
-        "thousands separators (SAR 1,125,184.70). Never add, subtract, round, convert or estimate. If a figure is "
+        "thousands separators (for example SAR 1,234,567.89). Never add, subtract, round, convert or estimate. "
+        "If a figure is "
         "not in a tool result, say you cannot give it.\n"
         "3. A merchant-day whose bank file has not arrived is NOT ASSESSED: never call it balanced or missing money.\n"
         "4. Never reveal or ask for personal data. You cannot change data.\n"
@@ -147,8 +148,9 @@ def system_prompt(role: str, page_filters: dict) -> str:
         "another topic.\n"
         "Never ask the user for a date range or other details: the page filters already define the period. If you "
         "have a tool for the topic, call it right away.\n"
-        "8. Reply in the language of the question, in at most 5 short sentences. Keep digits, IDs and dates in "
-        "Western form (0-9)."
+        "8. Reply in English, unless the user's message actually contains Arabic script - then reply in Arabic. "
+        "A short or ambiguous message (for example a greeting) is English: do not switch to Arabic for it. "
+        "At most 5 short sentences. Keep digits, IDs and dates in Western form (0-9)."
     )
 
 

@@ -21,7 +21,14 @@ CAC = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
 CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 EXT = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
 DS = "http://www.w3.org/2000/09/xmldsig#"
+# ZATCA wraps the XML signature in UBL's signature components (BR-KSA-28 / BR-KSA-29).
+SIG = "urn:oasis:names:specification:ubl:schema:xsd:CommonSignatureComponents-2"
+SAC = "urn:oasis:names:specification:ubl:schema:xsd:SignatureAggregateComponents-2"
+SBC = "urn:oasis:names:specification:ubl:schema:xsd:SignatureBasicComponents-2"
 NSMAP = {None: INV, "cac": CAC, "cbc": CBC, "ext": EXT}
+# BR-KSA-28 wants this exact SignatureInformation ID; BR-KSA-29 wants this exact referenced/cac ID.
+SIGNATURE_INFORMATION_ID = "urn:oasis:names:specification:ubl:signature:1"
+REFERENCED_SIGNATURE_ID = "urn:oasis:names:specification:ubl:signature:Invoice"
 KSA = timezone(timedelta(hours=3))
 
 TYPE_CODE = {"INVOICE": "388", "CREDIT_NOTE": "381"}
@@ -37,6 +44,16 @@ def _el(parent, ns: str, tag: str, text: str | None = None, **attrib):
 
 def issue_ts_ksa(issue_ts_utc: str) -> datetime:
     return datetime.strptime(issue_ts_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone(KSA)
+
+
+def _vat_percent(req: dict) -> str:
+    """The single VAT rate on the document. Every line is standard-rated; a mix would need a
+    TaxSubtotal per rate, so refuse rather than silently report one rate for all of them."""
+    rates = {ln["vat_rate"] for ln in req["lines"]}
+    if len(rates) != 1:
+        raise ValueError(f"document {req.get('invoice_uuid')} mixes VAT rates {sorted(rates)}; "
+                         "one cac:TaxSubtotal per rate is required")
+    return rates.pop()
 
 
 def build_unsigned_xml(req: dict, *, icv: int, pih: str) -> bytes:
@@ -66,6 +83,21 @@ def build_unsigned_xml(req: dict, *, icv: int, pih: str) -> bytes:
     seller = req["seller"]
     sp = _el(_el(root, CAC, "AccountingSupplierParty"), CAC, "Party")
     _el(_el(sp, CAC, "PartyIdentification"), CBC, "ID", seller["cr_number"], schemeID="CRN")
+    # BG-5 seller postal address (EN 16931 BR-08). UBL fixes the order: PostalAddress before
+    # PartyTaxScheme, and the fields below in exactly this sequence.
+    addr = seller.get("address")
+    if addr:
+        pa = _el(sp, CAC, "PostalAddress")
+        _el(pa, CBC, "StreetName", addr["street_ar"])
+        _el(pa, CBC, "BuildingNumber", addr["building_number"])
+        # KSA-23 "additional number": the 4-digit secondary number of the Saudi national address
+        # (BR-KSA-09 requires it, BR-KSA-64 requires exactly 4 digits).
+        _el(pa, CBC, "PlotIdentification", addr["additional_number"])
+        _el(pa, CBC, "CitySubdivisionName", addr["district_ar"])
+        _el(pa, CBC, "CityName", addr["city_ar"])
+        _el(pa, CBC, "PostalZone", addr["postal_zone"])
+        _el(pa, CBC, "CountrySubentity", addr["region_ar"])
+        _el(_el(pa, CAC, "Country"), CBC, "IdentificationCode", addr["country_code"])
     pts = _el(sp, CAC, "PartyTaxScheme")
     _el(pts, CBC, "CompanyID", seller["vat_number"])
     _el(_el(pts, CAC, "TaxScheme"), CBC, "ID", "VAT")
@@ -79,8 +111,21 @@ def build_unsigned_xml(req: dict, *, icv: int, pih: str) -> bytes:
         _el(_el(bts, CAC, "TaxScheme"), CBC, "ID", "VAT")
         _el(_el(cp, CAC, "PartyLegalEntity"), CBC, "RegistrationName", buyer["name_ar"])
 
+    # BG-23 VAT breakdown (EN 16931 BR-CO-18): one TaxSubtotal per VAT category/rate. Every line here is
+    # standard-rated 15%, so there is exactly one subtotal, and its amounts are the invoice totals --
+    # which is also what BR-CO-15 cross-checks (TaxInclusive = TaxExclusive + TaxAmount).
     tt = _el(root, CAC, "TaxTotal")
     _el(tt, CBC, "TaxAmount", req["vat_total_sar"], currencyID="SAR")
+    sub = _el(tt, CAC, "TaxSubtotal")
+    _el(sub, CBC, "TaxableAmount", req["total_excl_vat_sar"], currencyID="SAR")
+    _el(sub, CBC, "TaxAmount", req["vat_total_sar"], currencyID="SAR")
+    tc = _el(sub, CAC, "TaxCategory")
+    _el(tc, CBC, "ID", "S", schemeID="UN/ECE 5305", schemeAgencyID="6")
+    _el(tc, CBC, "Percent", _vat_percent(req))
+    _el(_el(tc, CAC, "TaxScheme"), CBC, "ID", "VAT", schemeID="UN/ECE 5153", schemeAgencyID="6")
+    # BR-KSA-EN16931-09: with cbc:TaxCurrencyCode present, ZATCA wants a second TaxTotal carrying only
+    # the amount in the tax currency, with no subtotals. SAR is both currencies here, so same figure.
+    _el(_el(root, CAC, "TaxTotal"), CBC, "TaxAmount", req["vat_total_sar"], currencyID="SAR")
     lmt = _el(root, CAC, "LegalMonetaryTotal")
     _el(lmt, CBC, "LineExtensionAmount", req["total_excl_vat_sar"], currencyID="SAR")
     _el(lmt, CBC, "TaxExclusiveAmount", req["total_excl_vat_sar"], currencyID="SAR")
@@ -105,14 +150,58 @@ def build_unsigned_xml(req: dict, *, icv: int, pih: str) -> bytes:
     return etree.tostring(root, xml_declaration=True, encoding="UTF-8")
 
 
-def attach_signature_and_qr(unsigned_xml: bytes, *, signature_b64: str, certificate_b64: str, qr_b64: str) -> bytes:
-    """Add UBLExtensions (signature value + cert), cac:Signature, and the QR reference."""
+# XMLDSig requires ds:Signature children in this order: SignedInfo, SignatureValue, KeyInfo, Object.
+# ZATCA's SDK rejects the invoice at XSD validation if SignedInfo is missing.
+C14N11 = "http://www.w3.org/2006/12/xml-c14n11"
+ECDSA_SHA256 = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"
+SHA256 = "http://www.w3.org/2001/04/xmlenc#sha256"
+XPATH_TRANSFORM = "http://www.w3.org/TR/1999/REC-xpath-19991116"
+# The three nodes excluded from the signed data are exactly the ones invoice_digest() strips, so the
+# DigestValue below equals ctl.invoice_outbox.invoice_hash.
+EXCLUDED_XPATHS = (
+    "not(//ancestor-or-self::ext:UBLExtensions)",
+    "not(//ancestor-or-self::cac:Signature)",
+    "not(//ancestor-or-self::cac:AdditionalDocumentReference[cbc:ID='QR'])",
+)
+
+
+def _signed_info(sig, invoice_hash: str) -> None:
+    """ds:SignedInfo naming the canonicalisation, the ECDSA/SHA-256 suite and the invoice digest."""
+    si = _el(sig, DS, "SignedInfo")
+    etree.SubElement(si, f"{{{DS}}}CanonicalizationMethod", Algorithm=C14N11)
+    etree.SubElement(si, f"{{{DS}}}SignatureMethod", Algorithm=ECDSA_SHA256)
+    ref = etree.SubElement(si, f"{{{DS}}}Reference", Id="invoiceSignedData", URI="")
+    transforms = _el(ref, DS, "Transforms")
+    for xp in EXCLUDED_XPATHS:
+        t = etree.SubElement(transforms, f"{{{DS}}}Transform", Algorithm=XPATH_TRANSFORM)
+        _el(t, DS, "XPath", xp)
+    etree.SubElement(transforms, f"{{{DS}}}Transform", Algorithm=C14N11)
+    etree.SubElement(ref, f"{{{DS}}}DigestMethod", Algorithm=SHA256)
+    _el(ref, DS, "DigestValue", invoice_hash)
+
+
+def attach_signature_and_qr(unsigned_xml: bytes, *, signature_b64: str, certificate_b64: str, qr_b64: str,
+                            invoice_hash: str) -> bytes:
+    """Add UBLExtensions (SignedInfo + signature value + cert), cac:Signature, and the QR reference.
+
+    invoice_hash is the already-computed base64 digest; it goes in ds:DigestValue. Everything added here
+    lives inside UBLExtensions / cac:Signature / the QR reference, all of which invoice_digest() strips,
+    so nothing here can change any invoice_hash or the PIH chain.
+    """
     root = parse_invoice_xml(unsigned_xml)
     exts = etree.Element(f"{{{EXT}}}UBLExtensions")
     ext = _el(exts, EXT, "UBLExtension")
     _el(ext, EXT, "ExtensionURI", "urn:oasis:names:specification:ubl:dsig:enveloped:xades")
     content = _el(ext, EXT, "ExtensionContent")
-    sig = etree.SubElement(content, f"{{{DS}}}Signature", nsmap={"ds": DS})
+    # ZATCA's wrapper: UBLDocumentSignatures > SignatureInformation > ds:Signature, carrying the two IDs
+    # that BR-KSA-28 and BR-KSA-29 check.
+    docsigs = etree.SubElement(content, f"{{{SIG}}}UBLDocumentSignatures",
+                               nsmap={"sig": SIG, "sac": SAC, "sbc": SBC})
+    info = etree.SubElement(docsigs, f"{{{SAC}}}SignatureInformation")
+    _el(info, CBC, "ID", SIGNATURE_INFORMATION_ID)
+    _el(info, SBC, "ReferencedSignatureID", REFERENCED_SIGNATURE_ID)
+    sig = etree.SubElement(info, f"{{{DS}}}Signature", nsmap={"ds": DS}, Id="signature")
+    _signed_info(sig, invoice_hash)
     _el(sig, DS, "SignatureValue", signature_b64)
     _el(_el(_el(sig, DS, "KeyInfo"), DS, "X509Data"), DS, "X509Certificate", certificate_b64)
     root.insert(0, exts)
@@ -124,7 +213,8 @@ def attach_signature_and_qr(unsigned_xml: bytes, *, signature_b64: str, certific
     _el(_el(qr_ref, CAC, "Attachment"), CBC, "EmbeddedDocumentBinaryObject", qr_b64, mimeCode="text/plain")
     pih_ref.addnext(qr_ref)
     s = etree.Element(f"{{{CAC}}}Signature")
-    _el(s, CBC, "ID", "urn:oasis:names:specification:ubl:signature:Invoice")
+    # BR-KSA-29 requires this exact ID on cac:Signature (the SignatureInformation ID differs; see above).
+    _el(s, CBC, "ID", REFERENCED_SIGNATURE_ID)
     _el(s, CBC, "SignatureMethod", "urn:oasis:names:specification:ubl:dsig:enveloped:xades")
     qr_ref.addnext(s)
     return etree.tostring(root, xml_declaration=True, encoding="UTF-8")

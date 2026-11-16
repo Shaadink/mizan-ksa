@@ -1,0 +1,111 @@
+{
+ "git_sha": "3aacf93c7e3b",
+ "generated_from": "command_center/data.json",
+ "note": "Each claim's value is read from the Gold export; the proof file is the artifact that produced it. Recompute any sha256 to confirm the file has not changed.",
+ "claims": [
+  {
+   "claim": "Bank variance on assessed merchant-days",
+   "value": "0.00",
+   "data_key": "recon.bank_variance",
+   "proof_file": "docs/artifacts/html/02_halala_recon_board.html",
+   "proof_is": "Phase 11 reconciliation proof board",
+   "sha256": "66b5f109658fd06f0a4abae5bc2ce423503f91d34843b0ad8b107715a18b21bb"
+  },
+  {
+   "claim": "GL variance on assessed merchant-days",
+   "value": "0.00",
+   "data_key": "recon.gl_variance",
+   "proof_file": "docs/artifacts/html/02_halala_recon_board.html",
+   "proof_is": "Phase 11 reconciliation proof board",
+   "sha256": "66b5f109658fd06f0a4abae5bc2ce423503f91d34843b0ad8b107715a18b21bb"
+  },
+  {
+   "claim": "Merchant-days not assessed (bank file pending)",
+   "value": 112,
+   "data_key": "truth.not_assessed_mid_days",
+   "proof_file": "docs/artifacts/html/02_halala_recon_board.html",
+   "proof_is": "Phase 11 reconciliation proof board",
+   "sha256": "66b5f109658fd06f0a4abae5bc2ce423503f91d34843b0ad8b107715a18b21bb"
+  },
+  {
+   "claim": "ZATCA chain breaks",
+   "value": 0,
+   "data_key": "chain.violations",
+   "proof_file": "docs/artifacts/html/01_zatca_chain_tape.html",
+   "proof_is": "ZATCA engine re-run, chain tape",
+   "sha256": "e6fa256f930d3335f8f999c1f0a8663368c5b8e3f152d0562632679ec11d8034"
+  },
+  {
+   "claim": "Worker restarts survived mid-submit",
+   "value": 1,
+   "data_key": "chain.restarts",
+   "proof_file": "docs/artifacts/html/01_zatca_chain_tape.html",
+   "proof_is": "ZATCA engine re-run, chain tape",
+   "sha256": "e6fa256f930d3335f8f999c1f0a8663368c5b8e3f152d0562632679ec11d8034"
+  },
+  {
+   "claim": "Gold columns traced to source",
+   "value": 76,
+   "data_key": "lineage.covered",
+   "proof_file": "dbt/target/manifest.json",
+   "proof_is": "dbt manifest, column-level lineage",
+   "sha256": "1f46af7006db93d4e22c4b77ce74d34898f6f6b811013cdc85d16a519096e313"
+  },
+  {
+   "claim": "Gold columns in total",
+   "value": 76,
+   "data_key": "lineage.gold_columns",
+   "proof_file": "dbt/target/manifest.json",
+   "proof_is": "dbt manifest, column-level lineage",
+   "sha256": "1f46af7006db93d4e22c4b77ce74d34898f6f6b811013cdc85d16a519096e313"
+  },
+  {
+   "claim": "dbt models passing on Fabric",
+   "value": 65,
+   "data_key": "runs.published.fabric.dbt_pass",
+   "proof_file": "docs/artifacts/10_fabric_run_evidence.json",
+   "proof_is": "Fabric run evidence",
+   "sha256": "1b797f88d1e876194a7dc672ae99ecb55ccd2442e5c1dd3a318bfa44a3f886ae"
+  },
+  {
+   "claim": "Spark skew benchmark rows",
+   "value": 20000000,
+   "data_key": "skew.0.rows",
+   "proof_file": "docs/artifacts/05_skew_benchmark_20m.json",
+   "proof_is": "20M-row skew benchmark",
+   "sha256": "85b1bab4a9f0c208efa8ffaeba32eafa408af9d45f0df6afc37fe38118efc52e"
+  },
+  {
+   "claim": "PDPL keys shredded on one erasure",
+   "value": 5,
+   "data_key": "pdpl.keys",
+   "proof_file": "docs/artifacts/html/03_pdpl_shred_restore.html",
+   "proof_is": "PDPL shred and restore proof run",
+   "sha256": "16a946738bc39537245167f8bed4e285768cff39ce144d7f0aecebf53a271301"
+  },
+  {
+   "claim": "PDPL Restore Guard re-shredded a restore",
+   "value": 5,
+   "data_key": "pdpl.guard_reshredded",
+   "proof_file": "docs/artifacts/html/03_pdpl_shred_restore.html",
+   "proof_is": "PDPL shred and restore proof run",
+   "sha256": "16a946738bc39537245167f8bed4e285768cff39ce144d7f0aecebf53a271301"
+  },
+  {
+   "claim": "Signed tax rows kept under legal hold",
+   "value": 25001,
+   "data_key": "pdpl.journal_rows",
+   "proof_file": "docs/artifacts/html/03_pdpl_shred_restore.html",
+   "proof_is": "PDPL shred and restore proof run",
+   "sha256": "16a946738bc39537245167f8bed4e285768cff39ce144d7f0aecebf53a271301"
+  },
+  {
+   "claim": "Arabic MDM golden customers",
+   "value": 2552,
+   "data_key": "mdm_gold.goldens",
+   "proof_file": "docs/artifacts/html/04_arabic_mdm_board.html",
+   "proof_is": "Arabic MDM proof board",
+   "sha256": "77b2f407c2d889b649abc8d8b3f5a562693e7770ac6876157a56f1023671d269"
+  }
+ ]
+}

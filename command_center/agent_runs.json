@@ -1,0 +1,271 @@
+{
+ "recorded_at": "2026-11-16T16:45:12Z",
+ "model": "gpt-4.1-mini",
+ "note": "Real agent answers, each number verified against its tool result at record time.",
+ "runs": [
+  {
+   "role": "FINANCE",
+   "q": "Is everything balanced? Anything still waiting for the bank?",
+   "text": "The reconciliation shows that there is no unexplained variance in the bank or general ledger for assessed merchant-days, so everything is balanced for those. However, there are 112 merchant-days still waiting for the bank file, with an expected net amount of SAR 1,125,209.07 in transit. These are not yet assessed, so their status is pending and they are neither balanced nor unbalanced yet.",
+   "trace": [
+    {
+     "name": "get_reconciliation",
+     "tables": [
+      "fact_merchant_settlement_recon"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "FINANCE",
+   "q": "Which day had the most gross captures, and did it reconcile?",
+   "text": "The day with the most gross captures was 2026-03-02, with SAR 1,307,478.93. This day reconciled with no unexplained bank difference and no merchant days awaiting the bank file.",
+   "trace": [
+    {
+     "name": "get_daily",
+     "tables": [
+      "fact_merchant_settlement_recon"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "FINANCE",
+   "q": "Compare BNPL and mada fees. Which costs us more?",
+   "text": "Comparing BNPL and mada fees:\n\n- BNPL has bank fees of SAR 77,777.36 with a fee rate of 467.9 bps.\n- Mada has bank fees of SAR 135,224.42 with a fee rate of 99.5 bps.\n\nAlthough BNPL has a higher fee rate, mada costs more in total bank fees (SAR 135,224.42) compared to BNPL (SAR 77,777.36). So, mada costs us more in absolute fees.",
+   "trace": [
+    {
+     "name": "get_payment_methods",
+     "tables": [
+      "fact_payment_method_daily"
+     ],
+     "filters": [
+      [
+       "method",
+       "BNPL"
+      ]
+     ]
+    },
+    {
+     "name": "get_payment_methods",
+     "tables": [
+      "fact_payment_method_daily"
+     ],
+     "filters": [
+      [
+       "method",
+       "MADA"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "role": "FINANCE",
+   "q": "How many invoices did ZATCA reject, and what happened to them?",
+   "text": "ZATCA rejected 1 invoice, classified as a \"CONFIRMED_REJECTION.\" This rejected invoice remains in the hash chain and must be fixed by issuing a new correcting document with a new ICV; it cannot be fixed by resending the same document.",
+   "trace": [
+    {
+     "name": "get_zatca",
+     "tables": [
+      "fact_zatca_clearance_ledger"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "FINANCE",
+   "q": "What does not assessed mean, and how many merchant-days are not assessed?",
+   "text": "\"Not assessed\" means a merchant-day for which the bank file has not yet arrived. The money for these days is considered in transit, not missing, and the day is neither balanced nor unbalanced until the file arrives.\n\nCurrently, there are 112 merchant-days not assessed because their bank files are pending. The expected net amount for these not assessed merchant-days is SAR 1,125,209.07.",
+   "trace": [
+    {
+     "name": "explain_term",
+     "tables": [],
+     "filters": []
+    },
+    {
+     "name": "get_reconciliation",
+     "tables": [
+      "fact_merchant_settlement_recon"
+     ],
+     "filters": [
+      [
+       "status",
+       "NOT_ASSESSED"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "role": "TAX",
+   "q": "How many invoices did ZATCA reject, and what happened to them?",
+   "text": "ZATCA rejected 1 invoice, which is marked as a CONFIRMED_REJECTION. This rejected invoice stays in the hash chain and must be fixed by issuing a new correcting document with a new ICV; it cannot be fixed by resending the same document. There was also 1 correction issued and 1 transport failure retried with identical bytes, but these are separate events from the rejection.",
+   "trace": [
+    {
+     "name": "get_zatca",
+     "tables": [
+      "fact_zatca_clearance_ledger"
+     ],
+     "filters": [
+      [
+       "state",
+       "CONFIRMED_REJECTION"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "role": "TAX",
+   "q": "How many invoices were cleared versus reported?",
+   "text": "There were 1,087 invoices cleared and 23,913 invoices reported.",
+   "trace": [
+    {
+     "name": "get_zatca",
+     "tables": [
+      "fact_zatca_clearance_ledger"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "TAX",
+   "q": "Which EGS device issued the most invoices?",
+   "text": "The EGS device that issued the most invoices is EGS-05, with 11,489 documents issued.",
+   "trace": [
+    {
+     "name": "get_zatca",
+     "tables": [
+      "fact_zatca_clearance_ledger"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "TAX",
+   "q": "When did Ramadan 1447 begin?",
+   "text": "Ramadan 1447 began on February 18, 2026.",
+   "trace": [
+    {
+     "name": "get_calendar",
+     "tables": [
+      "dim_date_saudi"
+     ],
+     "filters": [
+      [
+       "from",
+       "2025-01-01"
+      ],
+      [
+       "to",
+       "2025-12-31"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "role": "CDO",
+   "q": "Do all data-quality checks pass? Which is closest to failing?",
+   "text": "All data-quality checks pass. The closest to failing is the TIMELINESS dimension for the slv.settlement_lines table, with a score of 94.44 against a threshold of 90.00.",
+   "trace": [
+    {
+     "name": "get_data_quality",
+     "tables": [
+      "mart_ndmo_scorecard"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "CDO",
+   "q": "When did Ramadan 1447 begin?",
+   "text": "Ramadan 1447 began on February 18, 2026.",
+   "trace": [
+    {
+     "name": "get_calendar",
+     "tables": [
+      "dim_date_saudi"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "STAFF",
+   "q": "When did Ramadan 1447 begin?",
+   "text": "Ramadan 1447 began on February 18, 2026.",
+   "trace": [
+    {
+     "name": "explain_term",
+     "tables": [],
+     "filters": []
+    },
+    {
+     "name": "get_calendar",
+     "tables": [
+      "dim_date_saudi"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "STAFF",
+   "q": "How many weekend days are in this window?",
+   "text": "There are 6 weekend days in this window.",
+   "trace": [
+    {
+     "name": "get_calendar",
+     "tables": [
+      "dim_date_saudi"
+     ],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "STAFF",
+   "q": "What is MIZAN and what does it do?",
+   "text": "MIZAN is an engineering reference platform for Saudi commerce businesses, using synthetic data. It demonstrates how a business can track every sale end to end, including the order, ZATCA e-invoice, card or mada payment, next-day bank settlement, and ERP general ledger. It ensures that bank and ledger records agree exactly, while complying with PDPL privacy rules and NDMO data classification. The platform runs on Microsoft Fabric with Airflow, dbt, and OpenLineage.",
+   "trace": [
+    {
+     "name": "explain_term",
+     "tables": [],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "FINANCE",
+   "q": "What is ZATCA?",
+   "text": "ZATCA (Zakat, Tax and Customs Authority) is the authority that runs Saudi Arabia's e-invoicing system called FATOORA. In Phase 2, business-to-business (standard) invoices must be cleared by ZATCA before they are valid (CLEARANCE), while business-to-consumer (simplified) invoices are reported within 24 hours (REPORTING). Each invoice is digitally signed and linked to the previous one in a chain.",
+   "trace": [
+    {
+     "name": "explain_term",
+     "tables": [],
+     "filters": []
+    }
+   ]
+  },
+  {
+   "role": "CDO",
+   "q": "ما هو زاتكا؟",
+   "text": "زاتكا (ZATCA) هي هيئة الزكاة والضرائب والجمارك في السعودية، وهي المسؤولة عن تشغيل نظام الفوترة الإلكترونية في المملكة المعروف باسم \"فاتورة\". في المرحلة الثانية من النظام، يجب أن تتم الموافقة على فواتير الأعمال إلى الأعمال (الفواتير القياسية) من قبل زاتكا لتصبح صالحة (مرحلة الموافقة)، بينما يتم الإبلاغ عن فواتير الأعمال إلى المستهلك (الفواتير المبسطة) خلال 24 ساعة. كل فاتورة يتم توقيعها وربطها بالفاتورة السابقة في سلسلة.",
+   "trace": [
+    {
+     "name": "explain_term",
+     "tables": [],
+     "filters": []
+    }
+   ]
+  }
+ ]
+}

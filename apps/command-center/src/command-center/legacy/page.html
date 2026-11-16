@@ -3,7 +3,7 @@
 <div class="progress" id="progress"></div>
 <header class="topbar">
   <button class="icon-btn" id="menu-btn" type="button" aria-label="Toggle menu" title="Collapse or expand the menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-  <div class="brand"><span class="glyph ar">&#x645;</span><div>MIZAN Command Center<small>Every halala reconciled &middot; ZATCA &middot; PDPL &middot; live on Microsoft Fabric</small></div></div>
+  <div class="brand"><span class="glyph ar">&#x645;</span><div>MIZAN Command Center<small>Every assessed halala reconciled &middot; ZATCA &middot; PDPL &middot; live on Microsoft Fabric</small></div></div>
   <label class="search" for="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span class="sr">Search</span><input id="search" placeholder="MID, invoice UUID, ICV, EGS, city" autocomplete="off"></label>
   <div class="roles" role="group" aria-label="Role view">
     <button id="role-all" aria-pressed="true" data-role="ALL">ALL</button>
@@ -40,8 +40,13 @@
   <div class="stamp" id="stamp">BALANCED</div>
   <div class="hero-copy">
     <div class="eyebrow">Control tower &middot; <span id="h-range"></span> &middot; Asia/Riyadh</div>
-    <h1>Every halala, <em>reconciled.</em></h1>
+    <h1>Every assessed halala, <em>reconciled.</em><br><span class="h1-honest">Everything else, honestly flagged.</span></h1>
     <p class="lede">One commercial transaction followed end to end: order, ZATCA Phase-2 e-invoice, mada/SADAD T+1 settlement and the ERP general ledger. The scales settle only when bank and ledger agree to the last 0.01 SAR.</p>
+    <div class="proof-row" id="proof-row">
+      <span class="proof-stat"><span class="proof-val emerald" id="pr-var">0.00</span><span class="proof-lbl">SAR difference</span></span>
+      <span class="proof-stat"><span class="proof-val gold" id="pr-inv">25,001</span><span class="proof-lbl">invoices &middot; 0 chain breaks</span></span>
+      <span class="proof-stat"><span class="proof-val cyan" id="pr-lin">76/76</span><span class="proof-lbl">Gold columns traced</span></span>
+    </div>
     <div class="counter"><span class="cur">SAR</span><span class="val num" id="h-counter">0.00</span><span class="lbl">captured across <b id="h-mids"></b> merchant-days</span></div>
     <div class="identity" id="h-identity"></div>
     <div class="chips" id="h-chips"></div>
@@ -49,7 +54,12 @@
       <button class="btn primary" id="hero-play">&#9654; Play the story</button>
       <button class="btn" id="hero-replay">&#8635; Replay the scales</button>
     </div>
+    <div id="press-b-hint" hidden aria-live="polite">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 7h14M7 7l-3 7h6l-3-7M17 7l-3 7h6l-3-7"/></svg>
+      Press <kbd>B</kbd> to break a halala and watch MIZAN catch it
+    </div>
   </div>
+  <div id="eq-ring" aria-hidden="true"></div>
   <div class="scrollcue">SCROLL TO EXPLORE</div>
 </section>
 
@@ -118,7 +128,16 @@
       <div class="panel" style="padding:12px 12px 4px"><div class="chain" id="chain"></div></div>
       <div class="grid g-12" style="margin-top:16px">
         <div class="panel c-5"><h3>Incident replay &middot; ICV <span id="inc-icv"></span> &middot; <span id="inc-req"></span></h3>
-          <div class="sub" id="inc-sub"></div><div class="steps" id="steps"></div></div>
+          <div class="sub" id="inc-sub"></div><div class="steps" id="steps"></div>
+          <div class="crash-slider" id="crash-slider">
+            <div class="cs-track"><input type="range" id="cs-range" min="0" max="2" step="1" value="0" aria-label="Crash timeline"></div>
+            <div class="cs-steps">
+              <span data-step="0">1 &middot; Crash</span>
+              <span data-step="1">2 &middot; UNKNOWN</span>
+              <span data-step="2">3 &middot; Safe retry</span>
+            </div>
+            <div class="cs-frame" id="cs-frame"></div>
+          </div></div>
         <div class="panel c-3"><h3>Outcomes</h3><div class="sub">Gold clearance ledger</div><div id="outcome-bar" style="margin-top:14px"></div><div id="sla" style="margin-top:18px"></div></div>
         <div class="panel c-4"><h3>By EGS device</h3><div class="sub">Documents and SAR including VAT</div><div id="egs" class="race" style="margin-top:14px"></div>
           <div class="row" style="margin-top:10px" data-f="flow" data-v="REPORTING"><span>Simplified: reporting (B2C)</span><span id="f-rep"></span></div>
@@ -225,6 +244,32 @@
       <div class="panel" style="padding:24px"><div class="dlc" id="dlc"><svg id="dlc-lines" aria-hidden="true"></svg></div></div>
     </div>
   </section>
+  <section class="scene" id="ops" data-roles="CFO CDO">
+    <div class="wrap">
+      <div class="scene-head"><div><div class="tag">Operations &middot; service levels</div><h2>Is it on time, correct, and what does it cost?</h2>
+        <p>The questions asked after the demo. Each objective has a stated target, the measured value from the published run, and a pass or fail. Nothing here is aspirational: a red tile means the build would not ship.</p></div>
+        <div class="actions"><button class="btn" id="ops-replay">&#8635; Replay the run</button></div></div>
+      <div class="slo-grid" id="slo-grid"></div>
+      <div class="grid g-12" style="margin-top:16px">
+        <div class="panel c-7"><h3>Pipeline stages &middot; <span id="ops-total"></span></h3>
+          <div class="sub">Published Fabric run; duration per notebook job</div>
+          <div class="race" id="ops-stages" style="margin-top:14px"></div></div>
+        <div class="c-5 grid" style="align-content:start">
+          <div class="panel"><h3>Freshness</h3><div class="sub">How old the served figures are</div>
+            <div class="row"><span>Business data as of</span><span id="ops-asof"></span></div>
+            <div class="row"><span>Gold built at</span><span id="ops-built"></span></div>
+            <div class="row"><span>Serving</span><span id="ops-serving"></span></div></div>
+          <div class="panel"><h3>Capacity and cost</h3><div class="sub">What this run consumed</div>
+            <div class="row"><span>Fabric capacity</span><span id="ops-cap"></span></div>
+            <div class="row"><span>Compute time</span><span id="ops-compute"></span></div>
+            <div class="row"><span>Cost per run</span><span id="ops-cost"></span></div>
+            <div class="row"><span>Ask MIZAN agent</span><span id="ops-agent"></span></div>
+            <div class="prov" id="ops-cost-note"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="scene" id="ask" data-roles="CFO TAX CDO">
     <div class="wrap">
       <div class="scene-head ax-head">
@@ -248,6 +293,14 @@
 </main>
 
 <footer><div class="wrap">
+  <div class="verified-badge" id="verified-badge">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+    <span class="vb-title">Verified build</span>
+    <span class="vb-sep">&middot;</span>
+    <span id="vb-detail">every number from a proof run</span>
+    <a class="vb-link" href="docs/PROOF_MANIFEST.md" target="_blank" rel="noopener">Proof manifest</a>
+    <a class="vb-link" href="HONESTY.md" target="_blank" rel="noopener">HONESTY.md</a>
+  </div>
   <div><b style="color:var(--muted)">Provenance.</b> Every figure is exported by <span class="mono">scripts/build_command_center.py</span> from the dbt Gold tables, the Delta lakehouse, a re-run of the ZATCA engine, the stream replay and the Phase 11 proof runs. Money is exact (integer halalas); nothing is typed in by hand.</div>
   <div class="mono" id="runs" style="font-size:11.5px"></div>
   <div>Synthetic data, fixed seed <span id="seed" class="mono"></span>. MIZAN-KSA is an engineering reference architecture, not a regulator-certified product.</div>

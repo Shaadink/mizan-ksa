@@ -645,6 +645,15 @@ def _build_gl(ds: Dataset) -> tuple[list[dict], dict]:
 
 # ----------------------------------------------------------------------------- ZATCA requests + fault plan
 
+def _seller_address() -> dict:
+    """BG-5, the seller's postal address: required by EN 16931 rule BR-08 on every invoice."""
+    return {"street_ar": cat.SELLER_STREET_AR, "building_number": cat.SELLER_BUILDING_NUMBER,
+            "additional_number": cat.SELLER_ADDITIONAL_NUMBER,
+            "district_ar": cat.SELLER_DISTRICT_AR, "city_ar": cat.SELLER_CITY_AR,
+            "postal_zone": cat.SELLER_POSTAL_ZONE, "region_ar": cat.SELLER_REGION_AR,
+            "country_code": cat.SELLER_COUNTRY_CODE}
+
+
 def _invoice_request(o: Order) -> dict:
     buyer = None
     if o.buyer_org is not None:
@@ -657,7 +666,7 @@ def _invoice_request(o: Order) -> dict:
             "customer_ref": o.customer_ref, "buyer": buyer, "payment_means": o.payment_means,
             "billing_reference_uuid": None,
             "seller": {"name": cat.SELLER_NAME, "name_ar": cat.SELLER_NAME_AR, "vat_number": cat.SELLER_VAT,
-                       "cr_number": cat.SELLER_CR},
+                       "cr_number": cat.SELLER_CR, "address": _seller_address()},
             "lines": [{"line_id": ln["line_id"], "item_ar": ln["item_ar"], "item_en": ln["item_en"],
                        "qty": ln["qty"], "unit_price_sar": fmt_sar(ln["unit_price_sar"]), "vat_rate": "15.00",
                        "line_net_sar": fmt_sar(ln["net"]), "line_vat_sar": fmt_sar(ln["vat"])}

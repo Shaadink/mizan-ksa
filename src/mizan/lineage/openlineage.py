@@ -14,6 +14,8 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from mizan.common.delta_snapshot import delta_rel
+
 REPO = Path(__file__).resolve().parents[3]
 NAMESPACE_LH, NAMESPACE_WH = "fabric://mizan-ksa-dev/LH_MIZAN", "fabric://mizan-ksa-dev/WH_MIZAN"
 PRODUCER = "https://github.com/Shaadink/mizan-ksa"
@@ -97,12 +99,12 @@ def collect_columns(duck_path: Path, lake_root: Path) -> tuple[dict[str, list[st
         for t, c, typ in con.execute("SELECT table_name, column_name, data_type FROM information_schema.columns "
                                      "WHERE table_schema = 'gld' ORDER BY table_name, ordinal_position").fetchall():
             add(f"gld.{t}", c, typ)
-        con.execute("INSTALL delta; LOAD delta")
-        loc = (Path(lake_root) / "LH_MIZAN" / "meta" / "column_classification").as_posix()
-        for s_, t, c, typ in con.execute("SELECT schema_name, table_name, column_name, data_type FROM delta_scan(?)",
-                                         [loc]).fetchall():
+        # cc is a read_parquet(...) list built from our own lake paths, with quotes escaped; no user input.
+        cc = delta_rel(Path(lake_root) / "LH_MIZAN" / "meta" / "column_classification")
+        for s_, t, c, typ in con.execute(
+                f"SELECT schema_name, table_name, column_name, data_type FROM {cc}").fetchall():  # noqa: S608
             add(f"{s_}.{t}", c, typ)
-        for c, typ, *_ in con.execute("DESCRIBE SELECT * FROM delta_scan(?)", [loc]).fetchall():
+        for c, typ, *_ in con.execute(f"DESCRIBE SELECT * FROM {cc}").fetchall():  # noqa: S608
             add("meta.column_classification", c, typ)
     finally:
         con.close()

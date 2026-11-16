@@ -18,7 +18,7 @@ import copy
 import hashlib
 from decimal import Decimal
 
-from mizan.clearance.signing import verify_digest
+from mizan.clearance.signing import spki_from_point, verify_digest
 from mizan.clearance.tlv_qr_and_state_machine import decode_qr_tlv, invoice_digest
 from mizan.clearance.ubl import read_refs
 
@@ -55,7 +55,9 @@ class MockFatoora:
         digest = invoice_digest(xml_bytes)
         if tlv.get(6, b"").decode("ascii", "replace") != base64.b64encode(digest).decode("ascii"):
             return 400, "INVOICE_HASH_MISMATCH"
-        if not verify_digest(tlv.get(8, b""), base64.b64decode(tlv.get(7, b"")), digest):
+        # tag 7 is the base64 signature as text; tag 8 is the bare EC point, so rebuild the SPKI
+        # wrapper that verify_digest expects.
+        if not verify_digest(spki_from_point(tlv.get(8, b"")), base64.b64decode(tlv.get(7, b"")), digest):
             return 400, "SIGNATURE_INVALID"
         if Decimal(refs["vat_total"]) != sum((Decimal(v) for v in refs["line_vats"]), Decimal("0")):
             return 400, "VAT_TOTAL_MISMATCH"

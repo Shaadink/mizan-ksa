@@ -15,6 +15,7 @@ Money stays exact: Decimal in Python, strings in JSON, integer halalas in the br
 # ruff: noqa: S608  (SQL text interpolates only constant Gold table names, never input)
 from __future__ import annotations
 
+import csv
 import html as htmllib
 import json
 import re
@@ -40,6 +41,9 @@ def money(v) -> str:
 
 def _q(con, sql: str, *args) -> list[tuple]:
     return con.execute(sql, list(args)).fetchall()
+
+
+from mizan.common.delta_snapshot import delta_rel  # noqa: E402 (after sys.path setup above)
 
 
 # ----------------------------------------------------------------------------- Gold
@@ -96,7 +100,8 @@ def gold_section(con) -> dict:
         "daily": daily, "calendar": cal,
         "heat": {"days": days, "merchants": order, "cells": [cells[m] for m in order],
                  # demo-flag overlay from the Phase 11 recon board: the two planted breaks the circuit breaker catches
-                 "demo_breaks": [{"merchant": "MID100046", "d": "2026-02-17", "bank_variance": "-2536.33",
+                 "demo_breaks": [{"merchant": _orphan_bank_line()[0], "d": _orphan_bank_line()[1],
+                                  "bank_variance": f"-{_orphan_bank_line()[2]}",
                                   "gl_variance": "0.00", "cause": "Orphan bank line (no capture)"},
                                  {"merchant": "MID900001", "d": "2026-02-12", "bank_variance": "0.00",
                                   "gl_variance": "0.01", "cause": "0.01 SAR float rounding bug"}]},
@@ -107,24 +112,40 @@ def gold_section(con) -> dict:
     }
 
 
+def _orphan_bank_line() -> tuple[str, str, str]:
+    """(merchant, settled-for date, gross) of the planted orphan bank line, read from the demo overlay.
+
+    Hard-coding the amount made the build fail whenever item prices moved, so take it from the file the
+    generator writes: that row IS the planted break the circuit breaker is supposed to catch.
+    """
+    src = GEN / "demo" / "settlement_demo_orphan.csv"
+    with src.open(encoding="utf-8", newline="") as fh:
+        row = next(iter(csv.DictReader(fh)))
+    return row["merchant_id"], row["settlement_for_date"], row["gross_amount"]
+
+
 def _check_demo_breaks() -> None:
+    """The published recon board must show both planted breaks, or the proof artifact is stale."""
     board = (ART / "html" / "02_halala_recon_board.html").read_text(encoding="utf-8")
-    for token in ("MID100046", "-2,536.33", "MID900001", "2026-02-12"):
-        assert token in board, f"demo break {token} not found in the recon proof board"
+    mid, _, gross = _orphan_bank_line()
+    variance = f"-{Decimal(gross):,}"                       # the bank paid for a capture that never happened
+    for token in (mid, variance, "MID900001", "2026-02-12"):
+        assert token in board, (
+            f"demo break {token} not found in {ART / 'html' / '02_halala_recon_board.html'}; "
+            "re-run scripts/build_artifacts.py after regenerating the data")
 
 
 def tiers(con) -> dict:
-    loc = (LAKE / "LH_MIZAN" / "meta" / "column_classification").as_posix()
-    con.execute("INSTALL delta; LOAD delta")
-    cols = dict(_q(con, "SELECT classification, COUNT(*) FROM delta_scan(?) GROUP BY 1 ORDER BY 1", loc))
-    tabs = dict(_q(con, """SELECT table_classification, COUNT(*) FROM (SELECT DISTINCT schema_name, table_name,
-                         table_classification FROM delta_scan(?)) GROUP BY 1 ORDER BY 1""", loc))
-    (pii, over, ntab), = _q(con, """SELECT COUNT(*) FILTER (WHERE is_personal_data), COUNT(*) FILTER (WHERE
+    cc = delta_rel(LAKE / "LH_MIZAN" / "meta" / "column_classification")
+    cols = dict(_q(con, f"SELECT classification, COUNT(*) FROM {cc} GROUP BY 1 ORDER BY 1"))
+    tabs = dict(_q(con, f"""SELECT table_classification, COUNT(*) FROM (SELECT DISTINCT schema_name, table_name,
+                         table_classification FROM {cc}) GROUP BY 1 ORDER BY 1"""))
+    (pii, over, ntab), = _q(con, f"""SELECT COUNT(*) FILTER (WHERE is_personal_data), COUNT(*) FILTER (WHERE
                                  is_over_classified), COUNT(DISTINCT schema_name || '.' || table_name)
-                                 FROM delta_scan(?)""", loc)
-    holds = dict(_q(con, "SELECT legal_hold_class, COUNT(*) FROM delta_scan(?) GROUP BY 1 ORDER BY 1", loc))
-    by_schema = dict(_q(con, """SELECT schema_name, COUNT(DISTINCT table_name) FROM delta_scan(?) GROUP BY 1
-                              ORDER BY 1""", loc))
+                                 FROM {cc}""")
+    holds = dict(_q(con, f"SELECT legal_hold_class, COUNT(*) FROM {cc} GROUP BY 1 ORDER BY 1"))
+    by_schema = dict(_q(con, f"""SELECT schema_name, COUNT(DISTINCT table_name) FROM {cc} GROUP BY 1
+                              ORDER BY 1"""))
     return {"columns": cols, "tables": tabs, "personal_columns": pii, "over_classified": over,
             "table_count": ntab, "column_count": sum(cols.values()), "legal_hold": holds, "tables_by_schema": by_schema}
 
@@ -325,12 +346,11 @@ def truth_section(con) -> dict:
                                                   WHERE {NOT_ASSESSED} ORDER BY 1, 2""")]
     (top_mid, top_sar, all_sar), = _q(con, f"""SELECT merchant_id, g, SUM(g) OVER () FROM (SELECT merchant_id,
         SUM(gross_captures_sar) g FROM {R} GROUP BY 1) ORDER BY g DESC LIMIT 1""")
-    con.execute("INSTALL delta; LOAD delta")
-    pl = (LAKE / "LH_MIZAN" / "slv" / "payment_lifecycle").as_posix()
+    pl = delta_rel(LAKE / "LH_MIZAN" / "slv" / "payment_lifecycle")
     # card-paid = an accepted INVOICE with a card CAPTURE in Silver, directly or through the rejected original it
     # corrects (the capture keeps the original UUID); the rest of the invoices were paid in cash
     (card, cash, cn, rej, acc), = _q(con, f"""
-        WITH cap AS (SELECT DISTINCT invoice_uuid FROM delta_scan(?) WHERE event_type = 'CAPTURE')
+        WITH cap AS (SELECT DISTINCT invoice_uuid FROM {pl} WHERE event_type = 'CAPTURE')
         SELECT SUM(total_incl_vat_sar) FILTER (WHERE document_type = 'INVOICE' AND state <> 'CONFIRMED_REJECTION'
                                                 AND (invoice_uuid IN (SELECT invoice_uuid FROM cap)
                                                      OR corrects_invoice_uuid IN (SELECT invoice_uuid FROM cap))),
@@ -341,12 +361,12 @@ def truth_section(con) -> dict:
                SUM(total_incl_vat_sar) FILTER (WHERE document_type = 'CREDIT_NOTE' AND state <> 'CONFIRMED_REJECTION'),
                COALESCE(SUM(total_incl_vat_sar) FILTER (WHERE state = 'CONFIRMED_REJECTION'), 0),
                SUM(total_incl_vat_sar) FILTER (WHERE state <> 'CONFIRMED_REJECTION')
-        FROM {Z}""", pl)
+        FROM {Z}""")
     assert card + cash + cn == acc
     (gross,), = _q(con, f"SELECT SUM(gross_captures_sar) FROM {R}")
     assert card == gross, f"card-paid invoices {card} != gross captures {gross}"
     egs_map = {e: sorted(m) for e, m in _q(con, f"""SELECT z.egs_id, LIST(DISTINCT p.merchant_id) FROM {Z} z
-        JOIN delta_scan(?) p ON p.invoice_uuid = z.invoice_uuid GROUP BY 1 ORDER BY 1""", pl)}
+        JOIN {pl} p ON p.invoice_uuid = z.invoice_uuid GROUP BY 1 ORDER BY 1""")}
     return {"assessed_mid_days": assessed, "not_assessed_mid_days": not_assessed,
             "not_assessed_dates": na_days, "not_assessed_cells": na_cells,
             "not_assessed_expected_net": money(na_net),
@@ -380,6 +400,21 @@ def runs_section() -> dict:
     return {"published": pub, "candidate": cand, "git_sha": git_sha()[:12]}
 
 
+def agent_runs_section() -> dict:
+    """Real Ask MIZAN agent answers, recorded and number-verified while the Azure credit was live.
+
+    The app replays these when the agent is unreachable (credit expired, offline snapshot), so the
+    assistant still shows genuine model answers instead of only the guided fallback. Recorded by
+    scripts/record_agent_runs.cjs; every number was checked against its tool result at record time.
+    """
+    src = OUT / "agent_runs.json"
+    if not src.exists():
+        return {"runs": []}
+    rec = json.loads(src.read_text(encoding="utf-8"))
+    assert isinstance(rec.get("runs"), list), "agent_runs.json must hold a runs list"
+    return rec
+
+
 def build_data() -> dict:
     import duckdb
     _check_demo_breaks()
@@ -406,6 +441,7 @@ def build_data() -> dict:
                                                     .parameters["mega_share"].default),
                           "source": "src/mizan/spark/skew.py skewed_facts(mega_share)"}
     data["runs"] = runs_section()
+    data["agent_runs"] = agent_runs_section()
     prof = REPO / "config" / "profile.json"
     data["profile"] = json.loads(prof.read_text(encoding="utf-8")) if prof.exists() else {}
     data["fabric"] = json.loads((ART / "10_fabric_run_evidence.json").read_text(encoding="utf-8"))

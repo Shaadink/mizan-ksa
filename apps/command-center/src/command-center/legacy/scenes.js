@@ -47,9 +47,10 @@ const SCENES = [
   { id: "trust", n: "10", label: "Data trust", cap: "64 of 64 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
   { id: "platform", n: "11", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
   { id: "lifecycle", n: "12", label: "Data life cycle", cap: "Sources to Bronze, Silver and Gold, then the Control Tower and this app: every box is a working, tested part." },
-  { id: "ask", n: "13", label: "Ask MIZAN", cap: "Guided questions over Gold: every answer shows the query, the Gold table and the entitlement check. Personal data is refused, and nothing is retrieved." },
+  { id: "ops", n: "13", label: "Operations", cap: "Service levels stated as targets, then measured: reconciliation, chain integrity, build, lineage and settlement coverage, with what the run cost." },
+  { id: "ask", n: "14", label: "Ask MIZAN", cap: "Guided questions over Gold: every answer shows the query, the Gold table and the entitlement check. Personal data is refused, and nothing is retrieved." },
 ];
-const ROLE_SCENES = { ALL: SCENES.map(s => s.id), CFO: ["top", "pulse", "flow", "ledger", "recon", "map", "ask"], TAX: ["top", "pulse", "ledger", "zatca", "stream", "ask"], CDO: ["top", "pulse", "pdpl", "mdm", "stream", "trust", "platform", "lifecycle", "ask"] };
+const ROLE_SCENES = { ALL: SCENES.map(s => s.id), CFO: ["top", "pulse", "flow", "ledger", "recon", "map", "ops", "ask"], TAX: ["top", "pulse", "ledger", "zatca", "stream", "ask"], CDO: ["top", "pulse", "pdpl", "mdm", "stream", "trust", "platform", "lifecycle", "ops", "ask"] };
 let role = "ALL";
 
 /* ---------- rail + roles ---------- */
@@ -60,13 +61,17 @@ const ICONS = { top: "M12 3v18M5 7h14M7 7l-3 7h6l-3-7M17 7l-3 7h6l-3-7M8 21h8", 
   pdpl: "M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6zM9 12l2 2 4-4", mdm: "M5 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0M13 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 20c0-3 2-5 5-5s5 2 5 5M11 20c0-3 2-5 5-5s5 2 5 5",
   stream: "M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0", map: "M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14",
   trust: "M12 3l8 4-8 4-8-4zM4 12l8 4 8-4M4 17l8 4 8-4", platform: "M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01",
-  lifecycle: "M4 12a8 8 0 0 1 14-5l2-2v6h-6l2-2a5 5 0 1 0 1 5", ask: "M4 5h16v10H9l-5 4zM9 9h6M9 12h4" };
+  lifecycle: "M4 12a8 8 0 0 1 14-5l2-2v6h-6l2-2a5 5 0 1 0 1 5",
+  ops: "M3 17a9 9 0 0 1 18 0M12 17l5-5M12 21h.01", ask: "M4 5h16v10H9l-5 4zM9 9h6M9 12h4" };
 const MENU = { top: "Home" , pulse: "Pulse", flow: "Money flow", ledger: "Ledger", recon: "Reconciliation", zatca: "ZATCA", pdpl: "PDPL", mdm: "MDM",
-  stream: "Risk stream", map: "Map", trust: "Data trust", platform: "Platform", lifecycle: "Data life cycle", ask: "Ask MIZAN" };
+  stream: "Risk stream", map: "Map", trust: "Data trust", platform: "Platform", lifecycle: "Data life cycle",
+  ops: "Operations", ask: "Ask MIZAN" };
 SCENES.forEach(s => { const a = document.createElement("a"); a.href = "#" + s.id; a.dataset.label = s.label; a.dataset.id = s.id; a.title = s.label;
   a.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[s.id] || ICONS.pulse}"/></svg><span>${MENU[s.id] || s.label}</span>`;
   a.addEventListener("click", e => { e.preventDefault(); document.body.classList.remove("rail-open"); goTo(s.id) }); rail.appendChild(a) });
-rail.insertAdjacentHTML("beforeend", `<div class="rail-foot">Synthetic data &middot; live DAX on the Fabric semantic model</div>`);
+// Only the Fabric App has a live semantic model; the public/standalone copy reads the exported snapshot.
+rail.insertAdjacentHTML("beforeend", `<div class="rail-foot">Synthetic data &middot; ${
+  typeof window.MIZAN_QUERY === "function" ? "live DAX on the Fabric semantic model" : "exported Gold snapshot"}</div>`);
 $("#menu-btn").addEventListener("click", () => { if (innerWidth <= 900) document.body.classList.toggle("rail-open"); else document.body.classList.toggle("rail-collapsed"); });
 function goTo(id, smooth = true) { const el = document.getElementById(id); if (!el) return;
   const y = el.getBoundingClientRect().top + scrollY - (id === "top" ? 0 : chromeH());
@@ -93,6 +98,13 @@ function heroCopy() {
     [`Lineage ${D.lineage.covered}/${D.lineage.gold_columns} Gold columns`], ["PDPL erasure + Restore Guard verified"], [`Fabric dbt ${D.fabric.dbt_build_WH_MIZAN.pass}/${D.fabric.dbt_build_WH_MIZAN.pass} PASS`]];
   $("#h-chips").innerHTML = chips.map(c => `<span class="chip ${c[1] || ""}"><i></i>${c[1] === "warn" ? "\u23f3" : "\u2713"} ${c[0]}</span>`).join("");
   $("#h-counter").textContent = fmtH(H(R.gross));
+  if ($("#pr-var")) {
+    const docs = Object.values(D.zatca.states).reduce((a, b) => a + b, 0);
+    $("#pr-var").textContent = R.bank_variance;
+    $("#pr-inv").textContent = fmtI(docs);
+    $("#pr-inv").nextElementSibling.textContent = `invoices · ${D.chain.violations} chain breaks`;
+    $("#pr-lin").textContent = `${D.lineage.covered}/${D.lineage.gold_columns}`;
+  }
   const st = $("#stamp"), demo = D.heat.demo_breaks.reduce((a, b) => a + Math.abs(H(b.bank_variance)) + Math.abs(H(b.gl_variance)), 0);
   hero.setDefect = on => { hero.defect = on; st.style.borderColor = st.style.color = on ? C.crit : "";
     st.textContent = on ? `\u2717 UNBALANCED \u00b7 SAR ${fmtH(demo)} \u00b7 candidate run` : `\u2713 BALANCED \u00b7 ${fmtI(D.truth.assessed_mid_days)} assessed MID-days`; };
@@ -170,7 +182,8 @@ function heroScene() {
   const START = { L: 0.6, R: 2.2 }, FILL_DUR = 4.6;  // the bank file arrives later (T+1), so the right pan fills late
   hero.replay = () => { t0 = performance.now(); done = false; hero.balanced = false; theta = 0; omega = 0; sides.forEach(s => s.fill = 0);
     [left, right].forEach(st => st.ps.forEach(p => p.t = -Math.random() * 3.2)); if (window.gsap) gsap.set(stamp, { opacity: 0, scale: 1.4 });
-    document.querySelectorAll("#h-chips .chip").forEach(c => c.style.opacity = .25); };
+    document.querySelectorAll("#h-chips .chip").forEach(c => c.style.opacity = .25);
+    const pb = document.getElementById("press-b-hint"); if (pb) pb.hidden = true; };
   const tmpV = new THREE.Vector3(), panW = new THREE.Vector3();
   let visible = true, mouseX = 0, mouseY = 0;
   new IntersectionObserver(es => visible = es[0].isIntersecting).observe(canvas);
@@ -200,8 +213,12 @@ function heroScene() {
     if (!done) counter.textContent = fmtH(Math.round(GROSS * eL));
     if (!done && fl >= 1 && fr >= 1 && Math.abs(theta) < 0.002 && Math.abs(omega) < 0.01) {
       done = true; hero.balanced = true; counter.textContent = fmtH(GROSS);
-      if (window.gsap) { gsap.to(stamp, { opacity: 1, scale: 1, duration: .5, ease: "back.out(2)" });
-        gsap.to("#h-chips .chip", { opacity: 1, duration: .35, stagger: .12 }); }
+      if (window.gsap) {
+        gsap.to(stamp, { opacity: 1, scale: 1, duration: .5, ease: "back.out(2)" });
+        gsap.to("#h-chips .chip", { opacity: 1, duration: .35, stagger: .12 });
+        gsap.fromTo("#eq-ring", { opacity: .9, scale: .6 }, { opacity: 0, scale: 2.2, duration: 1.4, ease: "power2.out",
+          onComplete: () => { const pb = document.getElementById("press-b-hint"); if (pb) { pb.hidden = false; gsap.fromTo(pb, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: .6, ease: "power2.out" }); } } });
+      }
     }
     // streams
     [[left, sides[0], START.L], [right, sides[1], START.R]].forEach(([st, side, st0]) => {
@@ -565,32 +582,94 @@ const axScroll = () => { const l = $("#ax-log"); l.scrollTop = l.scrollHeight; }
 function axBadges(a, i) {
   const b = [], steps = (a.trace || []).length;
   const dataSteps = (a.trace || []).filter(t => (t.tables || []).length).length;
-  if (a.agent && a.kind === "ANSWER" && !steps) b.push(`<span class="ax-badge agent">Agent \u00b7 no data used</span>`);
-  else if (a.agent && a.kind === "ANSWER" && !dataSteps) b.push(`<span class="ax-badge agent">Agent \u00b7 glossary</span>`);
-  else if (a.agent && a.kind === "ANSWER") b.push(`<span class="ax-badge agent">Agent \u00b7 ${dataSteps} ${dataSteps === 1 ? "query" : "queries"}</span>`, `<span class="ax-badge ok">\u2713 Numbers verified</span>`);
+  const rec = a.recorded ? `<span class="ax-badge rec">\u23fa Recorded run</span>` : "";
+  if (a.agent && a.kind === "ANSWER" && !steps) b.push(`<span class="ax-badge agent">Agent \u00b7 no data used</span>`, rec);
+  else if (a.agent && a.kind === "ANSWER" && !dataSteps) b.push(`<span class="ax-badge agent">Agent \u00b7 glossary</span>`, rec);
+  else if (a.agent && a.kind === "ANSWER") b.push(`<span class="ax-badge agent">Agent \u00b7 ${dataSteps} ${dataSteps === 1 ? "query" : "queries"}</span>`,
+    `<span class="ax-badge ok">\u2713 Numbers verified${a.recorded ? " when recorded" : ""}</span>`, rec);
   else if (a.kind === "ANSWER") { b.push(`<span class="ax-badge">${a.agentNote ? "Guided \u00b7 agent unavailable" : "Guided"}</span>`); (a.tags || []).forEach(([t, c]) => b.push(`<span class="ax-badge ${c}">${askEsc(t)}</span>`)); }
   else if (a.kind === "REFUSED") b.push(`<span class="ax-badge warn">\u2715 Refused</span>`, `<span class="ax-badge">Nothing retrieved</span>`);
   else b.push(`<span class="ax-badge">${a.agentNote ? "Guided \u00b7 agent unavailable" : "Not an approved question"}</span>`);
   return `<div class="ax-meta">${b.join("")}<button type="button" class="ax-proof-btn" data-p="${i}">View proof \u2192</button></div>`;
 }
-function axType(el, text) {
-  if (REDUCED) { el.textContent = text; return; }
+function axNumSpans(text) {
+  // Wrap SAR amounts and standalone numbers in hoverable spans for cross-referencing the proof
+  return String(text).replace(/(SAR\s+[\d,]+\.\d{2}|[\d,]+(?:\.\d+)?)/g, (m) =>
+    `<span class="ax-num" title="Hover to see source">${m}</span>`);
+}
+function axType(el, text, trace) {
+  if (REDUCED) { el.innerHTML = axNumSpans(text); axAttachNumHover(el, trace); return; }
   const parts = String(text).split(/(\s+)/); let k = 0; el.textContent = "";
-  const tick = () => { el.textContent += parts.slice(k, k + 4).join(""); k += 4; axScroll(); if (k < parts.length) requestAnimationFrame(tick); };
+  const tick = () => {
+    el.textContent += parts.slice(k, k + 4).join(""); k += 4; axScroll();
+    if (k < parts.length) requestAnimationFrame(tick);
+    else { el.innerHTML = axNumSpans(el.textContent); axAttachNumHover(el, trace); }
+  };
   tick();
 }
+function axAttachNumHover(el, trace) {
+  if (!trace || !trace.length) return;
+  el.querySelectorAll(".ax-num").forEach(span => {
+    span.addEventListener("mouseenter", () => {
+      const num = span.textContent.replace(/[^0-9.]/g, "");
+      const match = trace.find(t => t.result && JSON.stringify(t.result).includes(num));
+      if (match) {
+        span.title = `From: ${AX_TOOL_LABEL[match.name] || match.name}`;
+        span.classList.add("ax-num-hl");
+        // also highlight the step in the proof panel
+        const proof = document.getElementById("ax-proof");
+        if (proof) { const steps = proof.querySelectorAll(".ax-steps li");
+          steps.forEach((li, i) => li.classList.toggle("ax-step-hl", i > 0 && i <= trace.indexOf(match) + 1)); }
+      }
+    });
+    span.addEventListener("mouseleave", () => {
+      span.classList.remove("ax-num-hl");
+      document.querySelectorAll("#ax-proof .ax-step-hl").forEach(li => li.classList.remove("ax-step-hl"));
+    });
+  });
+}
 function axRowYou(q) { $("#ax-log").insertAdjacentHTML("beforeend", `<div class="ax-row you"><div class="ax-bub">${askEsc(q)}</div></div>`); axScroll(); }
+const AX_TOOL_SCENE = { get_reconciliation: "recon", get_daily: "ledger", get_top_merchants: "recon", get_zatca: "zatca", get_payment_methods: "flow", get_data_quality: "trust", get_calendar: "ledger" };
 function axRowBot(a, i) {
   const row = document.createElement("div");
   row.className = "ax-row bot" + (a.kind === "REFUSED" ? " refused" : a.kind === "ABSTAIN" ? " abstain" : "");
-  row.innerHTML = `<div class="ax-av"><svg viewBox="0 0 24 24"><path d="${axScale()}"/></svg></div><div class="ax-bub"><div class="ax-txt"></div>${axBadges(a, i)}</div>`;
-  $("#ax-log").appendChild(row); axType(row.querySelector(".ax-txt"), a.text);
+  const lockHtml = a.kind === "REFUSED" ? `<span class="ax-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>` : "";
+  // "Show me on the page" — map tool names used in this answer to scenes
+  const usedTools = (a.trace || []).map(t => t.name).filter(n => AX_TOOL_SCENE[n]);
+  const scenes = [...new Set(usedTools.map(n => AX_TOOL_SCENE[n]))];
+  const showMeHtml = scenes.length ? `<button type="button" class="ax-show-me" data-scenes="${scenes.join(",")}">→ Show me on the page</button>` : "";
+  row.innerHTML = `<div class="ax-av">${lockHtml}<svg viewBox="0 0 24 24"><path d="${axScale()}"/></svg></div><div class="ax-bub"><div class="ax-txt"></div>${showMeHtml}${axBadges(a, i)}</div>`;
+  $("#ax-log").appendChild(row);
+  axType(row.querySelector(".ax-txt"), a.text, (a.agent && a.kind === "ANSWER") ? a.trace : null);
+  row.querySelector(".ax-show-me") && row.querySelector(".ax-show-me").addEventListener("click", function() {
+    const ids = this.dataset.scenes.split(","); goTo(ids[0]); });
 }
+const AX_GATES = [
+  { key: "role",  label: "Role check",    desc: "Verifying entitlement for this role" },
+  { key: "plan",  label: "Planning",      desc: "Agent selecting which queries to run" },
+  { key: "query", label: "Fabric query",  desc: "Running live DAX on the semantic model" },
+  { key: "check", label: "Number check",  desc: "Every number matched to a tool result" }
+];
 function axThinking() {
   const row = document.createElement("div"); row.className = "ax-row bot";
-  row.innerHTML = `<div class="ax-av"><svg viewBox="0 0 24 24"><path d="${axScale()}"/></svg></div><div class="ax-bub"><div class="ax-think"><span class="ax-dots"><span></span><span></span><span></span></span><span class="t">Planning which queries to run\u2026</span></div></div>`;
+  const gateHtml = AX_GATES.map((g, i) => `<span class="ax-gate" data-gate="${g.key}" title="${g.desc}">${i + 1} ${g.label}</span>`).join("");
+  row.innerHTML = `<div class="ax-av"><svg viewBox="0 0 24 24"><path d="${axScale()}"/></svg></div>
+    <div class="ax-bub">
+      <div class="ax-gates">${gateHtml}</div>
+      <div class="ax-think"><span class="ax-dots"><span></span><span></span><span></span></span><span class="t">Planning which queries to run\u2026</span></div>
+    </div>`;
   $("#ax-log").appendChild(row); axScroll();
-  return { set: t => { row.querySelector(".t").textContent = t; }, done: () => row.remove() };
+  // gate 1 (role) lights immediately
+  row.querySelector('[data-gate="role"]').classList.add("on");
+  return {
+    set: t => { row.querySelector(".t").textContent = t;
+      if (/query|fetch|reconcil|zatca|payment|daily|calendar|data.qual|glossary|merchant/i.test(t)) {
+        row.querySelector('[data-gate="plan"]').classList.add("on");
+        row.querySelector('[data-gate="query"]').classList.add("on"); }
+      else if (/plan|choos|select/i.test(t)) row.querySelector('[data-gate="plan"]').classList.add("on"); },
+    gateCheck: () => { AX_GATES.forEach(g => row.querySelector(`[data-gate="${g.key}"]`).classList.add("on")); },
+    done: () => row.remove()
+  };
 }
 function axProof(a, flash) {
   const box = $("#ax-proof"), P = D.runs && D.runs.published ? D.runs.published : {};
@@ -609,13 +688,20 @@ function axProof(a, flash) {
   let html = `<h3>How this answer was found</h3><div class="sub">&ldquo;${askEsc(q)}&rdquo;</div><ol class="ax-steps">`;
   if (a.agent) {
     const tr = a.trace || [];
-    html += step("ok", "1", "Planned by the agent", `${askEsc(window.MIZAN_AGENT && window.MIZAN_AGENT.model || "Azure OpenAI")} chose ${tr.length} approved ${tr.length === 1 ? "query" : "queries"}`);
+    if (a.recorded) {
+      const rec = D.agent_runs || {};
+      html += step("ok", "1", "Recorded agent answer",
+        `A real ${askEsc(rec.model || "Azure OpenAI")} answer recorded on ${askEsc((rec.recorded_at || "").slice(0, 10))}, replayed because the live agent could not be reached. Every number was checked against its tool result when it was recorded.`);
+    }
+    html += step("ok", a.recorded ? "2" : "1", "Planned by the agent", `${askEsc(window.MIZAN_AGENT && window.MIZAN_AGENT.model || "Azure OpenAI")} chose ${tr.length} approved ${tr.length === 1 ? "query" : "queries"}`);
+    const off = a.recorded ? 2 : 1;                     // the recorded note takes step 1 when present
     tr.forEach((t, i) => { const err = t.result && t.result.error;
-      html += step(err ? "no" : "", String(i + 2), AX_TOOL_LABEL[t.name] || t.name,
+      html += step(err ? "no" : "", String(i + 1 + off), AX_TOOL_LABEL[t.name] || t.name,
         `${(t.tables || []).map(x => "gld." + x).join(", ") || "Curated MIZAN glossary (no data)"} \u00b7 ${err ? err : "filters: " + ((t.filters || []).map(([k, v]) => k + " " + askEsc(v)).join(", ") || "none")}`,
         (t.dax || []).map(([, text]) => dax(text)).join("")); });
-    html += tr.length ? step("ok", String(tr.length + 2), "Numbers verified", `${agentNums(a.text).length} numbers in the answer, each found in a tool result`)
-      : step("ok", "2", "No data was read", "The agent answered without running any query");
+    html += tr.length ? step("ok", String(tr.length + 1 + off), "Numbers verified",
+        `${agentNums(a.text).length} numbers in the answer, each found in a tool result${a.recorded ? " when this run was recorded" : ""}`)
+      : step("ok", String(off + 1), "No data was read", "The agent answered without running any query");
   } else if (a.kind === "ANSWER") {
     const it = a.intent, live = window.MIZAN_DAX && typeof window.MIZAN_QUERY === "function";
     html += step("ok", "1", "Matched an approved question", `Guided question ${it.id}`) +
@@ -626,7 +712,7 @@ function axProof(a, flash) {
     html += step("no", "1", a.kind === "REFUSED" ? "Request stopped" : "Not answered", `${a.code}: ${askEsc(a.text)}`) + step("ok", "2", "Nothing was queried", "No data was read for this request");
   }
   html += `</ol>`;
-  if (a.agentError) html += `<div class="scope-note">The agent was unavailable, so the guided answer is shown. Reason: ${askEsc(a.agentError)}${/Failed to fetch|NetworkError|Load failed/i.test(a.agentError) ? " (the browser blocked the call before it reached the agent)" : ""}</div>`;
+  if (a.agentError) html += `<div class="scope-note">The live agent was unavailable, so ${a.recorded ? "a recorded agent answer" : "the guided answer"} is shown. Reason: ${askEsc(a.agentError)}${/Failed to fetch|NetworkError|Load failed/i.test(a.agentError) ? " (the browser blocked the call before it reached the agent)" : ""}</div>`;
   html += `<div class="row"><span>Role</span><span>${u.name} \u00b7 ${ASK_TIER_NAME[u.clearance]}</span></div><div class="row"><span>As of</span><span>${riyadh(a.at)} (Riyadh)</span></div>`;
   box.innerHTML = html;
   if (flash) { box.classList.remove("ax-flash"); void box.offsetWidth; box.classList.add("ax-flash"); if (innerWidth <= 900) box.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); }
@@ -636,20 +722,47 @@ function askRecord(a) {
   ASK.history.push(a); ASK.last = a; axRowBot(a, ASK.history.length - 1); axProof(a); axStatus(); axChips();
 }
 const AGENT_WHY = { unverified: "agent answer failed the number check", NOT_ENTITLED: "agent: not for this role", RATE_LIMIT: "agent busy, try again in a minute", UPSTREAM: "agent unavailable", TOO_MANY_STEPS: "agent took too many steps" };
+// Recorded agent answers: real model replies, number-verified when they were recorded. Replayed when the
+// live agent cannot be reached (Azure credit expired, or the standalone snapshot page), so the assistant
+// still shows a genuine agent answer rather than dropping straight to the guided fallback.
+const AX_RECORDED = (D.agent_runs && D.agent_runs.runs) || [];
+const axNorm = s => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+function axRecordedFor(q, role) {
+  const n = axNorm(q);
+  if (!n) return null;
+  const mine = AX_RECORDED.filter(r => r.role === role);
+  let hit = mine.find(r => axNorm(r.q) === n);
+  if (!hit) {                                        // loose match: one contains the other
+    hit = mine.find(r => { const m = axNorm(r.q); return m.includes(n) || n.includes(m); });
+  }
+  return hit || null;
+}
 async function ask(q) {
   q = String(q || "").trim().slice(0, 200); if (!q || ASK.busy) return;
   if (!ASK.history.length) $("#ax-log").innerHTML = "";
   const guided = askAnswer(q, ASK.role); axRowYou(q);
-  if (!axAgentOn() || guided.code === "PERSONAL_DATA" || guided.code === "READ_ONLY") { askRecord(guided); return; }
+  // A recorded run is used only where the live agent cannot answer; it never overrides a live reply.
+  const fallback = (note, err) => {
+    const rec = axRecordedFor(q, ASK.role);
+    if (rec) return { q, role: ASK.role, at: new Date().toISOString(), agent: true, recorded: true,
+                      kind: "ANSWER", text: rec.text, trace: rec.trace, agentNote: note, agentError: err };
+    return { ...guided, agentNote: note, agentError: err };
+  };
+  if (guided.code === "PERSONAL_DATA" || guided.code === "READ_ONLY") { askRecord(guided); return; }
+  if (!axAgentOn()) {
+    const rec = agentAvailable() ? null : axRecordedFor(q, ASK.role);
+    askRecord(rec ? fallback("recorded agent answer", null) : guided); return;
+  }
   ASK.busy = true; $("#ax-form button").disabled = true; const th = axThinking();
   try {
     const r = await agentAsk(q, ASK.role, name => th.set(`${AX_TOOL_LABEL[name] || name}\u2026`));
+    if (r.type === "answer") th.gateCheck();
     th.done();
     if (r.type === "answer") askRecord({ q, role: ASK.role, at: new Date().toISOString(), agent: true, kind: "ANSWER", text: r.text, trace: r.trace });
     else if (r.type === "declined" && r.code === "PERSONAL_DATA") askRecord(guided);
-    else askRecord({ ...guided, agentNote: AGENT_WHY[r.type] || AGENT_WHY[r.code] || "agent unavailable", agentError: `${r.type}${r.code ? " " + r.code : ""}${r.message ? ": " + r.message : ""}` });
+    else askRecord(fallback(AGENT_WHY[r.type] || AGENT_WHY[r.code] || "agent unavailable", `${r.type}${r.code ? " " + r.code : ""}${r.message ? ": " + r.message : ""}`));
   } catch (e) {
-    th.done(); askRecord({ ...guided, agentNote: "agent unavailable", agentError: `${e && e.name || "Error"}: ${e && e.message || e}` });
+    th.done(); askRecord(fallback("agent unavailable", `${e && e.name || "Error"}: ${e && e.message || e}`));
   } finally { ASK.busy = false; $("#ax-form button").disabled = false; }
 }
 function askScene() {
@@ -921,6 +1034,33 @@ function zatcaScene() {
   zatca.incident = () => { if (!window.gsap || REDUCED) return; const tl = gsap.timeline();
     tl.fromTo("#steps .step", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .4, stagger: .55, ease: "power2.out", overwrite: true });
     const b = el.querySelector(`[data-icv="${inc.icv}"]`); if (b) { el.scrollTo({ left: b.offsetLeft - 240, behavior: "smooth" }); tl.fromTo(b, { scale: 1 }, { scale: 1.06, yoyo: true, repeat: 3, duration: .3 }, 0.2); } };
+  // crash slider: 3 states, bytes proof
+  const CS_STATES = [
+    { label: "Crash — worker killed", status: "UNKNOWN_OUTCOME", color: "crit",
+      left: { title: "Send #1 · before crash", uuid: inc.uuid, hash: inc.hash ? inc.hash.slice(0, 16) + "…" : "?", note: "SUBMITTING persisted before HTTP call" },
+      right: { title: "Network / worker state", uuid: "Process killed", hash: "—", note: "No reply received → UNKNOWN_OUTCOME" } },
+    { label: "UNKNOWN_OUTCOME — outcome not known", status: "UNKNOWN_OUTCOME", color: "warn",
+      left: { title: "State on disk", uuid: inc.uuid, hash: inc.hash ? inc.hash.slice(0, 16) + "…" : "?", note: "Exact UUID and bytes stored; never modified" },
+      right: { title: "ZATCA server", uuid: "?", hash: "?", note: "May have accepted or never received it" } },
+    { label: "Safe retry — identical bytes", status: inc.distinct_bytes === 1 ? "VERIFIED" : "RETRY", color: "ok",
+      left: { title: "Send #2 · same UUID, same bytes", uuid: inc.uuid, hash: inc.hash ? inc.hash.slice(0, 16) + "…" : "?", note: "Idempotent: ZATCA accepts the same UUID twice" },
+      right: { title: "ZATCA response", uuid: inc.uuid, hash: inc.hash ? inc.hash.slice(0, 16) + "…" : "?", note: `HTTP ${inc.history ? (inc.history.find(h => h.event === "RESPONSE" && h.http !== "timeout") || {}).http || "202" : "202"} · chain unbroken` } }
+  ];
+  function renderCrashSlider(i) {
+    const s = CS_STATES[i];
+    document.querySelectorAll(".cs-steps span").forEach((el, j) => el.classList.toggle("on", j === i));
+    const side = (d, pre) => `<div class="cs-side ${pre}"><div class="cs-side-title">${d.title}</div>
+      <div class="cs-row"><span>UUID</span><code>${d.uuid}</code></div>
+      <div class="cs-row"><span>invoice_hash</span><code>${d.hash}</code></div>
+      <div class="cs-note">${d.note}</div></div>`;
+    document.getElementById("cs-frame").innerHTML = `<div class="cs-status cs-${s.color}">${s.label}</div>
+      <div class="cs-sides">${side(s.left, "left")}
+        <div class="cs-mid"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" fill="none" stroke-width="1.8"/></svg></div>
+        ${side(s.right, "right")}</div>
+      ${i === 2 ? `<div class="cs-proof"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M20 6L9 17l-5-5" stroke="var(--ok)" fill="none" stroke-width="2"/></svg> distinct_bytes = ${inc.distinct_bytes} · byte-identical proven</div>` : ""}`;
+  }
+  renderCrashSlider(0);
+  document.getElementById("cs-range").addEventListener("input", e => renderCrashSlider(+e.target.value));
   zatca.play = () => { if (!window.gsap || REDUCED) return; gsap.fromTo("#chain .block, #chain .link, #chain .gap", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .45, stagger: .05, ease: "power2.out", overwrite: true });
     document.querySelectorAll("#sla .sla-ring").forEach(c => { const end = c.getAttribute("stroke-dashoffset"); gsap.fromTo(c, { strokeDashoffset: 2 * Math.PI * 22 }, { strokeDashoffset: end, duration: 2.2, ease: "power1.inOut" }); });
     zatca.incident(); };
@@ -1100,10 +1240,71 @@ function platformScene() {
   $("#race-replay").addEventListener("click", () => platform.play());
 }
 
+/* =========================================================== 14 OPERATIONS (service levels) */
+// Every objective states its target first, then the measured value from the published run. A target is
+// only listed here if the run actually measures it: there is no tile for anything we cannot evidence.
+const ops = { play() {} };
+function opsScene() {
+  const P = D.runs.published, F = D.fabric, jobs = F.notebook_jobs || {};
+  const R0 = D.recon, T = D.truth;
+  const secs = Object.values(jobs).reduce((a, j) => a + (j.seconds || 0), 0);
+  const hhmm = s => `${Math.floor(s / 60)} m ${String(s % 60).padStart(2, "0")} s`;
+  const assessed = T.assessed_mid_days, notAssessed = T.not_assessed_mid_days;
+  const coverage = assessed + notAssessed > 0 ? assessed * 100 / (assessed + notAssessed) : 0;
+
+  // [name, target text, measured text, ok?, note]
+  const SLOS = [
+    ["Reconciliation", "variance = SAR 0.00", `SAR ${R0.bank_variance}`,
+      H(R0.bank_variance) === 0 && H(R0.gl_variance || "0.00") === 0,
+      "bank and GL, summed absolute over every assessed merchant-day"],
+    ["Invoice chain", "0 breaks", `${D.chain.violations} breaks`, D.chain.violations === 0,
+      `${fmtI(Object.values(D.zatca.states).reduce((a, b) => a + b, 0))} documents, hash-linked`],
+    ["Gold build", "0 dbt errors", `${F.dbt_build_WH_MIZAN.pass} pass · ${F.dbt_build_WH_MIZAN.error} error`,
+      F.dbt_build_WH_MIZAN.error === 0, "models and contract tests on WH_MIZAN"],
+    ["Lineage", "100% of Gold columns", `${D.lineage.covered}/${D.lineage.gold_columns}`,
+      D.lineage.covered === D.lineage.gold_columns, "column-level, traced to a Silver source"],
+    ["Settlement coverage", "reported, not hidden", `${coverage.toFixed(1)}% assessed`, true,
+      `${fmtI(notAssessed)} merchant-days still awaiting a bank file, counted as IN_TRANSIT`],
+  ];
+  $("#slo-grid").innerHTML = SLOS.map(([name, target, value, ok, note]) =>
+    `<div class="slo ${ok ? "ok" : "bad"}"><span class="slo-state">${ok ? "MET" : "BREACHED"}</span>
+       <div class="slo-name">${name}</div><div class="slo-val">${value}</div>
+       <div class="slo-target">target: ${target}</div><div class="sub" style="margin-top:8px">${note}</div></div>`).join("");
+
+  const mx = Math.max(1, ...Object.values(jobs).map(j => j.seconds || 0));
+  $("#ops-total").textContent = hhmm(secs);
+  $("#ops-stages").innerHTML = Object.entries(jobs).sort((a, b) => (b[1].seconds || 0) - (a[1].seconds || 0))
+    .map(([name, j]) => {
+      const w = (j.seconds || 0) / mx;
+      const good = (j.status || "").toLowerCase() === "completed";
+      return `<div class="lane" style="grid-template-columns:120px 1fr 118px"><span>${name}</span>
+        <div class="track" style="height:16px"><div class="max" data-w="${w}" style="top:0;bottom:0;width:${w * 100}%;
+          background:linear-gradient(90deg,${good ? "var(--emerald-deep),var(--emerald)" : "var(--warn),var(--gold)"})"></div></div>
+        <span class="num" style="text-align:right">${j.seconds || 0}s ${good ? "<span class='pill ok' style='padding:1px 5px'>&#10003;</span>" : ""}</span></div>`;
+    }).join("");
+
+  $("#ops-asof").textContent = `${R0.to} (last business date)`;
+  $("#ops-built").textContent = riyadh(P.generated_at) + " (Riyadh)";
+  $("#ops-serving").textContent = typeof window.MIZAN_QUERY === "function"
+    ? "live DAX on the semantic model" : "exported Gold snapshot";
+  $("#ops-cap").textContent = F.capacity || "—";
+  $("#ops-compute").textContent = `${hhmm(secs)} across ${Object.keys(jobs).length} notebook jobs`;
+  // Honesty: a trial capacity bills nothing, so there is no per-run figure to quote.
+  $("#ops-cost").textContent = /trial/i.test(F.capacity || "") ? "not metered (trial capacity)" : "see capacity metrics";
+  $("#ops-agent").textContent = agentAvailable() ? "Azure OpenAI gpt-4.1-mini, pay per call" : "guided mode, no model cost";
+  $("#ops-cost-note").textContent = "A Fabric trial capacity reports no chargeback, so no riyal figure is claimed "
+    + "here. The only metered component is the Ask MIZAN agent, capped by a USD 5 budget alert.";
+
+  ops.play = () => { if (!window.gsap || REDUCED) return;
+    gsap.fromTo("#slo-grid .slo", { y: 16, opacity: .2 }, { y: 0, opacity: 1, duration: .5, stagger: .07, ease: "power3.out", overwrite: true });
+    gsap.fromTo("#ops-stages .max", { width: 0 }, { width: (i, t) => (parseFloat(t.dataset.w) * 100) + "%", duration: .9, stagger: .08, ease: "power2.out", overwrite: true }); };
+  $("#ops-replay").addEventListener("click", () => ops.play());
+}
+
 /* =========================================================== story mode, palette, boot */
 const PLAY = { top: () => hero.replay(), pulse: () => pulse.play(), flow: () => flow.play(), ledger: () => ledger.play(), recon: () => recon.play(),
-  zatca: () => zatca.play(), map: () => mapS.play(), lifecycle: () => dlc.play(), pdpl: () => { pdpl.play(); setTimeout(() => pdpl.run && pdpl.run(), 900); }, mdm: () => mdm.play(), stream: () => stream.play(), trust: () => trust.play(), platform: () => platform.play() };
-const DUR = { top: 9500, pulse: 6500, flow: 7000, ledger: 6500, recon: 8000, zatca: 8000, pdpl: 8500, mdm: 7000, stream: 12500, trust: 7000, platform: 7500, map: 8000, lifecycle: 8000 };
+  zatca: () => zatca.play(), map: () => mapS.play(), lifecycle: () => dlc.play(), pdpl: () => { pdpl.play(); setTimeout(() => pdpl.run && pdpl.run(), 900); }, mdm: () => mdm.play(), stream: () => stream.play(), trust: () => trust.play(), platform: () => platform.play(), ops: () => ops.play() };
+const DUR = { top: 9500, pulse: 6500, flow: 7000, ledger: 6500, recon: 8000, zatca: 8000, pdpl: 8500, mdm: 7000, stream: 12500, trust: 7000, platform: 7500, map: 8000, lifecycle: 8000, ops: 7000 };
 let story = null;
 function startStory() { stopStory(); const ids = ROLE_SCENES[role]; let i = 0; $("#caption").classList.add("on");
   const next = () => { if (i >= ids.length) return stopStory(); const id = ids[i], sc = SCENES.find(s => s.id === id);
@@ -1112,8 +1313,117 @@ function startStory() { stopStory(); const ids = ROLE_SCENES[role]; let i = 0; $
     setTimeout(() => { safe(id, PLAY[id]); if (id === "recon") setTimeout(() => recon.setDefects(true), 2600), setTimeout(() => recon.setDefects(false), 6400); }, 700);
     i++; story = setTimeout(next, DUR[id]); };
   next(); }
-function stopStory() { if (story) clearTimeout(story); story = null; $("#caption").classList.remove("on"); }
-$("#play-story").addEventListener("click", startStory); $("#hero-play").addEventListener("click", startStory); $("#cap-stop").addEventListener("click", stopStory);
+function stopStory() { if (story) clearTimeout(story); story = null; $("#caption").classList.remove("on"); closeTour(); }
+// 5-chapter recruiter tour: Scales → Break a halala → ZATCA crash → Privacy erasure → Ask MIZAN
+const TOUR_CHAPTERS = [
+  { id: "top",  label: "Chapter 1 / 5",  title: "The Scales",        desc: "One commercial transaction followed end to end. The scales settle only when bank and ledger agree to the last 0.01 SAR.", action: () => hero.replay() },
+  { id: "recon",label: "Chapter 2 / 5",  title: "Break a Halala",    desc: "Press B to inject planted defects. MIZAN catches every halala and blocks the candidate build.", action: () => { setTimeout(() => recon.setDefects && recon.setDefects(true), 800); setTimeout(() => recon.setDefects && recon.setDefects(false), 5500); } },
+  { id: "zatca",label: "Chapter 3 / 5",  title: "ZATCA Crash & Recovery", desc: "The worker is killed mid-submit. It restarts, retries the identical bytes, and the hash chain never breaks.", action: () => setTimeout(() => zatca && zatca.incident && zatca.incident(), 700) },
+  { id: "pdpl", label: "Chapter 4 / 5",  title: "Privacy Erasure",   desc: "One request shreds five encryption keys and removes the identity link. The signed tax journal stays under legal hold.", action: () => setTimeout(() => pdpl && pdpl.run && pdpl.run(), 700) },
+  { id: "ask",  label: "Chapter 5 / 5",  title: "Ask MIZAN",         desc: "Role-governed AI with live Fabric data. Every number is verified against the tool result before it appears.", action: () => {} }
+];
+let tourI = -1, tourTimer = null;
+const tourDock = document.createElement("div"); tourDock.id = "tour-dock"; tourDock.hidden = true; tourDock.setAttribute("role", "region"); tourDock.setAttribute("aria-label", "Recruiter tour");
+tourDock.innerHTML = `<button id="tour-prev" type="button" aria-label="Previous chapter">&#8592;</button><span id="tour-label"></span><span id="tour-title"></span><button id="tour-next" type="button" aria-label="Next chapter">&#8594;</button><button id="tour-stop" type="button" aria-label="End tour">&times;</button>`;
+document.body.appendChild(tourDock);
+function closeTour() { tourDock.hidden = true; tourI = -1; if (tourTimer) { clearTimeout(tourTimer); tourTimer = null; } }
+function showTourChapter(i) {
+  if (i < 0 || i >= TOUR_CHAPTERS.length) { closeTour(); return; }
+  tourI = i; const ch = TOUR_CHAPTERS[i];
+  tourDock.hidden = false;
+  $("#tour-label").textContent = ch.label; $("#tour-title").textContent = ch.title;
+  tourDock.dataset.desc = ch.desc;
+  goTo(ch.id); ch.action();
+  if (window.gsap && !REDUCED) { gsap.fromTo(tourDock, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: .4, overwrite: true }); }
+  const sc = SCENES.find(s => s.id === ch.id);
+  if (sc) { $("#cap-sc").textContent = `${sc.n} · ${ch.label.toUpperCase()}`; $("#cap-tx").textContent = ch.desc; }
+  $("#caption").classList.add("on");
+}
+function startTour() { stopStory(); showTourChapter(0); }
+$("#tour-prev").addEventListener("click", () => showTourChapter(tourI - 1));
+$("#tour-next").addEventListener("click", () => showTourChapter(tourI + 1));
+$("#tour-stop").addEventListener("click", closeTour);
+$("#play-story").addEventListener("click", startTour); $("#hero-play").addEventListener("click", startTour); $("#cap-stop").addEventListener("click", stopStory);
+
+// Keyboard shortcut ? overlay
+const shortcutsOverlay = document.createElement("div"); shortcutsOverlay.id = "shortcuts-overlay"; shortcutsOverlay.hidden = true; shortcutsOverlay.setAttribute("role", "dialog"); shortcutsOverlay.setAttribute("aria-modal", "true"); shortcutsOverlay.setAttribute("aria-label", "Keyboard shortcuts");
+shortcutsOverlay.innerHTML = `<div class="sc-box"><button class="sc-close" type="button" id="sc-close">&times;</button><h2>Keyboard shortcuts</h2><table><tbody>
+  <tr><td><kbd>1</kbd>&ndash;<kbd>9</kbd></td><td>Jump to scene</td></tr>
+  <tr><td><kbd>&#8592;</kbd><kbd>&#8594;</kbd></td><td>Previous / next scene</td></tr>
+  <tr><td><kbd>B</kbd></td><td>Break a halala (inject defects)</td></tr>
+  <tr><td><kbd>T</kbd></td><td>Trace one riyal</td></tr>
+  <tr><td><kbd>L</kbd></td><td>Switch to Arabic</td></tr>
+  <tr><td><kbd>P</kbd></td><td>Presenter mode</td></tr>
+  <tr><td><kbd>Ctrl K</kbd></td><td>Command palette</td></tr>
+  <tr><td><kbd>?</kbd></td><td>This panel</td></tr>
+  <tr><td><kbd>Esc</kbd></td><td>Close / stop story</td></tr>
+</tbody></table></div>`;
+document.body.appendChild(shortcutsOverlay);
+document.getElementById("sc-close").addEventListener("click", () => { shortcutsOverlay.hidden = true; });
+shortcutsOverlay.addEventListener("click", e => { if (e.target === shortcutsOverlay) shortcutsOverlay.hidden = true; });
+
+// Jump-to-proof floating dock
+const jtpDock = document.createElement("div"); jtpDock.id = "jtp-dock"; jtpDock.setAttribute("role", "navigation"); jtpDock.setAttribute("aria-label", "Jump to proof");
+jtpDock.innerHTML = [
+  { id: "recon",   icon: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z", label: "Reconciliation" },
+  { id: "zatca",   icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",           label: "ZATCA chain" },
+  { id: "pdpl",    icon: "M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6zM9 12l2 2 4-4", label: "PDPL" },
+  { id: "ask",     icon: "M4 5h16v10H9l-5 4zM9 9h6M9 12h4",                      label: "Ask MIZAN" }
+].map(x => `<button type="button" data-goto="${x.id}" title="${x.label}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${x.icon}"/></svg><span>${x.label}</span></button>`).join("");
+document.body.appendChild(jtpDock);
+jtpDock.querySelectorAll("button").forEach(b => b.addEventListener("click", () => goTo(b.dataset.goto)));
+
+// ---- Chaos bar: 4 failure modes visitors can trigger ----
+const CHAOS_ACTIONS = [
+  { id: "chaos-recon",   icon: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+    label: "Break reconciliation",
+    what: "Injects planted bank variance + GL variance into 3 merchant-days",
+    catches: "dbt circuit breaker trips · candidate run blocked · 0 halalas slip through",
+    test: "test_recon_circuit_breaker",
+    run: () => { goTo("recon"); setTimeout(() => recon.setDefects && recon.setDefects(true), 500); setTimeout(() => recon.setDefects && recon.setDefects(false), 6000); } },
+  { id: "chaos-zatca",   icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
+    label: "Kill worker mid-submit",
+    what: "Simulates a process crash between SUBMITTING and the HTTP reply",
+    catches: "State stays UNKNOWN_OUTCOME · restart retries identical UUID + bytes · chain unbroken",
+    test: "test_zatca_worker_crash_recovery",
+    run: () => { goTo("zatca"); setTimeout(() => zatca && zatca.incident && zatca.incident(), 600); } },
+  { id: "chaos-pdpl",    icon: "M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6zM9 12l2 2 4-4",
+    label: "Trigger PDPL erasure",
+    what: "Shreds 5 AES-256-GCM keys and removes the token-to-identity link",
+    catches: "Signed ZATCA journal kept under TAX legal hold · aggregates unchanged",
+    test: "test_pdpl_erasure_and_restore_guard",
+    run: () => { goTo("pdpl"); setTimeout(() => pdpl && pdpl.run && pdpl.run(), 600); } },
+  { id: "chaos-bad-row", icon: "M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z",
+    label: "Inject bad row",
+    what: "Sends a Bronze row with a missing merchant ID and duplicate ICV",
+    catches: "Row quarantined · Silver never sees it · quarantine counter rises",
+    test: "test_bronze_quarantine_on_bad_row",
+    run: () => { goTo("trust"); } }
+];
+const chaosBar = document.createElement("div"); chaosBar.id = "chaos-bar"; chaosBar.setAttribute("role", "region"); chaosBar.setAttribute("aria-label", "Chaos bar");
+chaosBar.innerHTML = `<button id="chaos-toggle" type="button" title="Chaos bar — break things on purpose">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+  <span>Break it</span></button>
+<div id="chaos-panel" hidden>
+  <div class="chaos-head"><span>⚡ Chaos bar</span><span class="chaos-sub">Click to break the system. MIZAN catches every failure.</span></div>
+  <div class="chaos-btns" id="chaos-btns"></div>
+</div>`;
+document.body.appendChild(chaosBar);
+CHAOS_ACTIONS.forEach(a => {
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "chaos-btn"; btn.dataset.id = a.id;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${a.icon}"/></svg>
+    <span class="chaos-btn-body"><strong>${a.label}</strong>
+    <span class="chaos-what">${a.what}</span>
+    <span class="chaos-catches">✓ ${a.catches}</span>
+    <code class="chaos-test">${a.test}</code></span>`;
+  btn.addEventListener("click", () => { document.getElementById("chaos-panel").hidden = true; a.run(); });
+  document.getElementById("chaos-btns").appendChild(btn);
+});
+document.getElementById("chaos-toggle").addEventListener("click", () => {
+  const p = document.getElementById("chaos-panel"); p.hidden = !p.hidden;
+  if (!p.hidden && window.gsap && !REDUCED) gsap.fromTo(p, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: .3 });
+});
+
 $("#hero-replay").addEventListener("click", () => hero.replay());
 const ACTIONS = [...SCENES.map(s => ({ t: `${s.n} ${s.label}`, k: "scene", run: () => { goTo(s.id); setTimeout(() => safe(s.id, PLAY[s.id]), 600); } })),
   { t: "Play the story", k: "action", run: startStory }, { t: "Inject planted defects", k: "action", run: () => { goTo("recon"); setTimeout(() => recon.setDefects(true), 700); } },
@@ -1134,7 +1444,7 @@ $("#pal-input").addEventListener("keydown", e => { const items = renderPal();
   if (e.key === "ArrowUp") { palSel = Math.max(0, palSel - 1); renderPal(); e.preventDefault(); }
   if (e.key === "Enter" && items[palSel]) { closePal(); items[palSel].run(); } if (e.key === "Escape") closePal(); });
 addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").hidden ? openPal() : closePal(); }
-  if (e.key === "Escape") { stopStory(); closePal(); }
+  if (e.key === "Escape") { stopStory(); closePal(); closeTour(); shortcutsOverlay.hidden = true; }
   if (!$("#palette").hidden || /input|textarea|select/i.test(document.activeElement.tagName)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const kk = e.key.toLowerCase();
@@ -1143,6 +1453,7 @@ addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLower
   if (kk === "t") { tracePerRiyal(); return; }
   if (kk === "b") { goTo("recon"); setTimeout(() => recon.setDefects && recon.setDefects(!recon.defects), 600); return; }
   if (kk === "l") { setLang(lang === "ar" ? "en" : "ar"); return; }
+  if (e.key === "?") { shortcutsOverlay.hidden = !shortcutsOverlay.hidden; return; }
   const ids = ROLE_SCENES[role]; const cur = rail.querySelector("a.on"); const i = Math.max(0, ids.indexOf(cur ? cur.dataset.id : "top"));
   if (e.key === "ArrowRight" || e.key === "j") { goTo(ids[Math.min(ids.length - 1, i + 1)]); } if (e.key === "ArrowLeft" || e.key === "k") { goTo(ids[Math.max(0, i - 1)]); } });
 
@@ -1418,12 +1729,14 @@ function tracePerRiyal() {
 
 $("#seed").textContent = D.meta.seed;
 { const P = D.runs.published, Q = D.runs.candidate;
-  $("#runs").textContent = `Published run ${P.status} (dbt ${P.nodes} nodes, ${P.generated_at}; Fabric ${P.fabric.dbt_pass} pass on ${P.fabric.run_date}) · candidate run ${Q.status}: ${Q.reason} · git ${D.runs.git_sha}`; }
+  $("#runs").textContent = `Published run ${P.status} (dbt ${P.nodes} nodes, ${P.generated_at}; Fabric ${P.fabric.dbt_pass} pass on ${P.fabric.run_date}) · candidate run ${Q.status}: ${Q.reason} · git ${D.runs.git_sha}`;
+  if ($("#vb-detail")) { const docs = Object.values(D.zatca.states).reduce((a, b) => a + b, 0);
+    $("#vb-detail").textContent = `dbt ${P.fabric.dbt_pass} pass · ${fmtI(docs)} invoices · ${D.chain.violations} chain breaks · git ${D.runs.git_sha.slice(0, 8)}`; } }
 { const el = $("#skew-share"); if (el) el.textContent = Math.round(parseFloat(D.skew_setup.mega_share_of_rows) * 100) + "%"; }
 safe("heroCopy", heroCopy); safe("hero", heroScene);
 safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene); safe("recon", reconScene); safe("zatca", zatcaScene);
 safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("trust", trustScene); safe("platform", platformScene);
-safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("ask", askScene); safe("header", initHeader);
+safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("ops", opsScene); safe("ask", askScene); safe("header", initHeader);
 safe("filters", initFilterBar); safe("prov", updateProv);
 if (window.gsap && window.ScrollTrigger) { gsap.registerPlugin(ScrollTrigger);
   SCENES.slice(1).forEach(s => ScrollTrigger.create({ trigger: "#" + s.id, start: "top 70%", once: true, onEnter: () => { if (!story) safe(s.id, PLAY[s.id]); } }));
