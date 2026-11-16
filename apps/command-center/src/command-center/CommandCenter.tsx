@@ -7,6 +7,7 @@ import pageHtml from "./legacy/page.html?raw";
 import "./legacy/page.css";
 import "./app.css";
 import { mountScenes } from "./legacy/scenes.js";
+import { AGENT_MODEL, AGENT_URL } from "./agent";
 import { buildQueries, type Filters } from "./filters";
 import { CONNECTOR, QUERIES, loadData, queryFiltered, type Loaded, type Runner } from "./load";
 
@@ -35,10 +36,17 @@ export function CommandCenter({ query }: { query?: (f: Filters) => Promise<unkno
         mounted.current = true;           // the scene module binds window listeners: mount exactly once
         installGlobals();
         const run = runner();
-        const w = window as unknown as { MIZAN_QUERY?: (f: Filters) => Promise<unknown>; MIZAN_DAX?: Record<string, string> };
+        const w = window as unknown as {
+            MIZAN_QUERY?: (f: Filters) => Promise<unknown>; MIZAN_DAX?: Record<string, string>;
+            MIZAN_AGENT?: { url: string; model: string; query: (f: Filters) => Promise<{ data: unknown; dax: Record<string, string> }> };
+        };
         delete w.MIZAN_DAX;
+        delete w.MIZAN_AGENT;
         if (loaded.mode === "live" && run) {
             w.MIZAN_DAX = { ...QUERIES };                    // the exact DAX behind the figures (Ask MIZAN evidence)
+            // Ask MIZAN agent: its tools run here, on live DAX under the viewer's own Fabric login (never on the server)
+            w.MIZAN_AGENT = { url: AGENT_URL, model: AGENT_MODEL,
+                              query: async (f) => ({ data: await queryFiltered(run, f), dax: buildQueries(QUERIES, f) }) };
             w.MIZAN_QUERY = async (f) => {                   // live filter bar
                 const data = await queryFiltered(run, f);
                 w.MIZAN_DAX = buildQueries(QUERIES, f);

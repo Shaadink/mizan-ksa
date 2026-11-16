@@ -131,6 +131,9 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
 .prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
 .scope-note { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(242,169,59,.4); background: rgba(242,169,59,.07); color: #f6d39a; font: 500 12.5px var(--f-mono) }
+.ask-roles { display: inline-flex; gap: 6px; flex-wrap: wrap } #ask-mode { margin-right: 14px }
+.ask-mode-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line-2); font: 600 9.5px var(--f-mono); letter-spacing: .1em; color: var(--gold-hi) }
+.ask-msg.thinking .txt { color: var(--dim); font-style: italic }
 .ask-roles button[aria-pressed="true"] { background: rgba(217,178,95,.22); border-color: var(--gold) }
 .ask-log { max-height: 440px; overflow: auto; margin-top: 10px; padding-right: 4px }
 .ask-msg { margin: 0 0 14px } .ask-msg .who { font: 600 10.5px var(--f-mono); letter-spacing: .12em; color: var(--dim); text-transform: uppercase }
@@ -598,8 +601,8 @@ footer .wrap { display: grid; gap: 8px }
   <section class="scene" id="ask" data-roles="CFO TAX CDO">
     <div class="wrap">
       <div class="scene-head"><div><div class="tag">Ask MIZAN &middot; guided questions over Gold</div><h2>Ask the Gold layer, and see the evidence</h2>
-        <p>Pick a role and ask. Answers come only from the semantic-model query results on this page, after the role's NDMO entitlements are checked. There is no language model: a question is matched to a fixed list of approved questions, anything else is declined, and personal data is never retrieved.</p></div>
-        <div class="actions ask-roles" id="ask-roles" role="group" aria-label="Ask as role"></div></div>
+        <p>Pick a role and ask. <b>Agent</b> mode (Fabric App): an Azure OpenAI model plans which approved Gold queries to run; the queries run here under your own Fabric login, and code checks that every number in the answer came from a query result before it is shown. <b>Guided</b> mode: no language model, a fixed list of approved questions. In both, the role's NDMO entitlements apply and personal data is never retrieved.</p></div>
+        <div class="actions"><div class="ask-roles" id="ask-mode" role="group" aria-label="Answer mode"></div><div class="ask-roles" id="ask-roles" role="group" aria-label="Ask as role"></div></div></div>
       <div class="kpis" id="ask-kpis"></div>
       <div class="grid g-12" style="margin-top:14px">
         <div class="panel c-7 ask-chat"><h3>Chat</h3><div class="ask-log" id="ask-log" aria-live="polite"></div>
@@ -897,7 +900,7 @@ const ASK_ROLES = {
   CDO: { name: "Data office", clearance: "CONFIDENTIAL", groups: ["CDO_OFFICE"] },
   STAFF: { name: "All staff", clearance: "PUBLIC", groups: ["ALL_STAFF"] },
 };
-const ASK = { role: "FINANCE", answered: 0, declined: 0, last: null };
+const ASK = { role: "FINANCE", mode: "AGENT", answered: 0, declined: 0, last: null, busy: false };
 const askEsc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const sar = h => "SAR " + fmtH(h);
 function askEntitled(role, table) {
@@ -1032,6 +1035,94 @@ function askAnswer(q, role) {
   return { ...base, kind: "ABSTAIN", code: "NO_MATCH", text: "That is not one of the approved questions, so I will not guess. Try one of the suggestions below." };
 }
 
+/* ---------- Ask MIZAN agent (Fabric App only) ----------
+   The host sets window.MIZAN_AGENT = { url, model, query(filters) -> {data, dax} } in live mode. The model (Azure
+   OpenAI, behind an Azure Function) may only ask for the tools below; they run HERE, on live DAX results under the
+   viewer's own Fabric login, after the role check. Code computes; the model copies. agentVerify() blocks any answer
+   with a number that no tool result contains, and the guided answers take over. */
+const AGENT_TOOLS = {
+  get_reconciliation: { tables: ["fact_merchant_settlement_recon"], queries: ["recon_totals"], run: d => { const R0 = d.recon, T = d.truth || {};
+    return { window: { from: R0.from, to: R0.to }, merchants: R0.merchants, merchant_days: R0.mid_days, gross_captures_sar: R0.gross,
+      refunds_and_disputes_sar: R0.refunds, bank_fees_sar: R0.fees, expected_net_sar: R0.net, bank_paid_sar: R0.bank, in_transit_sar: R0.transit,
+      quarantined_sar: R0.quarantined, gl_card_clearing_sar: R0.gl, unexplained_bank_variance_sar: R0.bank_variance, unexplained_gl_variance_sar: R0.gl_variance,
+      broken_keys: R0.broken_keys, unclassified_events: R0.unclassified, assessed_merchant_days: T.assessed_mid_days,
+      not_assessed_merchant_days_bank_file_pending: T.not_assessed_mid_days, not_assessed_dates: T.not_assessed_dates || [],
+      not_assessed_expected_net_sar: T.not_assessed_expected_net,
+      rules: ["Variance is judged only on assessed merchant-days. Not-assessed merchant-days wait for the T+1 bank file: their money is in transit, not missing, and they are neither balanced nor unbalanced yet."] }; } },
+  get_daily: { tables: ["fact_merchant_settlement_recon"], queries: ["recon_cells"], run: d => {
+    const pend = {}; (d.truth && d.truth.not_assessed_cells || []).forEach(c => { pend[c[1]] = (pend[c[1]] || 0) + 1; });
+    return { days: d.daily.map(x => { const exp = H(x.gross) - H(x.refunds) - H(x.fees);
+      return { date: x.d, hijri: d.calendar && d.calendar[x.d] ? d.calendar[x.d].hijri : "", gross_captures_sar: x.gross, refunds_sar: x.refunds, bank_fees_sar: x.fees,
+        expected_net_sar: hStr(exp), bank_paid_sar: x.bank, in_transit_sar: x.transit, gl_card_clearing_sar: x.gl,
+        unexplained_bank_difference_sar: hStr(exp - H(x.bank) - H(x.transit)), merchant_days_awaiting_bank_file: pend[x.d] || 0 }; }) }; } },
+  get_top_merchants: { tables: ["fact_merchant_settlement_recon"], queries: ["recon_cells"], run: (d, a) => {
+    const n = Math.max(1, Math.min(10, parseInt(a.n, 10) || 5)), city = {}; (BASE.stores || []).forEach(s => { city[s.merchant] = s.city; });
+    const tot = d.heat.merchants.map((m, i) => [m, d.heat.cells[i].reduce((acc, v) => acc + (v === null ? 0 : H(v)), 0)]);
+    const all = tot.reduce((acc, x) => acc + x[1], 0) || 1;
+    return { merchants: tot.slice(0, n).map(([m, h]) => ({ merchant_id: m, city: city[m] || "", gross_captures_sar: hStr(h), share_of_gross_pct: (h * 100 / all).toFixed(1) })),
+      merchants_in_filter: tot.length }; } },
+  get_zatca: { tables: ["fact_zatca_clearance_ledger"], queries: ["zatca"], run: d => { const z = d.zatca;
+    return { documents_by_state: z.states, flows: z.flows.map(f => ({ flow: f.flow, documents: f.docs, total_incl_vat_sar: f.sar })), total_incl_vat_sar: z.sar,
+      egs: z.egs.map(e => ({ egs: e.egs, documents: e.docs, total_incl_vat_sar: e.sar })), corrections_issued: z.corrections,
+      transport_failures_retried_identical_bytes: z.retried,
+      rules: ["A CONFIRMED_REJECTION (HTTP 400) stays in the hash chain; it is fixed by a NEW correcting document with a new ICV, never by resending.",
+        "A transport retry is a separate event: a transport failure (5xx/timeout) resends the identical UUID and bytes of that same document.",
+        "Corrections and retries are counted independently; do not assume they belong to the same document."] }; } },
+  get_payment_methods: { tables: ["fact_payment_method_daily"], queries: ["payments"], run: d => ({ methods: (d.payments ? d.payments.methods : []).map(m => ({
+    method: m.method, captures: m.count, gross_captures_sar: m.captures, bank_fees_sar: m.fees, fee_rate_bps: H(m.captures) > 0 ? (bps10(H(m.fees), H(m.captures)) / 10).toFixed(1) : "0.0",
+    fees_estimated_sar: m.estimated, refunds_and_disputes_sar: m.refunds, bank_paid_sar: m.bank, in_transit_sar: m.transit })) }) },
+  get_data_quality: { tables: ["mart_ndmo_scorecard"], queries: ["ndmo"], run: d => ({ checks: d.ndmo.scorecard.filter(x => x.family === "DATA_QUALITY")
+    .map(x => ({ dimension: x.dimension, table: x.table, score: x.score, threshold: x.threshold, status: x.status })) }) },
+  get_calendar: { tables: ["dim_date_saudi"], queries: ["calendar"], run: d => { const days = Object.keys(d.calendar).sort(), ram = days.filter(x => d.calendar[x].ramadan);
+    return { days_in_window: days.length, first_ramadan_day: ram[0] || null, first_ramadan_hijri: ram[0] ? d.calendar[ram[0]].hijri : null, ramadan_days: ram.length,
+      weekend_days: days.filter(x => d.calendar[x].weekend).length, dates: days.map(x => ({ date: x, hijri: d.calendar[x].hijri })) }; } },
+};
+const AGENT_FILTER_KEYS = ["from", "to", "mid", "city", "status", "method", "egs", "flow", "state"];
+const agentAvailable = () => !!(window.MIZAN_AGENT && window.MIZAN_AGENT.url && typeof window.MIZAN_AGENT.query === "function");
+const AGENT_NUM = /\d[\d,]*(?:\.\d+)?/g;
+function agentNums(t) { return (String(t).match(AGENT_NUM) || []).map(x => x.replace(/[.,]+$/, "").replace(/,/g, "")).filter(Boolean).map(x => Number(x)); }
+function agentVerify(text, msgs) {          // numbers in the answer that no tool result contains (empty = verified)
+  const ok = new Set(); msgs.filter(m => m.role === "tool").forEach(m => agentNums(m.content).forEach(n => ok.add(n)));
+  return (String(text).match(AGENT_NUM) || []).map(x => x.replace(/[.,]+$/, "")).filter(x => !ok.has(Number(x.replace(/,/g, ""))));
+}
+async function agentRunTool(name, argText, role) {
+  const t = AGENT_TOOLS[name];
+  if (!t) return { result: { error: "UNKNOWN_TOOL" } };
+  const denied = t.tables.filter(x => !askEntitled(role, x));
+  if (denied.length) return { result: { error: "NOT_ENTITLED", tables: denied }, tables: t.tables, queries: [] };
+  let a = {}; try { a = JSON.parse(argText || "{}") || {}; } catch (e) { return { result: { error: "BAD_ARGUMENTS" } }; }
+  const f = { ...F }, af = a.filters && typeof a.filters === "object" ? a.filters : {};
+  for (const k of AGENT_FILTER_KEYS) if (k in af) f[k] = String(af[k] ?? "");
+  const same = AGENT_FILTER_KEYS.every(k => (f[k] || "") === (F[k] || ""));
+  let data = D, dax = window.MIZAN_DAX || {};
+  if (!same) { try { const q = await window.MIZAN_AGENT.query(f); data = q.data; dax = q.dax || {}; } catch (e) { return { result: { error: "QUERY_FAILED", message: String(e && e.message || e).slice(0, 160) }, tables: t.tables, queries: [] }; } }
+  return { result: t.run(data, a), tables: t.tables, queries: t.queries, filters: Object.entries(f).filter(([, v]) => v), dax: t.queries.map(q => [q, dax[q] || ""]) };
+}
+async function agentAsk(q, role, onStep) {
+  const A = window.MIZAN_AGENT, msgs = [{ role: "user", content: q }], trace = [];
+  for (let turn = 0; turn < 6; turn++) {
+    const res = await fetch(A.url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role, filters: Object.fromEntries(Object.entries(F).filter(([, v]) => v)), messages: msgs }) });
+    const r = await res.json().catch(() => ({ type: "error", code: "HTTP_" + res.status }));
+    if (r.type === "tool_calls") {
+      msgs.push(r.message);
+      for (const c of r.message.tool_calls) {
+        onStep && onStep(c.function.name);
+        const out = await agentRunTool(c.function.name, c.function.arguments, role);
+        trace.push({ name: c.function.name, args: c.function.arguments, ...out });
+        msgs.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(out.result) });
+      }
+      continue;
+    }
+    if (r.type === "answer") {
+      const bad = agentVerify(r.text, msgs);
+      return bad.length ? { type: "unverified", unverified: bad, trace } : { type: "answer", text: r.text, trace };
+    }
+    return { ...r, trace };
+  }
+  return { type: "error", code: "TOO_MANY_STEPS", trace };
+}
+
 function askKpis() {
   const u = ASK_ROLES[ASK.role], allowed = ASK_TIERS.slice(0, ASK_TIERS.indexOf(u.clearance) + 1), blocked = ASK_TIERS.filter(t => !allowed.includes(t));
   const tables = Object.keys(ASK_ACL).filter(t => askEntitled(ASK.role, t));
@@ -1044,6 +1135,7 @@ function askKpis() {
 }
 
 function askEvidence(a) {
+  if (a && a.agent) return agentEvidence(a);
   const box = $("#ask-ev"); if (!a) { box.innerHTML = `<div class="sub" style="margin-top:12px">Ask a question to see the query, the Gold table and the entitlement check behind the answer.</div>`; return; }
   const live = typeof window.MIZAN_QUERY === "function" && window.MIZAN_DAX, P = D.runs && D.runs.published ? D.runs.published : {};
   const row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
@@ -1060,29 +1152,63 @@ function askEvidence(a) {
   box.innerHTML = html + `<pre>${askEsc(pre)}</pre>`;
 }
 
+function agentEvidence(a) {
+  const box = $("#ask-ev"), u = ASK_ROLES[a.role], row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
+  let html = row("Outcome", a.kind === "ANSWER" ? "\u2713 Answered by the agent \u00b7 numbers verified" : `\u2014 Agent ${a.code || ""} \u00b7 guided answer shown`) +
+    row("Model", `${askEsc(window.MIZAN_AGENT && window.MIZAN_AGENT.model || "Azure OpenAI")} \u00b7 tools only, no free queries`) +
+    row("Role", `${u.name} \u00b7 ${ASK_TIER_NAME[u.clearance]} \u00b7 ${u.groups.join(", ")}`) +
+    row("As of", riyadh(a.at) + " (Riyadh) \u00b7 live DAX");
+  const steps = (a.trace || []).map((t, i) => `${i + 1}. ${t.name}  ${t.args && t.args !== "{}" ? t.args : ""}\n   Gold: ${(t.tables || []).map(x => "gld." + x).join(", ") || "-"}` +
+    (t.result && t.result.error ? `\n   -> ${t.result.error}` : `\n   filters: ${(t.filters || []).map(([k, v]) => k + "=" + v).join(", ") || "none"}`)).join("\n");
+  const dax = []; const seen = new Set();
+  (a.trace || []).forEach(t => (t.dax || []).forEach(([q, text]) => { const key = q + text; if (!seen.has(key) && text) { seen.add(key); dax.push(`-- queries/${q}.dax\n${text}`); } }));
+  box.innerHTML = html + `<pre>${askEsc("-- Agent plan (tool calls, in order)\n" + (steps || "(no tools)"))}</pre>` + (dax.length ? `<pre>${askEsc(dax.join("\n\n"))}</pre>` : "");
+}
+
 function askLog(a) {
   const log = $("#ask-log"), cls = a.kind === "ANSWER" ? "" : a.kind === "REFUSED" ? "refused" : "abstain";
   const tags = a.kind === "ANSWER" ? `<div class="ask-tags">${a.intent.tables.map(t => `<span class="ask-tag mono">gld.${t}</span>`).join("")}${a.tags.map(([t, c]) => `<span class="ask-tag ${c}">${askEsc(t)}</span>`).join("")}</div>` : "";
+  const mt = a.agent && a.kind === "ANSWER" ? `<span class="ask-mode-tag">AGENT \u00b7 ${(a.trace || []).length} TOOL CALLS \u00b7 VERIFIED</span>` : a.agentNote ? `<span class="ask-mode-tag">GUIDED \u00b7 ${askEsc(a.agentNote)}</span>` : `<span class="ask-mode-tag">GUIDED</span>`;
+  const atags = a.agent && a.kind === "ANSWER" ? `<div class="ask-tags">${[...new Set((a.trace || []).flatMap(t => t.tables || []))].map(t => `<span class="ask-tag mono">gld.${t}</span>`).join("")}<span class="ask-tag ok">\u2713 every number traced to a query</span></div>` : "";
   log.insertAdjacentHTML("beforeend", `<div class="ask-msg you"><div class="who">You \u00b7 as ${ASK_ROLES[a.role].name}</div><div class="txt">${askEsc(a.q)}</div></div>` +
-    `<div class="ask-msg ${cls}"><div class="who">MIZAN</div><div class="txt">${askEsc(a.text)}</div>${tags}</div>`);
+    `<div class="ask-msg ${cls}"><div class="who">MIZAN${mt}</div><div class="txt">${askEsc(a.text)}</div>${a.agent ? atags : tags}</div>`);
   log.scrollTop = log.scrollHeight;
 }
 
-function ask(q) {
-  q = String(q || "").trim().slice(0, 200); if (!q) return;
-  const a = askAnswer(q, ASK.role);
-  if (a.kind === "ANSWER") ASK.answered++; else ASK.declined++;
-  ASK.last = a; askLog(a); askEvidence(a); askKpis();
+function askRecord(a) { if (a.kind === "ANSWER") ASK.answered++; else ASK.declined++; ASK.last = a; askLog(a); askEvidence(a); askKpis(); }
+const AGENT_WHY = { unverified: "agent answer failed the number check", NOT_ENTITLED: "agent: not for this role", RATE_LIMIT: "agent busy, try again in a minute", UPSTREAM: "agent unavailable", TOO_MANY_STEPS: "agent took too many steps" };
+async function ask(q) {
+  q = String(q || "").trim().slice(0, 200); if (!q || ASK.busy) return;
+  const guided = askAnswer(q, ASK.role);
+  if (ASK.mode !== "AGENT" || !agentAvailable() || guided.code === "PERSONAL_DATA" || guided.code === "READ_ONLY") { askRecord(guided); return; }
+  ASK.busy = true; const log = $("#ask-log");
+  log.insertAdjacentHTML("beforeend", `<div class="ask-msg you"><div class="who">You \u00b7 as ${ASK_ROLES[ASK.role].name}</div><div class="txt">${askEsc(q)}</div></div><div class="ask-msg thinking" id="ask-think"><div class="who">MIZAN</div><div class="txt">Planning\u2026</div></div>`);
+  log.scrollTop = log.scrollHeight;
+  const think = $("#ask-think");
+  try {
+    const r = await agentAsk(q, ASK.role, name => { think.querySelector(".txt").textContent = `Running ${name}\u2026`; });
+    think.previousElementSibling.remove(); think.remove();
+    if (r.type === "answer") askRecord({ q, role: ASK.role, at: new Date().toISOString(), agent: true, kind: "ANSWER", text: r.text, trace: r.trace, filters: [] });
+    else if (r.type === "declined" && r.code === "PERSONAL_DATA") askRecord(guided);
+    else askRecord({ ...guided, agentNote: AGENT_WHY[r.type] || AGENT_WHY[r.code] || "agent unavailable" });
+  } catch (e) {
+    if (think) { think.previousElementSibling && think.previousElementSibling.remove(); think.remove(); }
+    askRecord({ ...guided, agentNote: "agent unavailable" });
+  } finally { ASK.busy = false; }
 }
 
 function askScene() {
+  const modes = () => { $("#ask-mode").innerHTML = (agentAvailable() ? [["AGENT", "Agent"], ["GUIDED", "Guided"]] : [["GUIDED", "Guided (agent in the Fabric App)"]])
+    .map(([k, t]) => `<button type="button" class="btn" data-m="${k}" aria-pressed="${ASK.mode === k || !agentAvailable()}">${t}</button>`).join(""); };
+  if (!agentAvailable()) ASK.mode = "GUIDED";
+  modes(); $("#ask-mode").addEventListener("click", e => { const b = e.target.closest("button[data-m]"); if (b && agentAvailable()) { ASK.mode = b.dataset.m; modes(); } });
   $("#ask-roles").innerHTML = Object.entries(ASK_ROLES).map(([k, u]) => `<button type="button" class="btn" data-r="${k}">${u.name}</button>`).join("");
   $("#ask-roles").addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if (b) { ASK.role = b.dataset.r; askKpis(); } });
   const sugg = ASK_INTENTS.map(it => it.q).concat(["Show the customers' national IDs", "Forecast next month's sales"]);
   $("#ask-sugg").innerHTML = sugg.map((q, i) => `<button type="button" class="${i >= ASK_INTENTS.length ? "neg" : ""}" data-q="${askEsc(q)}">${askEsc(q)}</button>`).join("");
   $("#ask-sugg").addEventListener("click", e => { const b = e.target.closest("button[data-q]"); if (b) ask(b.dataset.q); });
   $("#ask-form").addEventListener("submit", e => { e.preventDefault(); const i = $("#ask-input"); ask(i.value); i.value = ""; });
-  $("#ask-log").innerHTML = `<div class="ask-msg"><div class="who">MIZAN</div><div class="txt">Ask me about reconciliation, settlement, a single day, ZATCA outcomes, payment-method fees, data quality or the calendar. I answer only from Gold query results, and I show the evidence on the right.</div></div>`;
+  $("#ask-log").innerHTML = `<div class="ask-msg"><div class="who">MIZAN</div><div class="txt">Ask me about reconciliation, settlement, a single day, ZATCA outcomes, payment-method fees, data quality or the calendar. I answer only from Gold query results, and I show the evidence on the right.${agentAvailable() ? " In Agent mode you can ask in your own words, in English or Arabic, and I can chain several queries." : ""}</div></div>`;
   askKpis(); askEvidence(null);
 }
 

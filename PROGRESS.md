@@ -386,6 +386,22 @@ Ask MIZAN (scene 13, 2026-11-16, owner request): guided questions over Gold in t
 - The Fabric Data Agent is still blocked by the trial capacity; Fabric Apps have no data-agent connector (connectors doc,
   2026-11-03), so a real agent chat cannot be embedded yet.
 
+Ask MIZAN agent (2026-11-16, owner-approved: Azure OpenAI + Azure Function; ADR-012):
+- Owner's personal Azure subscription (Default Directory; free credit expires 2026-12-14), signed in as the work
+  user `mizan-admin@...onmicrosoft.com` (security defaults block CLI sign-in for the Gmail account; MFA set up).
+  CLI profile: `AZURE_CONFIG_DIR=%USERPROFILE%\.azure-personal` (broker off).
+- Created in `rg-mizan-agent` (UAE North): `aoai-mizan-41a4ca` (gpt-4.1-mini, GlobalStandard, 30K TPM, keys
+  disabled), `func-mizan-agent-41a4ca` (Flex Consumption, Python 3.12, managed identity -> OpenAI User, CORS = app
+  origin), `stmizanagent41a4ca`, budget `budget-mizan-5usd` (50/80/100% -> owners).
+- Code: `apps/ask-agent/` (agent_core.py = governed step: role-filtered tools, pre-checks, number verification with
+  one retry; function_app.py = HTTP + identity + rate limits). Browser side in command_center/template.html
+  (AGENT_TOOLS run on live DAX via `window.MIZAN_AGENT.query`, agentVerify, Agent/Guided switch, plan + DAX in the
+  evidence panel). Redeploy the Function: zip the 4 files in apps/ask-agent and
+  `az functionapp deployment source config-zip --build-remote true` (see ADR-012).
+- Tests: tests/test_ask_agent.py (fake model: entitlements, pre-checks, retry then block, sanitize; node harness:
+  tools return Gold figures, role refusals, number check). Live end-to-end run: 7 questions incl. Arabic, a
+  two-query chain (BNPL vs mada), role refusal, forecast decline; all answers verified.
+
 ## Left for the owner after Phase 13
 1. Record the video from the shot list; save as docs/linkedin/demo.mp4 (or link it).
 2. Capture the 8 demo screenshots into docs/artifacts/demo/ with the README file names (green "Live" label visible).
@@ -407,6 +423,8 @@ Ask MIZAN (scene 13, 2026-11-16, owner request): guided questions over Gold in t
 
 1. ~~Eventstream -> Eventhouse delivery~~ DONE 2026-11-15 (see Phase 10).
 2. **Fabric Data Agent** (optional, needs a paid F2+ capacity): docs/PORTAL_STEPS.md section 2. Not possible on the trial.
+   Ask MIZAN now has its own governed agent (ADR-012); its Azure credit expires 2026-12-14 (then guided mode only,
+   unless the subscription is upgraded). Delete everything with `az group delete -n rg-mizan-agent`.
 3. **Optional polish**: restyle the generated Power BI report in the portal; record the 60-second GIF / walkthrough video
    (spec Day 10) from the portal.
 4. **Housekeeping**: the Fabric trial ends after 60 days and lives in the college tenant (can be disabled by the

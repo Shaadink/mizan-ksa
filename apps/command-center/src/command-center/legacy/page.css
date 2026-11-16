@@ -126,6 +126,9 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .drill h3 { margin: 0 0 4px; font: 700 15px var(--f-display) } .drill .close { position: absolute; top: 10px; right: 10px }
 .prov { margin-top: 22px; padding-top: 10px; border-top: 1px dashed var(--line-2); font: 500 11px var(--f-mono); color: var(--dim) }
 .scope-note { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(242,169,59,.4); background: rgba(242,169,59,.07); color: #f6d39a; font: 500 12.5px var(--f-mono) }
+.ask-roles { display: inline-flex; gap: 6px; flex-wrap: wrap } #ask-mode { margin-right: 14px }
+.ask-mode-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line-2); font: 600 9.5px var(--f-mono); letter-spacing: .1em; color: var(--gold-hi) }
+.ask-msg.thinking .txt { color: var(--dim); font-style: italic }
 .ask-roles button[aria-pressed="true"] { background: rgba(217,178,95,.22); border-color: var(--gold) }
 .ask-log { max-height: 440px; overflow: auto; margin-top: 10px; padding-right: 4px }
 .ask-msg { margin: 0 0 14px } .ask-msg .who { font: 600 10.5px var(--f-mono); letter-spacing: .12em; color: var(--dim); text-transform: uppercase }

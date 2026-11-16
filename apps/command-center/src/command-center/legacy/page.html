@@ -228,8 +228,8 @@
   <section class="scene" id="ask" data-roles="CFO TAX CDO">
     <div class="wrap">
       <div class="scene-head"><div><div class="tag">Ask MIZAN &middot; guided questions over Gold</div><h2>Ask the Gold layer, and see the evidence</h2>
-        <p>Pick a role and ask. Answers come only from the semantic-model query results on this page, after the role's NDMO entitlements are checked. There is no language model: a question is matched to a fixed list of approved questions, anything else is declined, and personal data is never retrieved.</p></div>
-        <div class="actions ask-roles" id="ask-roles" role="group" aria-label="Ask as role"></div></div>
+        <p>Pick a role and ask. <b>Agent</b> mode (Fabric App): an Azure OpenAI model plans which approved Gold queries to run; the queries run here under your own Fabric login, and code checks that every number in the answer came from a query result before it is shown. <b>Guided</b> mode: no language model, a fixed list of approved questions. In both, the role's NDMO entitlements apply and personal data is never retrieved.</p></div>
+        <div class="actions"><div class="ask-roles" id="ask-mode" role="group" aria-label="Answer mode"></div><div class="ask-roles" id="ask-roles" role="group" aria-label="Ask as role"></div></div></div>
       <div class="kpis" id="ask-kpis"></div>
       <div class="grid g-12" style="margin-top:14px">
         <div class="panel c-7 ask-chat"><h3>Chat</h3><div class="ask-log" id="ask-log" aria-live="polite"></div>
