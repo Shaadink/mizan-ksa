@@ -402,6 +402,16 @@ Ask MIZAN agent (2026-11-16, owner-approved: Azure OpenAI + Azure Function; ADR-
   tools return Gold figures, role refusals, number check). Live end-to-end run: 7 questions incl. Arabic, a
   two-query chain (BNPL vs mada), role refusal, forecast decline; all answers verified.
 
+Ask MIZAN redesign + glossary (2026-11-16, owner feedback):
+- Section rebuilt chat-first: big headline, role switcher + Agent/Guided pill, welcome screen with role-aware starter
+  cards, chat bubbles with badges, composer; right panel "How this answer was found" (numbered steps, DAX behind
+  "Show DAX", agent failure reason in an amber box). Status strip and counter cards removed.
+- New agent tool `explain_term` (curated glossary: MIZAN, ZATCA, mada, PDPL, settlement...; reads no data, open to all
+  roles; MIZAN described honestly as a portfolio project with synthetic data). Prompt: role-to-topic map checked first,
+  no clarifying questions about dates, off-topic declined. Badges: "no data used" / "glossary" instead of a verified
+  badge when no data was read. Live re-test: ZATCA and MIZAN explained, weather declined, Arabic Data-office question
+  answered "needs the Finance role", "not assessed" chained glossary + live query (112, SAR 1,125,184.70).
+
 ## Left for the owner after Phase 13
 1. Record the video from the shot list; save as docs/linkedin/demo.mp4 (or link it).
 2. Capture the 8 demo screenshots into docs/artifacts/demo/ with the README file names (green "Live" label visible).

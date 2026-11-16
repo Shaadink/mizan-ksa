@@ -270,7 +270,7 @@ const ASK_ROLES = {
   CDO: { name: "Data office", clearance: "CONFIDENTIAL", groups: ["CDO_OFFICE"] },
   STAFF: { name: "All staff", clearance: "PUBLIC", groups: ["ALL_STAFF"] },
 };
-const ASK = { role: "FINANCE", mode: "AGENT", answered: 0, declined: 0, last: null, busy: false };
+const ASK = { role: "FINANCE", mode: "AGENT", answered: 0, declined: 0, last: null, busy: false, history: [] };
 const askEsc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const sar = h => "SAR " + fmtH(h);
 function askEntitled(role, table) {
@@ -410,7 +410,29 @@ function askAnswer(q, role) {
    OpenAI, behind an Azure Function) may only ask for the tools below; they run HERE, on live DAX results under the
    viewer's own Fabric login, after the role check. Code computes; the model copies. agentVerify() blocks any answer
    with a number that no tool result contains, and the guided answers take over. */
+const AX_GLOSSARY = {
+  MIZAN: "MIZAN-KSA is an engineering reference platform: a portfolio project with synthetic data, not a real company. It shows how a Saudi commerce business could follow every sale end to end (the order, the ZATCA e-invoice, the card or mada payment, the bank's next-day settlement and the ERP general ledger) and prove that bank and ledger agree to the last halala, while meeting PDPL privacy rules and NDMO data classification. It runs on Microsoft Fabric with Airflow, dbt and OpenLineage.",
+  ZATCA: "ZATCA (Zakat, Tax and Customs Authority) runs Saudi Arabia's e-invoicing system, FATOORA. In Phase 2, business-to-business (standard) invoices must be cleared by ZATCA before they are valid (CLEARANCE); business-to-consumer (simplified) invoices are reported within 24 hours (REPORTING). Each invoice is signed and chained to the previous one.",
+  INVOICE_CHAIN: "Every e-invoice from a device carries a counter (ICV) and the hash of the previous invoice (PIH), so the documents form a chain that cannot be edited silently. MIZAN computes the hash once at signing. A rejected invoice stays in the chain and is fixed by a new correcting document.",
+  EGS: "An EGS (e-invoice generation solution) is the registered device or software unit that signs invoices for ZATCA. MIZAN simulates five EGS units, each with its own invoice chain.",
+  MADA: "mada is Saudi Arabia's national debit card network, run by the Saudi Central Bank (SAMA). Merchant fees on mada are much lower than on credit cards.",
+  SADAD: "SADAD is Saudi Arabia's national bill-payment system, used to pay bills and invoices through banks.",
+  BNPL: "Buy now, pay later: the customer pays in instalments while the BNPL provider pays the merchant upfront, usually for a higher fee.",
+  MDR: "The merchant discount rate (MDR) is the fee the acquiring bank keeps from each card payment, plus VAT on that fee. MIZAN takes fees from the bank's settlement file and never recomputes them.",
+  SETTLEMENT: "Settlement is when the acquiring bank pays the merchant for card sales, minus fees. In MIZAN the bank file arrives the next day (T+1), so the latest day's money shows as in transit until the file lands.",
+  RECONCILIATION: "Reconciliation checks three sources against each other for every merchant and day: payments captured, the bank's settlement file and the ERP general ledger. Any unexplained difference must be SAR 0.00, otherwise a circuit breaker stops the build.",
+  NOT_ASSESSED: "A merchant-day is not assessed while its bank file has not arrived. Its money is in transit, not missing, and it is neither balanced nor unbalanced until the file lands.",
+  GENERAL_LEDGER: "The general ledger (GL) is the company's accounting book in the ERP. MIZAN posts each sale exactly once and checks that the GL card-clearing account matches net sales.",
+  PDPL: "PDPL is Saudi Arabia's Personal Data Protection Law. MIZAN encrypts personal data the moment it lands, with a key per person; an erasure request destroys that key so the data can never be read again, while tax records under legal hold are kept.",
+  NDMO: "The NDMO (National Data Management Office) sets Saudi data-classification tiers: Public, Confidential, Secret and Top secret. Every MIZAN column carries a tier, and unknown classes are rejected.",
+  GOLD_LAYER: "MIZAN uses a medallion design: Bronze holds the raw files, Silver the cleaned and validated data, and Gold the business-ready tables (reconciliation, ZATCA ledger, payment methods, data quality) that reports and this assistant read.",
+  MICROSOFT_FABRIC: "Microsoft Fabric is Microsoft's unified data platform. MIZAN uses its Lakehouse (raw and cleaned data), Warehouse (Gold tables built with dbt), Eventhouse (real-time risk events), Power BI and this Fabric App.",
+  ASK_MIZAN: "Ask MIZAN is this assistant. An Azure OpenAI model chooses from approved queries; the queries run in your browser under your own Fabric permissions; code checks every number in the answer against the query results before it is shown; personal data is never retrieved.",
+  HALALA: "A halala is one hundredth of a Saudi riyal (SAR 0.01). MIZAN keeps money exact to the halala and never uses floating-point numbers.",
+};
 const AGENT_TOOLS = {
+  explain_term: { tables: [], queries: [], run: (d, a) => { const k = String(a.term || "").toUpperCase();
+    return AX_GLOSSARY[k] ? { term: k, explanation: AX_GLOSSARY[k] } : { error: "UNKNOWN_TERM", known_terms: Object.keys(AX_GLOSSARY) }; } },
   get_reconciliation: { tables: ["fact_merchant_settlement_recon"], queries: ["recon_totals"], run: d => { const R0 = d.recon, T = d.truth || {};
     return { window: { from: R0.from, to: R0.to }, merchants: R0.merchants, merchant_days: R0.mid_days, gross_captures_sar: R0.gross,
       refunds_and_disputes_sar: R0.refunds, bank_fees_sar: R0.fees, expected_net_sar: R0.net, bank_paid_sar: R0.bank, in_transit_sar: R0.transit,
@@ -474,6 +496,8 @@ async function agentAsk(q, role, onStep) {
     const res = await fetch(A.url, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role, filters: Object.fromEntries(Object.entries(F).filter(([, v]) => v)), messages: msgs }) });
     const r = await res.json().catch(() => ({ type: "error", code: "HTTP_" + res.status }));
+    if (!res.ok && r.type !== "error") r.type = "error";
+    if (r.type === "error" && !r.code) r.code = "HTTP_" + res.status;
     if (r.type === "tool_calls") {
       msgs.push(r.message);
       for (const c of r.message.tool_calls) {
@@ -493,93 +517,153 @@ async function agentAsk(q, role, onStep) {
   return { type: "error", code: "TOO_MANY_STEPS", trace };
 }
 
-function askKpis() {
+/* ---------- Ask MIZAN interface: chat on the left, "how this answer was found" on the right ---------- */
+const axScale = () => ICONS.top;
+const AX_TOOL_LABEL = { explain_term: "Read the MIZAN glossary", get_reconciliation: "Read the reconciliation totals", get_daily: "Read settlement day by day", get_top_merchants: "Ranked merchants by captures",
+  get_zatca: "Read the ZATCA clearance ledger", get_payment_methods: "Read fees by payment method", get_data_quality: "Read the NDMO quality scorecard", get_calendar: "Read the Saudi calendar" };
+const AX_STARTERS = {
+  FINANCE: [["Reconciliation", "Is everything balanced? Anything still waiting for the bank?"], ["Daily sales", "Which day had the most gross captures, and did it reconcile?"],
+    ["Payment fees", "Compare BNPL and mada fees. Which costs us more?"], ["E-invoicing", "How many invoices did ZATCA reject, and what happened to them?"]],
+  TAX: [["E-invoicing", "How many invoices did ZATCA reject, and what happened to them?"], ["Outcomes", "How many invoices were cleared versus reported?"],
+    ["Devices", "Which EGS device issued the most invoices?"], ["Calendar", "When did Ramadan 1447 begin?"]],
+  CDO: [["Data quality", "Do all data-quality checks pass? Which is closest to failing?"], ["Calendar", "When did Ramadan 1447 begin?"],
+    ["Boundaries", "Show the customers' national IDs"], ["Boundaries", "What were gross captures this month?"]],
+  STAFF: [["Calendar", "When did Ramadan 1447 begin?"], ["Calendar", "How many weekend days are in this window?"],
+    ["Boundaries", "What is the unexplained bank variance?"], ["Boundaries", "Show the customers' national IDs"]],
+};
+const AX_KIND = { DAY: "A single day", VARIANCE: "Reconciliation", NOT_ASSESSED: "Bank files", SETTLEMENT: "Settlement", SALES: "Sales", REJECTED: "E-invoicing",
+  ZATCA: "E-invoicing", METHOD: "Payment fees", QUALITY: "Data quality", RAMADAN: "Calendar" };
+const axAgentOn = () => ASK.mode === "AGENT" && agentAvailable();
+const axGuidedQs = () => ASK_INTENTS.filter(it => it.tables.every(t => askEntitled(ASK.role, t)));
+function axStarters() {
+  if (axAgentOn()) return AX_STARTERS[ASK.role];
+  const g = axGuidedQs().slice(0, 4).map(it => [AX_KIND[it.id] || it.id, it.q]);
+  return g.concat(AX_STARTERS[ASK.role].filter(x => x[0] === "Boundaries")).slice(0, 4);
+}
+function axStatus() {
   const u = ASK_ROLES[ASK.role], allowed = ASK_TIERS.slice(0, ASK_TIERS.indexOf(u.clearance) + 1), blocked = ASK_TIERS.filter(t => !allowed.includes(t));
-  const tables = Object.keys(ASK_ACL).filter(t => askEntitled(ASK.role, t));
-  const card = (lbl, val, note, accent) => `<div class="panel kpi" style="--accent:${accent}"><div class="k-top"><span class="k-lbl">${lbl}</span></div><div class="k-val">${val}</div><div class="k-note">${note}</div></div>`;
-  $("#ask-kpis").innerHTML = card("Role", u.name, `\u24d8 tiers: ${allowed.map(t => ASK_TIER_NAME[t]).join(", ")} \u00b7 ${tables.length} Gold tables`, C.gold) +
-    card("Blocked tiers", blocked.length, `\u2014 ${blocked.map(t => ASK_TIER_NAME[t]).join(", ")}`, C.dim) +
-    card("Answers verified", ASK.answered || "\u2014", "\u2713 numbers from queries only", C.ok) +
-    card("Declined", ASK.declined || "\u2014", "\u2713 personal data never retrieved", C.ok);
-  document.querySelectorAll("#ask-roles button").forEach(b => b.setAttribute("aria-pressed", b.dataset.r === ASK.role));
+  const n = Object.keys(ASK_ACL).filter(t => askEntitled(ASK.role, t)).length, sep = `<span class="sep">|</span>`;
+  if ($("#ax-status")) $("#ax-status").innerHTML = `<span><b>${u.name}</b> reads ${allowed.map(t => ASK_TIER_NAME[t]).join(" + ")} data</span>${sep}<span>${n} of ${Object.keys(ASK_ACL).length} Gold tables</span>${sep}<span>Blocked: ${blocked.map(t => ASK_TIER_NAME[t]).join(", ")}</span>` +
+    `<span style="margin-left:auto"><b>${ASK.answered}</b> answered \u00b7 <b>${ASK.declined}</b> declined</span>`;
+  document.querySelectorAll("#ax-roles button").forEach(b => b.setAttribute("aria-checked", String(b.dataset.r === ASK.role)));
+  const m = $("#ax-mode"), on = axAgentOn();
+  m.className = "ax-mode" + (on ? "" : " guided");
+  m.innerHTML = `<i></i>${on ? "Agent \u00b7 Azure OpenAI" : agentAvailable() ? "Guided \u00b7 fixed questions" : "Guided \u00b7 agent in the Fabric App"}`;
+  m.title = on ? "Switch to Guided mode (fixed questions, no language model)" : agentAvailable() ? "Switch to Agent mode" : "Guided mode uses no language model. The agent runs only in the live Fabric App.";
 }
-
-function askEvidence(a) {
-  if (a && a.agent) return agentEvidence(a);
-  const box = $("#ask-ev"); if (!a) { box.innerHTML = `<div class="sub" style="margin-top:12px">Ask a question to see the query, the Gold table and the entitlement check behind the answer.</div>`; return; }
-  const live = typeof window.MIZAN_QUERY === "function" && window.MIZAN_DAX, P = D.runs && D.runs.published ? D.runs.published : {};
-  const row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
-  const it = a.intent, u = ASK_ROLES[a.role];
-  let html = row("Outcome", a.kind === "ANSWER" ? "\u2713 Answered" : a.kind === "REFUSED" ? `\u2715 Refused \u00b7 ${a.code}` : `\u2014 Declined \u00b7 ${a.code}`) +
-    row("Role", `${u.name} \u00b7 ${ASK_TIER_NAME[u.clearance]} \u00b7 ${u.groups.join(", ")}`);
-  if (it) html += row("Gold", it.tables.map(t => `gld.${t} (${ASK_TIER_NAME[ASK_ACL[t][0]]})`).join(", ")) + row("Query", `queries/${it.query}.dax`);
-  if (a.kind === "ANSWER") html += row("Fields", askEsc(it.fields)) + row("Filters", a.filters.length ? a.filters.map(([k, v]) => `${FLABEL[k]} ${askEsc(v)}`).join(" \u00b7 ") : "none") +
-    row("Source", live ? "Live DAX \u00b7 MIZAN Control Tower Model" : "Export snapshot \u00b7 this copy does not query") +
-    row("As of", live ? riyadh(a.at) + " (Riyadh)" : `${P.generated_at ? riyadh(P.generated_at) : ""} \u00b7 run ${String(P.run_id || "").slice(0, 8)}`);
-  const dax = a.kind === "ANSWER" && live ? window.MIZAN_DAX[it.query] : null;
-  const pre = a.kind !== "ANSWER" ? "-- Nothing was queried: the request was stopped before any data was read." :
-    dax || `-- queries/${it.query}.dax runs live in the Fabric App, wrapped with the active filters.\n-- This copy reads the export of run ${String(P.run_id || "").slice(0, 8)}.`;
-  box.innerHTML = html + `<pre>${askEsc(pre)}</pre>`;
+function axChips() {
+  const asked = new Set(ASK.history.map(h => h.q));
+  const list = axStarters().map(x => x[1]).concat(axGuidedQs().map(it => it.q)).filter((q, i, a) => a.indexOf(q) === i && !asked.has(q)).slice(0, 6);
+  $("#ax-chips").innerHTML = ASK.history.length ? list.map(q => `<button type="button" data-q="${askEsc(q)}">${askEsc(q)}</button>`).join("") : "";
 }
-
-function agentEvidence(a) {
-  const box = $("#ask-ev"), u = ASK_ROLES[a.role], row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
-  let html = row("Outcome", a.kind === "ANSWER" ? "\u2713 Answered by the agent \u00b7 numbers verified" : `\u2014 Agent ${a.code || ""} \u00b7 guided answer shown`) +
-    row("Model", `${askEsc(window.MIZAN_AGENT && window.MIZAN_AGENT.model || "Azure OpenAI")} \u00b7 tools only, no free queries`) +
-    row("Role", `${u.name} \u00b7 ${ASK_TIER_NAME[u.clearance]} \u00b7 ${u.groups.join(", ")}`) +
-    row("As of", riyadh(a.at) + " (Riyadh) \u00b7 live DAX");
-  const steps = (a.trace || []).map((t, i) => `${i + 1}. ${t.name}  ${t.args && t.args !== "{}" ? t.args : ""}\n   Gold: ${(t.tables || []).map(x => "gld." + x).join(", ") || "-"}` +
-    (t.result && t.result.error ? `\n   -> ${t.result.error}` : `\n   filters: ${(t.filters || []).map(([k, v]) => k + "=" + v).join(", ") || "none"}`)).join("\n");
-  const dax = []; const seen = new Set();
-  (a.trace || []).forEach(t => (t.dax || []).forEach(([q, text]) => { const key = q + text; if (!seen.has(key) && text) { seen.add(key); dax.push(`-- queries/${q}.dax\n${text}`); } }));
-  box.innerHTML = html + `<pre>${askEsc("-- Agent plan (tool calls, in order)\n" + (steps || "(no tools)"))}</pre>` + (dax.length ? `<pre>${askEsc(dax.join("\n\n"))}</pre>` : "");
+function axWelcome() {
+  $("#ax-log").innerHTML = `<div class="ax-welcome"><div class="ax-orb"><svg viewBox="0 0 24 24"><path d="${axScale()}"/></svg></div><h3>What would you like to know?</h3>` +
+    `<p>${axAgentOn() ? "Ask in your own words, in English or Arabic. I plan the queries, run them on live Gold data and check every number before you see it." : "Pick a question below. Answers are read from Gold query results by code, with the evidence on the right."}</p>` +
+    `<div class="ax-starters">${axStarters().map(([k, q]) => `<button type="button" class="ax-starter" data-q="${askEsc(q)}"><small>${k}</small>${askEsc(q)}</button>`).join("")}</div></div>`;
 }
-
-function askLog(a) {
-  const log = $("#ask-log"), cls = a.kind === "ANSWER" ? "" : a.kind === "REFUSED" ? "refused" : "abstain";
-  const tags = a.kind === "ANSWER" ? `<div class="ask-tags">${a.intent.tables.map(t => `<span class="ask-tag mono">gld.${t}</span>`).join("")}${a.tags.map(([t, c]) => `<span class="ask-tag ${c}">${askEsc(t)}</span>`).join("")}</div>` : "";
-  const mt = a.agent && a.kind === "ANSWER" ? `<span class="ask-mode-tag">AGENT \u00b7 ${(a.trace || []).length} TOOL CALLS \u00b7 VERIFIED</span>` : a.agentNote ? `<span class="ask-mode-tag">GUIDED \u00b7 ${askEsc(a.agentNote)}</span>` : `<span class="ask-mode-tag">GUIDED</span>`;
-  const atags = a.agent && a.kind === "ANSWER" ? `<div class="ask-tags">${[...new Set((a.trace || []).flatMap(t => t.tables || []))].map(t => `<span class="ask-tag mono">gld.${t}</span>`).join("")}<span class="ask-tag ok">\u2713 every number traced to a query</span></div>` : "";
-  log.insertAdjacentHTML("beforeend", `<div class="ask-msg you"><div class="who">You \u00b7 as ${ASK_ROLES[a.role].name}</div><div class="txt">${askEsc(a.q)}</div></div>` +
-    `<div class="ask-msg ${cls}"><div class="who">MIZAN${mt}</div><div class="txt">${askEsc(a.text)}</div>${a.agent ? atags : tags}</div>`);
-  log.scrollTop = log.scrollHeight;
+const axScroll = () => { const l = $("#ax-log"); l.scrollTop = l.scrollHeight; };
+function axBadges(a, i) {
+  const b = [], steps = (a.trace || []).length;
+  const dataSteps = (a.trace || []).filter(t => (t.tables || []).length).length;
+  if (a.agent && a.kind === "ANSWER" && !steps) b.push(`<span class="ax-badge agent">Agent \u00b7 no data used</span>`);
+  else if (a.agent && a.kind === "ANSWER" && !dataSteps) b.push(`<span class="ax-badge agent">Agent \u00b7 glossary</span>`);
+  else if (a.agent && a.kind === "ANSWER") b.push(`<span class="ax-badge agent">Agent \u00b7 ${dataSteps} ${dataSteps === 1 ? "query" : "queries"}</span>`, `<span class="ax-badge ok">\u2713 Numbers verified</span>`);
+  else if (a.kind === "ANSWER") { b.push(`<span class="ax-badge">${a.agentNote ? "Guided \u00b7 agent unavailable" : "Guided"}</span>`); (a.tags || []).forEach(([t, c]) => b.push(`<span class="ax-badge ${c}">${askEsc(t)}</span>`)); }
+  else if (a.kind === "REFUSED") b.push(`<span class="ax-badge warn">\u2715 Refused</span>`, `<span class="ax-badge">Nothing retrieved</span>`);
+  else b.push(`<span class="ax-badge">${a.agentNote ? "Guided \u00b7 agent unavailable" : "Not an approved question"}</span>`);
+  return `<div class="ax-meta">${b.join("")}<button type="button" class="ax-proof-btn" data-p="${i}">View proof \u2192</button></div>`;
 }
-
-function askRecord(a) { if (a.kind === "ANSWER") ASK.answered++; else ASK.declined++; ASK.last = a; askLog(a); askEvidence(a); askKpis(); }
+function axType(el, text) {
+  if (REDUCED) { el.textContent = text; return; }
+  const parts = String(text).split(/(\s+)/); let k = 0; el.textContent = "";
+  const tick = () => { el.textContent += parts.slice(k, k + 4).join(""); k += 4; axScroll(); if (k < parts.length) requestAnimationFrame(tick); };
+  tick();
+}
+function axRowYou(q) { $("#ax-log").insertAdjacentHTML("beforeend", `<div class="ax-row you"><div class="ax-bub">${askEsc(q)}</div></div>`); axScroll(); }
+function axRowBot(a, i) {
+  const row = document.createElement("div");
+  row.className = "ax-row bot" + (a.kind === "REFUSED" ? " refused" : a.kind === "ABSTAIN" ? " abstain" : "");
+  row.innerHTML = `<div class="ax-av"><svg viewBox="0 0 24 24"><path d="${axScale()}"/></svg></div><div class="ax-bub"><div class="ax-txt"></div>${axBadges(a, i)}</div>`;
+  $("#ax-log").appendChild(row); axType(row.querySelector(".ax-txt"), a.text);
+}
+function axThinking() {
+  const row = document.createElement("div"); row.className = "ax-row bot";
+  row.innerHTML = `<div class="ax-av"><svg viewBox="0 0 24 24"><path d="${axScale()}"/></svg></div><div class="ax-bub"><div class="ax-think"><span class="ax-dots"><span></span><span></span><span></span></span><span class="t">Planning which queries to run\u2026</span></div></div>`;
+  $("#ax-log").appendChild(row); axScroll();
+  return { set: t => { row.querySelector(".t").textContent = t; }, done: () => row.remove() };
+}
+function axProof(a, flash) {
+  const box = $("#ax-proof"), P = D.runs && D.runs.published ? D.runs.published : {};
+  const step = (cls, n, b, d, extra) => `<li><span class="n ${cls}">${n}</span><b>${b}</b>${d ? `<div class="d">${d}</div>` : ""}${extra || ""}</li>`;
+  const dax = text => text ? `<details><summary>Show DAX</summary><pre>${askEsc(text)}</pre></details>` : "";
+  if (!a) {
+    box.innerHTML = `<h3>How answers are proven</h3><div class="sub">Every answer in this chat can be traced.</div><ol class="ax-steps">` +
+      step("ok", "1", "Only approved Gold queries", "The assistant chooses from fixed, reviewed queries. It never writes its own.") +
+      step("ok", "2", "Your role decides what is read", "Finance, Tax, Data office and All staff see different Gold tables (NDMO tiers).") +
+      step("ok", "3", "Every number is checked", "An answer is shown only if each number in it appears in a query result.") +
+      step("ok", "4", "Personal data is never retrieved", "Requests for IDs, phones or names are stopped before anything runs.") +
+      `</ol><div class="ax-empty">${agentAvailable() ? "Agent mode: Azure OpenAI plans the queries; they run here on live DAX under your own Fabric login." : "Guided mode: no language model; approved questions answered by code."} Ask something, then open <b>View proof</b>.</div>`;
+    return;
+  }
+  const u = ASK_ROLES[a.role], q = a.q.length > 80 ? a.q.slice(0, 80) + "\u2026" : a.q;
+  let html = `<h3>How this answer was found</h3><div class="sub">&ldquo;${askEsc(q)}&rdquo;</div><ol class="ax-steps">`;
+  if (a.agent) {
+    const tr = a.trace || [];
+    html += step("ok", "1", "Planned by the agent", `${askEsc(window.MIZAN_AGENT && window.MIZAN_AGENT.model || "Azure OpenAI")} chose ${tr.length} approved ${tr.length === 1 ? "query" : "queries"}`);
+    tr.forEach((t, i) => { const err = t.result && t.result.error;
+      html += step(err ? "no" : "", String(i + 2), AX_TOOL_LABEL[t.name] || t.name,
+        `${(t.tables || []).map(x => "gld." + x).join(", ") || "Curated MIZAN glossary (no data)"} \u00b7 ${err ? err : "filters: " + ((t.filters || []).map(([k, v]) => k + " " + askEsc(v)).join(", ") || "none")}`,
+        (t.dax || []).map(([, text]) => dax(text)).join("")); });
+    html += tr.length ? step("ok", String(tr.length + 2), "Numbers verified", `${agentNums(a.text).length} numbers in the answer, each found in a tool result`)
+      : step("ok", "2", "No data was read", "The agent answered without running any query");
+  } else if (a.kind === "ANSWER") {
+    const it = a.intent, live = window.MIZAN_DAX && typeof window.MIZAN_QUERY === "function";
+    html += step("ok", "1", "Matched an approved question", `Guided question ${it.id}`) +
+      step("ok", "2", "Role check passed", `${u.name} may read ${it.tables.map(t => "gld." + t).join(", ")}`) +
+      step("ok", "3", "Read from Gold", `queries/${it.query}.dax \u00b7 ${live ? "live DAX" : "export of run " + String(P.run_id || "").slice(0, 8)}`, live ? dax(window.MIZAN_DAX[it.query]) : "") +
+      step("ok", "4", "Answer written by code", "No language model in guided mode; every figure is copied from the query result");
+  } else {
+    html += step("no", "1", a.kind === "REFUSED" ? "Request stopped" : "Not answered", `${a.code}: ${askEsc(a.text)}`) + step("ok", "2", "Nothing was queried", "No data was read for this request");
+  }
+  html += `</ol>`;
+  if (a.agentError) html += `<div class="scope-note">The agent was unavailable, so the guided answer is shown. Reason: ${askEsc(a.agentError)}${/Failed to fetch|NetworkError|Load failed/i.test(a.agentError) ? " (the browser blocked the call before it reached the agent)" : ""}</div>`;
+  html += `<div class="row"><span>Role</span><span>${u.name} \u00b7 ${ASK_TIER_NAME[u.clearance]}</span></div><div class="row"><span>As of</span><span>${riyadh(a.at)} (Riyadh)</span></div>`;
+  box.innerHTML = html;
+  if (flash) { box.classList.remove("ax-flash"); void box.offsetWidth; box.classList.add("ax-flash"); if (innerWidth <= 900) box.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); }
+}
+function askRecord(a) {
+  if (a.kind === "ANSWER") ASK.answered++; else ASK.declined++;
+  ASK.history.push(a); ASK.last = a; axRowBot(a, ASK.history.length - 1); axProof(a); axStatus(); axChips();
+}
 const AGENT_WHY = { unverified: "agent answer failed the number check", NOT_ENTITLED: "agent: not for this role", RATE_LIMIT: "agent busy, try again in a minute", UPSTREAM: "agent unavailable", TOO_MANY_STEPS: "agent took too many steps" };
 async function ask(q) {
   q = String(q || "").trim().slice(0, 200); if (!q || ASK.busy) return;
-  const guided = askAnswer(q, ASK.role);
-  if (ASK.mode !== "AGENT" || !agentAvailable() || guided.code === "PERSONAL_DATA" || guided.code === "READ_ONLY") { askRecord(guided); return; }
-  ASK.busy = true; const log = $("#ask-log");
-  log.insertAdjacentHTML("beforeend", `<div class="ask-msg you"><div class="who">You \u00b7 as ${ASK_ROLES[ASK.role].name}</div><div class="txt">${askEsc(q)}</div></div><div class="ask-msg thinking" id="ask-think"><div class="who">MIZAN</div><div class="txt">Planning\u2026</div></div>`);
-  log.scrollTop = log.scrollHeight;
-  const think = $("#ask-think");
+  if (!ASK.history.length) $("#ax-log").innerHTML = "";
+  const guided = askAnswer(q, ASK.role); axRowYou(q);
+  if (!axAgentOn() || guided.code === "PERSONAL_DATA" || guided.code === "READ_ONLY") { askRecord(guided); return; }
+  ASK.busy = true; $("#ax-form button").disabled = true; const th = axThinking();
   try {
-    const r = await agentAsk(q, ASK.role, name => { think.querySelector(".txt").textContent = `Running ${name}\u2026`; });
-    think.previousElementSibling.remove(); think.remove();
-    if (r.type === "answer") askRecord({ q, role: ASK.role, at: new Date().toISOString(), agent: true, kind: "ANSWER", text: r.text, trace: r.trace, filters: [] });
+    const r = await agentAsk(q, ASK.role, name => th.set(`${AX_TOOL_LABEL[name] || name}\u2026`));
+    th.done();
+    if (r.type === "answer") askRecord({ q, role: ASK.role, at: new Date().toISOString(), agent: true, kind: "ANSWER", text: r.text, trace: r.trace });
     else if (r.type === "declined" && r.code === "PERSONAL_DATA") askRecord(guided);
-    else askRecord({ ...guided, agentNote: AGENT_WHY[r.type] || AGENT_WHY[r.code] || "agent unavailable" });
+    else askRecord({ ...guided, agentNote: AGENT_WHY[r.type] || AGENT_WHY[r.code] || "agent unavailable", agentError: `${r.type}${r.code ? " " + r.code : ""}${r.message ? ": " + r.message : ""}` });
   } catch (e) {
-    if (think) { think.previousElementSibling && think.previousElementSibling.remove(); think.remove(); }
-    askRecord({ ...guided, agentNote: "agent unavailable" });
-  } finally { ASK.busy = false; }
+    th.done(); askRecord({ ...guided, agentNote: "agent unavailable", agentError: `${e && e.name || "Error"}: ${e && e.message || e}` });
+  } finally { ASK.busy = false; $("#ax-form button").disabled = false; }
 }
-
 function askScene() {
-  const modes = () => { $("#ask-mode").innerHTML = (agentAvailable() ? [["AGENT", "Agent"], ["GUIDED", "Guided"]] : [["GUIDED", "Guided (agent in the Fabric App)"]])
-    .map(([k, t]) => `<button type="button" class="btn" data-m="${k}" aria-pressed="${ASK.mode === k || !agentAvailable()}">${t}</button>`).join(""); };
+  ASK.history = [];
   if (!agentAvailable()) ASK.mode = "GUIDED";
-  modes(); $("#ask-mode").addEventListener("click", e => { const b = e.target.closest("button[data-m]"); if (b && agentAvailable()) { ASK.mode = b.dataset.m; modes(); } });
-  $("#ask-roles").innerHTML = Object.entries(ASK_ROLES).map(([k, u]) => `<button type="button" class="btn" data-r="${k}">${u.name}</button>`).join("");
-  $("#ask-roles").addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if (b) { ASK.role = b.dataset.r; askKpis(); } });
-  const sugg = ASK_INTENTS.map(it => it.q).concat(["Show the customers' national IDs", "Forecast next month's sales"]);
-  $("#ask-sugg").innerHTML = sugg.map((q, i) => `<button type="button" class="${i >= ASK_INTENTS.length ? "neg" : ""}" data-q="${askEsc(q)}">${askEsc(q)}</button>`).join("");
-  $("#ask-sugg").addEventListener("click", e => { const b = e.target.closest("button[data-q]"); if (b) ask(b.dataset.q); });
-  $("#ask-form").addEventListener("submit", e => { e.preventDefault(); const i = $("#ask-input"); ask(i.value); i.value = ""; });
-  $("#ask-log").innerHTML = `<div class="ask-msg"><div class="who">MIZAN</div><div class="txt">Ask me about reconciliation, settlement, a single day, ZATCA outcomes, payment-method fees, data quality or the calendar. I answer only from Gold query results, and I show the evidence on the right.${agentAvailable() ? " In Agent mode you can ask in your own words, in English or Arabic, and I can chain several queries." : ""}</div></div>`;
-  askKpis(); askEvidence(null);
+  $("#ax-roles").innerHTML = Object.entries(ASK_ROLES).map(([k, u]) => `<button type="button" role="radio" data-r="${k}" aria-checked="${k === ASK.role}">${u.name}</button>`).join("");
+  const refresh = () => { axStatus(); axChips(); if (!ASK.history.length) axWelcome(); };
+  $("#ax-roles").addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if (b && !ASK.busy) { ASK.role = b.dataset.r; refresh(); } });
+  $("#ax-mode").addEventListener("click", () => { if (agentAvailable() && !ASK.busy) { ASK.mode = ASK.mode === "AGENT" ? "GUIDED" : "AGENT"; refresh(); axProof(ASK.last); } });
+  const pick = e => { const b = e.target.closest("[data-q]"); if (b) ask(b.dataset.q); };
+  $("#ax-log").addEventListener("click", e => { const pb = e.target.closest("[data-p]"); if (pb) axProof(ASK.history[+pb.dataset.p], true); else pick(e); });
+  $("#ax-chips").addEventListener("click", pick);
+  $("#ax-form").addEventListener("submit", e => { e.preventDefault(); const i = $("#ax-input"); ask(i.value); i.value = ""; });
+  axWelcome(); axStatus(); axChips(); axProof(null);
 }
 
 /* =========================================================== 01 PULSE */

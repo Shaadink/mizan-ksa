@@ -49,8 +49,16 @@ _FILTERS = {
     "additionalProperties": False,
 }
 
+GLOSSARY_TERMS = ["MIZAN", "ZATCA", "INVOICE_CHAIN", "EGS", "MADA", "SADAD", "BNPL", "MDR", "SETTLEMENT",
+                  "RECONCILIATION", "NOT_ASSESSED", "GENERAL_LEDGER", "PDPL", "NDMO", "GOLD_LAYER",
+                  "MICROSOFT_FABRIC", "ASK_MIZAN", "HALALA"]
+
 # name -> (Gold tables it reads, description). Arguments are only filters; the model never writes a query.
 TOOL_SPECS: dict[str, tuple[tuple[str, ...], str]] = {
+    "explain_term": ((), "Plain-language explanation of a MIZAN concept or Saudi term (what MIZAN is, ZATCA, "
+                         "e-invoice chain, EGS, mada, SADAD, BNPL, MDR, settlement, reconciliation, not assessed, "
+                         "general ledger, PDPL, NDMO, Gold layer, Microsoft Fabric, Ask MIZAN, halala). Reads no data; "
+                         "open to every role."),
     "get_reconciliation": (("fact_merchant_settlement_recon",),
                            "Settlement reconciliation totals: gross captures, refunds, bank fees, expected net, bank "
                            "paid, in transit, quarantined, GL card clearing, unexplained bank and GL variance, broken "
@@ -86,6 +94,9 @@ def tools_for(role: str) -> list[dict]:
     for name, (tables, desc) in TOOL_SPECS.items():
         if all(entitled(role, t) for t in tables):
             params = {"type": "object", "properties": {"filters": _FILTERS}, "additionalProperties": False}
+            if name == "explain_term":
+                params = {"type": "object", "properties": {"term": {"type": "string", "enum": GLOSSARY_TERMS}},
+                          "required": ["term"], "additionalProperties": False}
             if name == "get_top_merchants":
                 params["properties"]["n"] = {"type": "integer", "minimum": 1, "maximum": 10}
             out.append({"type": "function", "function": {"name": name, "description": desc, "parameters": params}})
@@ -126,7 +137,17 @@ def system_prompt(role: str, page_filters: dict) -> str:
         f"5. Your tools for this role: {', '.join(available) or 'none'}. A topic outside them (for example "
         "payment-method fees, invoices, data quality) is not available for this role: say exactly that, and do not "
         "offer related figures. If no tool can answer, say so briefly and suggest what your tools cover.\n"
-        "6. Reply in the language of the question, in at most 5 short sentences. Keep digits, IDs and dates in "
+        "6. For what MIZAN is, or what a term means (ZATCA, mada, PDPL, settlement...), call explain_term and answer "
+        "from it. MIZAN is a portfolio reference platform with synthetic data, never a real company with customers. "
+        "Questions unrelated to MIZAN, Saudi payments or e-invoicing: politely decline in one sentence.\n"
+        "7. Topics and the role they need: settlement, sales, bank, variance and payment-method fees need Finance; "
+        "e-invoices need Tax or Finance; data quality needs Data office; the calendar and glossary are open to all. "
+        "If the user's role lacks a topic, say in one sentence which role it needs, and stop. Check this FIRST, "
+        "before anything else, whatever the language of the question. Never answer a topic with a tool meant for "
+        "another topic.\n"
+        "Never ask the user for a date range or other details: the page filters already define the period. If you "
+        "have a tool for the topic, call it right away.\n"
+        "8. Reply in the language of the question, in at most 5 short sentences. Keep digits, IDs and dates in "
         "Western form (0-9)."
     )
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -34,16 +35,17 @@ def _names(role):
 
 
 def test_model_is_only_offered_tools_the_role_may_use():
+    open_all = {"get_calendar", "explain_term"}                         # public calendar + glossary (no data)
     assert _names("FINANCE") == {"get_reconciliation", "get_daily", "get_top_merchants", "get_zatca",
-                                 "get_payment_methods", "get_calendar"}
-    assert _names("TAX") == {"get_zatca", "get_calendar"}
-    assert _names("CDO") == {"get_data_quality", "get_calendar"}
-    assert _names("STAFF") == {"get_calendar"}
+                                 "get_payment_methods"} | open_all
+    assert _names("TAX") == {"get_zatca"} | open_all
+    assert _names("CDO") == {"get_data_quality"} | open_all
+    assert _names("STAFF") == open_all
     with pytest.raises(ValueError):
         A.tools_for("ADMIN")                                              # unknown role fails closed
     for t in A.tools_for("FINANCE"):                                      # tools take filters only, never a query
         props = set(t["function"]["parameters"]["properties"])
-        assert props <= {"filters", "n"}
+        assert props <= {"filters", "n", "term"}
 
 
 def test_numbers_must_come_from_tool_results():
@@ -65,7 +67,7 @@ def test_personal_data_and_writes_never_reach_the_model():
 
 def test_tool_calls_outside_the_role_are_dropped():
     def chat(_msgs, tools):
-        assert {t["function"]["name"] for t in tools} == {"get_zatca", "get_calendar"}
+        assert {t["function"]["name"] for t in tools} == {"get_zatca", "get_calendar", "explain_term"}
         return {"content": None, "tool_calls": [
             {"id": "1", "type": "function", "function": {"name": "get_payment_methods", "arguments": "{}"}}]}
     r = A.step("TAX", {}, [{"role": "user", "content": "BNPL fee rate?"}], chat)
@@ -116,7 +118,8 @@ def browser():
     jobs = {"tools": [["FINANCE", n, "{}"] for n in ("get_reconciliation", "get_daily", "get_zatca",
                                                       "get_payment_methods", "get_calendar")]
             + [["FINANCE", "get_top_merchants", '{"n": 3}'], ["TAX", "get_payment_methods", "{}"],
-               ["FINANCE", "get_data_quality", "{}"], ["FINANCE", "run_sql", "{}"], ["CDO", "get_data_quality", "{}"]],
+               ["FINANCE", "get_data_quality", "{}"], ["FINANCE", "run_sql", "{}"], ["CDO", "get_data_quality", "{}"],
+               ["STAFF", "explain_term", '{"term": "zatca"}'], ["STAFF", "explain_term", '{"term": "weather"}']],
             "verify": [["Bank paid SAR 19,503,159.33.", ['{"b": "19503159.33"}']],
                        ["About SAR 19.5 million.", ['{"b": "19503159.33"}']]]}
     out = subprocess.run([node, str(REPO / "tests" / "ask_agent_harness.cjs"), str(TPL), str(SNAPSHOT)],
@@ -126,13 +129,19 @@ def browser():
 
 def test_browser_tools_match_the_server_tool_list(browser):
     assert set(browser["names"]) == set(A.TOOL_SPECS)
+    tpl = TPL.read_text(encoding="utf-8")
     for name, (tables, _) in A.TOOL_SPECS.items():                        # same Gold tables on both sides
-        assert f'{name}: {{ tables: ["{tables[0]}"]' in TPL.read_text(encoding="utf-8")
+        assert f'{name}: {{ tables: [{", ".join(chr(34) + t + chr(34) for t in tables)}]' in tpl
+    block = tpl.split("const AX_GLOSSARY = {")[1].split("\n};")[0]
+    keys = set(re.findall(r'^  ([A-Z_]+): "', block, re.M))
+    assert keys == set(A.GLOSSARY_TERMS)                                  # the model can only ask for known terms
 
 
 def test_browser_tools_return_gold_figures_and_enforce_roles(browser):
     d = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-    rec, daily, z, pm, cal, top, tax_pm, fin_dq, unknown, cdo_dq = (t["result"] for t in browser["tools"])
+    rec, daily, z, pm, cal, top, tax_pm, fin_dq, unknown, cdo_dq, gz, gw = (t["result"] for t in browser["tools"])
+    assert gz["term"] == "ZATCA" and "FATOORA" in gz["explanation"]
+    assert gw["error"] == "UNKNOWN_TERM" and "MIZAN" in gw["known_terms"]
     assert rec["bank_paid_sar"] == d["recon"]["bank"]
     assert rec["unexplained_bank_variance_sar"] == d["recon"]["bank_variance"]
     assert rec["not_assessed_merchant_days_bank_file_pending"] == d["truth"]["not_assessed_mid_days"]

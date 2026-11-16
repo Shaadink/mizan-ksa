@@ -227,15 +227,21 @@
   </section>
   <section class="scene" id="ask" data-roles="CFO TAX CDO">
     <div class="wrap">
-      <div class="scene-head"><div><div class="tag">Ask MIZAN &middot; guided questions over Gold</div><h2>Ask the Gold layer, and see the evidence</h2>
-        <p>Pick a role and ask. <b>Agent</b> mode (Fabric App): an Azure OpenAI model plans which approved Gold queries to run; the queries run here under your own Fabric login, and code checks that every number in the answer came from a query result before it is shown. <b>Guided</b> mode: no language model, a fixed list of approved questions. In both, the role's NDMO entitlements apply and personal data is never retrieved.</p></div>
-        <div class="actions"><div class="ask-roles" id="ask-mode" role="group" aria-label="Answer mode"></div><div class="ask-roles" id="ask-roles" role="group" aria-label="Ask as role"></div></div></div>
-      <div class="kpis" id="ask-kpis"></div>
-      <div class="grid g-12" style="margin-top:14px">
-        <div class="panel c-7 ask-chat"><h3>Chat</h3><div class="ask-log" id="ask-log" aria-live="polite"></div>
-          <div class="ask-sugg" id="ask-sugg"></div>
-          <form class="ask-form" id="ask-form" autocomplete="off"><input id="ask-input" maxlength="200" placeholder="Ask about variance, settlement, a day (03 Mar), ZATCA, fees, data quality" aria-label="Question"><button class="btn primary" type="submit">Ask</button></form></div>
-        <div class="panel c-5"><h3>Evidence panel</h3><div class="sub">query &middot; Gold table &middot; entitlement &middot; filters &middot; as of</div><div id="ask-ev" class="ask-ev"></div></div>
+      <div class="scene-head ax-head">
+        <div><div class="tag">Ask MIZAN</div><h2>Ask your data. <span class="ax-grad">See the proof.</span></h2>
+          <p class="ax-lede">Ask in plain English or Arabic. Answers come only from Gold queries, respect your role, and show exactly how they were found.</p></div>
+        <div class="ax-controls"><div class="ax-seg" id="ax-roles" role="radiogroup" aria-label="Ask as role"></div><button class="ax-mode" id="ax-mode" type="button"></button></div>
+      </div>
+      <div class="ax-shell">
+        <div class="panel ax-chat">
+          <div class="ax-log" id="ax-log" aria-live="polite"></div>
+          <div class="ax-dock">
+            <div class="ax-chips" id="ax-chips"></div>
+            <form class="ax-composer" id="ax-form" autocomplete="off"><input id="ax-input" maxlength="200" placeholder="Ask about settlement, ZATCA, fees, data quality&hellip;" aria-label="Question"><button type="submit" class="ax-send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button></form>
+            <div class="ax-hint">English or &#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577; &middot; Enter to send &middot; personal data is never retrieved</div>
+          </div>
+        </div>
+        <aside class="panel ax-proof" id="ax-proof" aria-label="How this answer was found"></aside>
       </div>
     </div>
   </section>
