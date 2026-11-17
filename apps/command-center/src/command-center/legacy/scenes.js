@@ -1025,6 +1025,7 @@ function zatcaScene() {
         <svg viewBox="0 0 54 54" width="54" height="54"><circle cx="27" cy="27" r="22" fill="none" stroke="rgba(140,160,190,.15)" stroke-width="6"/>
           <circle class="sla-ring" cx="27" cy="27" r="22" fill="none" stroke="${C.crit}" stroke-width="6" stroke-dasharray="${(2 * Math.PI * 22).toFixed(1)}" stroke-dashoffset="${((1 - pct) * 2 * Math.PI * 22).toFixed(1)}" transform="rotate(-90 27 27)"/></svg>
         <div><b class="mono">${a.key}</b><div class="sub sla-txt" data-lag="${late === null ? "" : late}">${late === null ? "\u2717 never reported: rejected (HTTP 400), corrected by a new document" : `\u2717 reported after ${hm(late)} \u00b7 window exceeded by ${hm(over)}`}</div></div></div>`; }).join("");
+  safe("sdkValidation", sdkValidation);
   const mx = Math.max(...D.zatca.egs.map(e => e.docs));
   safe("egsCards", egsCards);
   $("#egs").innerHTML = D.zatca.egs.map(e => `<div class="lane" data-f="egs" data-v="${e.egs}" title="Filter to ${e.egs}" style="grid-template-columns:62px 1fr 110px"><span>${e.egs}</span><div class="track" style="height:14px"><div class="max" data-w="${e.docs / mx}" style="top:0;bottom:0;width:${e.docs / mx * 100}%;background:linear-gradient(90deg,var(--emerald-deep),var(--emerald))"></div></div><span class="num" style="text-align:right">${fmtI(e.docs)}</span></div>`).join("");
@@ -1064,6 +1065,45 @@ function zatcaScene() {
   zatca.play = () => { if (!window.gsap || REDUCED) return; gsap.fromTo("#chain .block, #chain .link, #chain .gap", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .45, stagger: .05, ease: "power2.out", overwrite: true });
     document.querySelectorAll("#sla .sla-ring").forEach(c => { const end = c.getAttribute("stroke-dashoffset"); gsap.fromTo(c, { strokeDashoffset: 2 * Math.PI * 22 }, { strokeDashoffset: end, duration: 2.2, ease: "power1.inOut" }); });
     zatca.incident(); };
+}
+
+/* --------- ZATCA SDK validation: the tax authority's own validator, run on our invoices --------- */
+// Only rendered when docs/artifacts/12_zatca_sdk_validation.json exists, and every figure comes from
+// that file. The SDK is not committed, so a clone without it simply does not show the panel.
+// Pipeline order, not alphabetical: the build writes data.json with sorted keys, which would show
+// the schema check last even though it runs first.
+const SDK_STAGE_ORDER = ["XSD", "EN", "KSA", "QR"];
+const SDK_STAGE_LABEL = { XSD: "UBL 2.1 schema", EN: "EN 16931 rules", KSA: "KSA business rules", QR: "QR cryptographic stamp" };
+function sdkValidation() {
+  const box = $("#sdkv"), v = D.zatca_sdk;
+  if (!box || !v) return;                                   // no report in this build
+  box.hidden = false;
+  const counts = v.stage_counts || {};
+  const order = SDK_STAGE_ORDER.filter(s => (v.stages || {})[s])
+    .concat(Object.keys(v.stages || {}).filter(s => !SDK_STAGE_ORDER.includes(s)));
+  const stages = order.map(s => {
+    const verdict = v.stages[s];
+    const c = counts[s] || { passed: 0, failed: 0 };
+    const ok = verdict === "PASSED";
+    const seen = c.passed + c.failed;
+    return `<div class="sdkv-stage ${ok ? "ok" : "no"}">
+      <div class="sdkv-s-name">${SDK_STAGE_LABEL[s] || s}</div>
+      <div class="sdkv-s-val">${ok ? "✓ PASSED" : "⚠ " + c.failed + " rejected"}</div>
+      <div class="sdkv-s-note">${seen ? `${c.passed}/${seen} invoices` : "not reached"}</div></div>`;
+  }).join("");
+  const defects = Object.entries(v.known_validator_defects || {});
+  const clean = (v.unexpected_codes || []).length === 0;
+  box.innerHTML = `<div class="sdkv-head"><h3>Checked by ZATCA's own validator</h3>
+      <span class="sdkv-tool">${askEsc(v.tool || "ZATCA SDK")}</span></div>
+    <div class="sub">Their offline toolkit, run against our signed invoices. ${fmtI(v.defects_found_and_fixed || 0)} defects it
+      found in MIZAN were fixed; what remains below is the validator disagreeing with its own specification.</div>
+    <div class="sdkv-stages">${stages}</div>
+    ${defects.length ? `<div class="sdkv-why"><b>Why the last stages still report failures</b>
+      <ul>${defects.map(([code, why]) => `<li><code>${askEsc(code)}</code> &mdash; ${askEsc(why)}</li>`).join("")}</ul>
+      <div class="sub">${clean ? "✓ Every failure above is one of these known validator defects: no unexplained rejection."
+        : "⚠ Unexplained codes: " + (v.unexpected_codes || []).join(", ")}</div></div>` : ""}
+    <div class="prov">${askEsc(v.tool || "")} · ${askEsc(v.licence || "")} · run ${askEsc((v.validated_at || "").slice(0, 10))}
+      · ${fmtI(v.invoices_checked || 0)} invoices · source docs/artifacts/12_zatca_sdk_validation.json</div>`;
 }
 
 /* =========================================================== 06 PDPL */

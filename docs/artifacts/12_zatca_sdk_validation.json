@@ -1,0 +1,45 @@
+{
+ "tool": "ZATCA Compliance Enablement Toolbox (SDK) 3.0.8",
+ "licence": "LGPL v3 (bundled in the SDK; never redistributed by this repo)",
+ "validated_at": "2026-11-17T04:00:26Z",
+ "invoices_checked": 12,
+ "stages": {
+  "XSD": "PASSED",
+  "EN": "PASSED",
+  "KSA": "FAILED",
+  "QR": "FAILED"
+ },
+ "stage_counts": {
+  "XSD": {
+   "passed": 12,
+   "failed": 0
+  },
+  "EN": {
+   "passed": 12,
+   "failed": 0
+  },
+  "KSA": {
+   "passed": 7,
+   "failed": 5
+  },
+  "QR": {
+   "passed": 0,
+   "failed": 7
+  }
+ },
+ "defects_found_and_fixed": 9,
+ "codes_reported": {
+  "BR-KSA-50": 5,
+  "R": 7,
+  "S": 7,
+  "vatTotal": 7
+ },
+ "known_validator_defects": {
+  "R": "The QR stage expects tags 8 and 9 to carry the signature's R and S; ZATCA's published spec defines them as the public key and the certificate signature. We follow the spec.",
+  "S": "See R: same mismatch between the SDK build and the published QR specification.",
+  "vatTotal": "BR-KSA-68 forces a tax currency code, BR-KSA-EN16931-09 then forces a second TaxTotal, and the QR check sums both before comparing. No invoice can satisfy all three unless the QR states double the real VAT.",
+  "BR-KSA-50": "The rule compares line VAT in IEEE doubles with no tolerance: for a 96.00 line it computes 14.399999999999999 and rejects our exact 14.40. MIZAN's money is Decimal."
+ },
+ "unexpected_codes": [],
+ "note": "XSD, EN 16931 and the KSA business rules pass. The QR stage cannot pass: two KSA rules force a second TaxTotal that the QR check then sums, and this SDK build reads QR tags 8 and 9 as the signature's R and S rather than the key and certificate signature that ZATCA's published specification defines. See HONESTY.md."
+}

@@ -442,6 +442,11 @@ def build_data() -> dict:
                           "source": "src/mizan/spark/skew.py skewed_facts(mega_share)"}
     data["runs"] = runs_section()
     data["agent_runs"] = agent_runs_section()
+    # Optional: present only after scripts/validate_with_zatca_sdk.py --report has been run locally
+    # (the SDK is not committed, so a fresh clone has no report and the scene hides the panel).
+    sdk_report = ART / "12_zatca_sdk_validation.json"
+    if sdk_report.exists():
+        data["zatca_sdk"] = json.loads(sdk_report.read_text(encoding="utf-8"))
     prof = REPO / "config" / "profile.json"
     data["profile"] = json.loads(prof.read_text(encoding="utf-8")) if prof.exists() else {}
     data["fabric"] = json.loads((ART / "10_fabric_run_evidence.json").read_text(encoding="utf-8"))
