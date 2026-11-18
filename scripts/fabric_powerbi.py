@@ -84,7 +84,9 @@ MEASURES = {
                               "fact_zatca_clearance_ledger[attempts] > 1))", "#,0"),
         ("EGS Devices", "DISTINCTCOUNT(fact_zatca_clearance_ledger[egs_id])", "0"),
         # A gauge needs a bounded 0-100 figure; this is the share of documents ZATCA did not reject.
-        ("Acceptance Rate Pct", "DIVIDE([Accepted Documents], [Documents in Chain]) * 100", "0.00\"%\"")],
+        # Three decimals on purpose: 25,000 of 25,001 is 99.996%, and at two decimals it rounds to a
+        # flat 100.00%, hiding the single rejection that the whole correction story is about.
+        ("Acceptance Rate Pct", "DIVIDE([Accepted Documents], [Documents in Chain]) * 100", "0.000\"%\"")],
     "fact_payment_method_daily": [
         ("Method Captures SAR", "SUM(fact_payment_method_daily[gross_captures_sar])", "#,0.00"),
         ("Method Bank Fees SAR", "SUM(fact_payment_method_daily[acquirer_fees_sar])", "#,0.00"),
@@ -183,7 +185,7 @@ PAGES = [
              "Classification Score Pct", "Tables Needing Split"]) + [
         ("clusteredBarChart", {"Category": [("c", N, "dimension")],
                                "Y": [("m", "Average Score Pct"), ("m", "Threshold Pct")]},
-         (20, 168, 600, 252), "Score vs threshold by quality dimension"),
+         (20, 168, 600, 252), "Score vs threshold by quality dimension (worst first)", {"sort": "asc"}),
         ("gauge", {"Y": [("m", "Data Quality Score Pct")], "TargetValue": [("m", "Threshold Pct")]},
          (630, 168, 240, 252), "Data quality score vs threshold"),
         # PASS is green and SPLIT_RECOMMENDED amber, pinned per category. Left to the theme's palette
@@ -439,7 +441,10 @@ def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None, opts: d
     query: dict = {"queryState": {role: {"projections": [_proj(r) for r in rs]} for role, rs in roles.items()}}
     ys = [r for r in roles.get("Y", []) if r[0] == "m"]
     if ys and kind in ("clusteredBarChart", "clusteredColumnChart", "donutChart", "treemap"):
-        query["sortDefinition"] = {"sort": [{"field": _proj(ys[0])["field"], "direction": "Descending"}],
+        # Default is biggest-first, but a scorecard should lead with its worst row: sorting the quality
+        # dimensions best-first pushed the only failing one below the scroll, where nobody sees it.
+        direction = "Ascending" if opts.get("sort") == "asc" else "Descending"
+        query["sortDefinition"] = {"sort": [{"field": _proj(ys[0])["field"], "direction": direction}],
                                    "isDefaultSort": True}
     container = {"background": [{"properties": {"show": _lit("true"), "color": _solid(PANEL),
                                                 "transparency": _lit("0D")}}],
@@ -462,6 +467,20 @@ def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None, opts: d
         if kind == "clusteredColumnChart" or (kind == "clusteredBarChart" and len(ys) == 1):
             objects["dataPoint"] = [{"properties": {"fill": _solid(EMERALD)}}]
             objects["legend"] = [{"properties": {"show": _lit("false")}}]
+    elif kind == "gauge":
+        # Pin the axis to 0-100. Left to itself the gauge scales from whatever it is given and invents a
+        # maximum like 199.99%, which makes a percentage unreadable.
+        objects = {"axis": [{"properties": {"min": _lit("0D"), "max": _lit("100D")}}],
+                   "dataPoint": [{"properties": {"fillColor": _solid(EMERALD),
+                                                 "targetColor": _solid(ACCENT)}}],
+                   "labels": [{"properties": {"color": _solid(INK), "fontSize": _lit("16D")}}],
+                   "calloutValue": [{"properties": {"color": _solid(ACCENT), "fontSize": _lit("28D")}}]}
+    elif kind == "treemap":
+        # One hue: a treemap already encodes value as area, and a rainbow adds meaning that is not there
+        # (a red tile for Madinah read as an alarm about Madinah).
+        objects = {"dataPoint": [{"properties": {"fill": _solid(EMERALD)}}],
+                   "legend": [{"properties": {"show": _lit("false")}}],
+                   "labels": [{"properties": {"show": _lit("true"), "color": _solid(INK)}}]}
     elif kind == "slicer":
         objects = {"data": [{"properties": {"mode": _lit("'Basic'")}}]}
     # Per-category colours win over whatever the theme palette would have assigned by sort order.

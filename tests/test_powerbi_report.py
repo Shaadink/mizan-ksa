@@ -95,6 +95,23 @@ def test_classification_donut_excludes_rows_that_have_no_tier():
         assert "metric_family" in cfg and "CLASSIFICATION" in cfg, c["name"]
 
 
+def test_gauges_are_pinned_to_a_0_100_axis():
+    """A gauge left to scale itself invented a maximum of 199.99% for a percentage."""
+    gauges = [c for c in _visuals().values() if c["visual"]["visualType"] == "gauge"]
+    assert gauges, "no gauges in the report"
+    for g in gauges:
+        axis = g["visual"]["objects"]["axis"][0]["properties"]
+        assert axis["min"]["expr"]["Literal"]["Value"] == "0D", g["name"]
+        assert axis["max"]["expr"]["Literal"]["Value"] == "100D", g["name"]
+
+
+def test_acceptance_rate_keeps_enough_decimals_to_show_one_rejection():
+    """25,000 of 25,001 is 99.996%; at two decimals it reads 100.00% and the rejection disappears."""
+    fmt = next(f for name, _dax, f in PB.MEASURES["fact_zatca_clearance_ledger"]
+               if name == "Acceptance Rate Pct")
+    assert fmt.count("0") >= 4, f"too few decimals to distinguish 99.996% from 100%: {fmt}"
+
+
 def test_percentage_measures_carry_a_unit():
     """A card reading "99.07" with no unit is ambiguous; percentages and bps say so in the format."""
     for table, measures in PB.MEASURES.items():
