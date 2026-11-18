@@ -17,6 +17,10 @@ table fact_payment_method_daily
 		formatString: #,0.00
 		lineageTag: f22919bf-5e22-58b9-b15a-c434ec60909e
 
+	measure 'Method Merchants' = DISTINCTCOUNT(fact_payment_method_daily[merchant_id])
+		formatString: #,0
+		lineageTag: 635fde03-a94f-5090-bb80-50c0dfecd36c
+
 	column merchant_id
 		dataType: string
 		lineageTag: af6a5b64-ad52-5747-9dc7-24448309fc2e

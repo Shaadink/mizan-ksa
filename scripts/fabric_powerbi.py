@@ -97,7 +97,12 @@ MEASURES = {
         # the comparison that means something.
         ("Method Captures per Day SAR", "DIVIDE(SUM(fact_payment_method_daily[gross_captures_sar]), "
                                         "DISTINCTCOUNT(fact_payment_method_daily[business_date_ksa]))",
-         "#,0.00")],
+         "#,0.00"),
+        # Counted on this table on purpose. The relationships are single-direction into
+        # merchant_store_reference, so a payment_method filter never reaches the settlement fact: a
+        # merchant count taken from there would sit at 121 while the page was sliced to SADAD, implying
+        # every merchant accepts it.
+        ("Method Merchants", "DISTINCTCOUNT(fact_payment_method_daily[merchant_id])", "#,0")],
     "mart_ndmo_scorecard": [
         ("Scorecard Checks", "COUNTROWS(mart_ndmo_scorecard)", "0"),
         # bug 3: ONE shared passing measure; families filter on top of it (6 data quality + 1 classification = 7)
@@ -237,7 +242,7 @@ PAGES = [
     ("payments_calendar", "Payments & Calendar",
      "What each scheme costs, and how the Umm al-Qura calendar moves the money. "
      "Fees come from the bank file at the bank's grain, never recomputed per line.",
-     _cards(["Method Captures SAR", "Method Bank Fees SAR", "Method Fee Rate bps", "Merchants"]) + [
+     _cards(["Method Captures SAR", "Method Bank Fees SAR", "Method Fee Rate bps", "Method Merchants"]) + [
         ("clusteredBarChart", {"Category": [("c", M, "payment_method")],
                                "Y": [("m", "Method Captures SAR")]},
          (20, 168, 400, 252), "Captures by payment method"),

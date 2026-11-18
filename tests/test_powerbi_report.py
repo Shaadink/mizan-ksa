@@ -95,6 +95,30 @@ def test_classification_donut_excludes_rows_that_have_no_tier():
         assert "metric_family" in cfg and "CLASSIFICATION" in cfg, c["name"]
 
 
+def test_cards_respond_to_their_own_page_slicer():
+    """A card that ignores the page's slicer is worse than no card.
+
+    Every relationship in this model is many-to-one into a dimension and single-direction, so a filter
+    on one fact never reaches another fact. A Merchants card sourced from the settlement table sat at
+    121 while the payments page was sliced to SADAD, implying every merchant accepts it. Cards must
+    read the same table the page's slicer filters, or a dimension that table hangs off.
+    """
+    dims = {"dim_date_saudi", "merchant_store_reference"}
+    for pid, _title, _sub, visuals in PB.PAGES:
+        slicers = {spec[1]["Values"][0][1] for spec in visuals if spec[0] == "slicer"}
+        if not slicers:
+            continue
+        for spec in visuals:
+            if spec[0] != "card":
+                continue
+            measure = spec[1]["Values"][0][1]
+            home = PB.MEASURE_TABLE[measure]
+            # the slicer's table filters its own fact, and any dimension it points at
+            assert home in slicers | dims, (
+                f"{pid}: card '{measure}' reads {home}, which the page slicer ({slicers}) "
+                "cannot filter through a single-direction relationship")
+
+
 def test_gauges_are_pinned_to_a_0_100_axis():
     """A gauge left to scale itself invented a maximum of 199.99% for a percentage."""
     gauges = [c for c in _visuals().values() if c["visual"]["visualType"] == "gauge"]
