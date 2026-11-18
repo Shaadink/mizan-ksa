@@ -13,6 +13,10 @@ table fact_payment_method_daily
 		formatString: 0.0" bps"
 		lineageTag: a0a5ea42-e181-5a44-88fe-0f14f29aa161
 
+	measure 'Method Captures per Day SAR' = DIVIDE(SUM(fact_payment_method_daily[gross_captures_sar]), DISTINCTCOUNT(fact_payment_method_daily[business_date_ksa]))
+		formatString: #,0.00
+		lineageTag: f22919bf-5e22-58b9-b15a-c434ec60909e
+
 	column merchant_id
 		dataType: string
 		lineageTag: af6a5b64-ad52-5747-9dc7-24448309fc2e

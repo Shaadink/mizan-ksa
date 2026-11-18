@@ -91,7 +91,13 @@ MEASURES = {
         ("Method Captures SAR", "SUM(fact_payment_method_daily[gross_captures_sar])", "#,0.00"),
         ("Method Bank Fees SAR", "SUM(fact_payment_method_daily[acquirer_fees_sar])", "#,0.00"),
         ("Method Fee Rate bps", "DIVIDE(SUM(fact_payment_method_daily[acquirer_fees_sar]), "
-                                "SUM(fact_payment_method_daily[gross_captures_sar])) * 10000", "0.0\" bps\"")],
+                                "SUM(fact_payment_method_daily[gross_captures_sar])) * 10000", "0.0\" bps\""),
+        # Ramadan 1447 covers 14 of these 20 business days and Shaban 6, so comparing raw totals by
+        # Hijri month says far more about the length of the month than about trade. Per business day is
+        # the comparison that means something.
+        ("Method Captures per Day SAR", "DIVIDE(SUM(fact_payment_method_daily[gross_captures_sar]), "
+                                        "DISTINCTCOUNT(fact_payment_method_daily[business_date_ksa]))",
+         "#,0.00")],
     "mart_ndmo_scorecard": [
         ("Scorecard Checks", "COUNTROWS(mart_ndmo_scorecard)", "0"),
         # bug 3: ONE shared passing measure; families filter on top of it (6 data quality + 1 classification = 7)
@@ -171,8 +177,10 @@ PAGES = [
         ("donutChart", {"Category": [("c", Z, "state")], "Y": [("m", "Documents in Chain")]},
          (20, 168, 330, 252), "Documents by ZATCA outcome",
          {"colors": ["REPORTED", "CLEARED", "ACCEPTED_WITH_WARNINGS", "CONFIRMED_REJECTION"]}),
-        ("gauge", {"Y": [("m", "Acceptance Rate Pct")], "TargetValue": [("m", "Documents in Chain")]},
-         (360, 168, 250, 252), "Acceptance rate"),
+        # No target: a percentage has no sensible target measure here, and passing the document count
+        # as one put 25,001 on a 0-100 axis.
+        ("gauge", {"Y": [("m", "Acceptance Rate Pct")]}, (360, 168, 250, 252),
+         "Acceptance rate (one confirmed rejection, kept in the chain)"),
         ("clusteredColumnChart", {"Category": [("c", Z, "egs_id")], "Y": [("m", "Documents in Chain")]},
          (620, 168, 330, 252), "Documents per EGS device"),
         ("clusteredColumnChart", {"Category": [("c", Z, "invoice_flow")],
@@ -221,8 +229,8 @@ PAGES = [
                                "Y": [("m", "Method Fee Rate bps")]},
          (430, 168, 400, 252), "What each scheme costs, in basis points"),
         ("clusteredColumnChart", {"Category": [("c", D, "hijri_month_name")],
-                                  "Y": [("m", "Method Captures SAR")]},
-         (840, 168, 420, 252), "Captures by Hijri month (Ramadan 1447 is 14 of the 20 days)"),
+                                  "Y": [("m", "Method Captures per Day SAR")]},
+         (840, 168, 420, 252), "Captures per business day by Hijri month (Ramadan 14 days, Shaban 6)"),
         ("slicer", {"Values": [("c", M, "payment_method")]}, (20, 430, 180, 275), "Payment method"),
         ("tableEx", {"Values": [("c", M, c) for c in (
             "business_date_ksa", "payment_method", "payment_scheme", "capture_count", "gross_captures_sar",
@@ -503,8 +511,12 @@ def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None, opts: d
                    "calloutValue": [{"properties": {"color": _solid(ACCENT), "fontSize": _lit("28D")}}]}
     elif kind == "treemap":
         # One hue: a treemap already encodes value as area, and a rainbow adds meaning that is not there
-        # (a red tile for Madinah read as an alarm about Madinah).
-        objects = {"dataPoint": [{"properties": {"fill": _solid(EMERALD)}}],
+        # (a red tile for Madinah read as an alarm about Madinah). A bare "fill" is not enough -- the
+        # categorical palette still colours each tile -- so the wildcard selector is what actually binds.
+        objects = {"dataPoint": [
+                       {"properties": {"defaultColor": _solid(EMERALD)}},
+                       {"properties": {"fill": _solid(EMERALD)},
+                        "selector": {"data": [{"dataViewWildcard": {"matchingOption": 0}}]}}],
                    "legend": [{"properties": {"show": _lit("false")}}],
                    "labels": [{"properties": {"show": _lit("true"), "color": _solid(INK)}}]}
     elif kind == "slicer":
