@@ -139,6 +139,21 @@ def _cards(measures: list[str]) -> list[tuple]:
             for i, m in enumerate(measures)]
 
 
+# "MIZAN Night": the same palette as the Command Center (night page, gold = the scales, emerald = captured money)
+BG, PANEL, LINE, INK, MUTED = "#060B16", "#101B30", "#22314D", "#E9EFF6", "#8D9BB1"
+ACCENT, EMERALD = "#D9B25F", "#2FBF8F"
+CYAN, AMBER, CRIT, VIOLET = "#5CC8FF", "#F2A93B", "#FF5D63", "#9B8CFF"
+
+# Status colours are assigned per category, never left to the theme's palette order. Power BI hands out
+# dataColors in whatever order the categories happen to sort, which once painted SPLIT_RECOMMENDED green
+# and PASS amber on the NDMO donut -- the opposite of what they mean. Green is only ever a real pass.
+STATUS_COLORS = {
+    "PASS": EMERALD, "SPLIT_RECOMMENDED": AMBER, "FAIL": CRIT,
+    "REPORTED": EMERALD, "CLEARED": CYAN, "ACCEPTED_WITH_WARNINGS": AMBER, "CONFIRMED_REJECTION": CRIT,
+    "PUBLIC": CYAN, "CONFIDENTIAL": EMERALD, "SECRET": AMBER, "TOP_SECRET": CRIT,
+    "REPORTING": EMERALD, "CLEARANCE": CYAN,
+}
+
 PAGES = [
     # Six cards, not seven: at seven the titles truncate to "Unexplained Bank Varianc...". Merchant
     # concentration moved to the treemap, which shows it better than a number ever did.
@@ -157,7 +172,9 @@ PAGES = [
          {"Category": [("c", D, "calendar_date")],
           "Y": [("m", "Bank Paid SAR (Assessed)"), ("m", "In Transit SAR")],
           "Y2": [("m", "Gross Captures SAR"), ("m", "GL Card Clearing SAR")]},
-         (20, 168, 620, 252), "Where each day's money sits, against captures and the GL"),
+         (20, 168, 620, 252), "Where each day's money sits, against captures and the GL",
+         {"series": {"Bank Paid SAR (Assessed)": EMERALD, "In Transit SAR": AMBER,
+                     "Gross Captures SAR": CYAN, "GL Card Clearing SAR": VIOLET}}),
         # A treemap survives one merchant holding 73.8% of SAR; a bar chart flattens the other 120 to
         # invisible slivers.
         ("treemap", {"Group": [("c", R, "merchant_id")], "Values": [("m", "Gross Captures SAR")]},
@@ -372,20 +389,6 @@ def report_parts(model_id: str) -> dict[str, str]:
     return parts
 
 
-# "MIZAN Night": the same palette as the Command Center (night page, gold = the scales, emerald = captured money)
-BG, PANEL, LINE, INK, MUTED = "#060B16", "#101B30", "#22314D", "#E9EFF6", "#8D9BB1"
-ACCENT, EMERALD = "#D9B25F", "#2FBF8F"
-CYAN, AMBER, CRIT, VIOLET = "#5CC8FF", "#F2A93B", "#FF5D63", "#9B8CFF"
-
-# Status colours are assigned per category, never left to the theme's palette order. Power BI hands out
-# dataColors in whatever order the categories happen to sort, which once painted SPLIT_RECOMMENDED green
-# and PASS amber on the NDMO donut -- the opposite of what they mean. Green is only ever a real pass.
-STATUS_COLORS = {
-    "PASS": EMERALD, "SPLIT_RECOMMENDED": AMBER, "FAIL": CRIT,
-    "REPORTED": EMERALD, "CLEARED": CYAN, "ACCEPTED_WITH_WARNINGS": AMBER, "CONFIRMED_REJECTION": CRIT,
-    "PUBLIC": CYAN, "CONFIDENTIAL": EMERALD, "SECRET": AMBER, "TOP_SECRET": CRIT,
-    "REPORTING": EMERALD, "CLEARANCE": CYAN,
-}
 THEME_FILE = "MizanNight.json"
 
 
@@ -521,6 +524,13 @@ def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None, opts: d
                    "labels": [{"properties": {"show": _lit("true"), "color": _solid(INK)}}]}
     elif kind == "slicer":
         objects = {"data": [{"properties": {"mode": _lit("'Basic'")}}]}
+    # Per-series colours, keyed by measure: a four-series combo drew In Transit and GL Card Clearing in
+    # near-identical golds, so two unrelated series looked like one.
+    if opts.get("series"):
+        objects["dataPoint"] = [
+            {"properties": {"fill": _solid(colour)},
+             "selector": {"metadata": f"{MEASURE_TABLE[m]}.{m}"}}
+            for m, colour in opts["series"].items()]
     # Per-category colours win over whatever the theme palette would have assigned by sort order.
     cats = roles.get("Category") or roles.get("Group") or roles.get("Legend") or []
     if opts.get("colors") and cats and cats[0][0] == "c":
