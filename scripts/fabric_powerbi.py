@@ -138,15 +138,20 @@ PAGES = [
     # concentration moved to the treemap, which shows it better than a number ever did.
     ("cfo_settlement", "CFO Settlement",
      "Every halala reconciled: captures vs mada/SADAD bank file vs ERP card clearing. Variance must be SAR 0.00.",
-     _cards(["Gross Captures SAR", "Bank Paid SAR", "In Transit SAR", "Expected Net Payable SAR",
-             "Unexplained Bank Variance SAR", "MID Days Not Assessed"]) + [
+     # Both variances stay: the page claims "variance must be SAR 0.00", and that claim is about the
+     # bank leg AND the GL leg. Expected Net Payable was cut instead -- it is derivable from the rest.
+     _cards(["Gross Captures SAR", "Bank Paid SAR", "In Transit SAR", "Unexplained Bank Variance SAR",
+             "Unexplained GL Variance SAR", "MID Days Not Assessed"]) + [
         # Stacked columns show where each day's money sits (paid vs still in transit); the line is what
         # was captured. Where the two diverge, the bank file has not arrived yet.
+        # Three legs, not two: the reconciliation is captures vs bank vs GL, and a chart that drops the
+        # GL line quietly drops a third of the claim. Columns are where the money sits, lines are the
+        # two independent systems that must agree with it.
         ("lineStackedColumnComboChart",
          {"Category": [("c", D, "calendar_date")],
           "Y": [("m", "Bank Paid SAR (Assessed)"), ("m", "In Transit SAR")],
-          "Y2": [("m", "Gross Captures SAR")]},
-         (20, 168, 620, 252), "Where each day's money sits: bank paid and in transit, against gross captures"),
+          "Y2": [("m", "Gross Captures SAR"), ("m", "GL Card Clearing SAR")]},
+         (20, 168, 620, 252), "Where each day's money sits, against captures and the GL"),
         # A treemap survives one merchant holding 73.8% of SAR; a bar chart flattens the other 120 to
         # invisible slivers.
         ("treemap", {"Group": [("c", R, "merchant_id")], "Values": [("m", "Gross Captures SAR")]},
@@ -202,6 +207,27 @@ PAGES = [
          (960, 430, 300, 275), "Tables by NDMO classification",
          {"colors": ["PUBLIC", "CONFIDENTIAL", "SECRET", "TOP_SECRET"],
           "filter": (N, "metric_family", ["CLASSIFICATION"])})]),
+    # gld.fact_payment_method_daily and the Hijri calendar were in the model but on no page: the whole
+    # payment-method split, and the fact that 14 of these 20 business days are Ramadan, were invisible.
+    ("payments_calendar", "Payments & Calendar",
+     "What each scheme costs, and how the Umm al-Qura calendar moves the money. "
+     "Fees come from the bank file at the bank's grain, never recomputed per line.",
+     _cards(["Method Captures SAR", "Method Bank Fees SAR", "Method Fee Rate bps", "Merchants"]) + [
+        ("clusteredBarChart", {"Category": [("c", M, "payment_method")],
+                               "Y": [("m", "Method Captures SAR")]},
+         (20, 168, 400, 252), "Captures by payment method"),
+        # The spread is the point: SADAD runs around 47 bps where BNPL runs near 470.
+        ("clusteredBarChart", {"Category": [("c", M, "payment_method")],
+                               "Y": [("m", "Method Fee Rate bps")]},
+         (430, 168, 400, 252), "What each scheme costs, in basis points"),
+        ("clusteredColumnChart", {"Category": [("c", D, "hijri_month_name")],
+                                  "Y": [("m", "Method Captures SAR")]},
+         (840, 168, 420, 252), "Captures by Hijri month (Ramadan 1447 is 14 of the 20 days)"),
+        ("slicer", {"Values": [("c", M, "payment_method")]}, (20, 430, 180, 275), "Payment method"),
+        ("tableEx", {"Values": [("c", M, c) for c in (
+            "business_date_ksa", "payment_method", "payment_scheme", "capture_count", "gross_captures_sar",
+            "acquirer_fees_sar", "bank_paid_sar", "in_transit_sar")]},
+         (210, 430, 1050, 275), "Payment method by business day")]),
 ]
 MEASURE_TABLE = {m: t for t, ms in MEASURES.items() for m, _, _ in ms}
 TYPE_MAP = {"varchar": "string", "char": "string", "nvarchar": "string", "int": "int64", "bigint": "int64",
