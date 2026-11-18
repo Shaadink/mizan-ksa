@@ -140,7 +140,7 @@ WH_MIZAN  gld: fact_merchant_settlement_recon | fact_zatca_clearance_ledger | di
 Direct Lake Control Tower (CFO Settlement | Tax ZATCA Health | CDO Data Trust) | governed AI | EH_MIZAN KQL risk stream
 ```
 
-Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-011); the 14 invariants are in
+Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-013); the 14 invariants are in
 [invariants.md](invariants.md).
 
 ## Run it

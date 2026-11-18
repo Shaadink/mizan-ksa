@@ -1434,12 +1434,25 @@ const CHAOS_ACTIONS = [
     test: "test_pdpl_erasure_and_restore_guard",
     run: () => { goTo("pdpl"); setTimeout(() => pdpl && pdpl.run && pdpl.run(), 600); } },
   { id: "chaos-bad-row", icon: "M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z",
-    label: "Inject bad row",
-    what: "Sends a Bronze row with a missing merchant ID and duplicate ICV",
-    catches: "Row quarantined · Silver never sees it · quarantine counter rises",
+    label: "Feed unreadable Arabic",
+    what: "A CP1256 file whose Arabic names cannot be decoded back to text",
+    catches: "Rows quarantined at the Bronze write · Silver never sees them · nothing is silently mangled",
     test: "test_bronze_quarantine_on_bad_row",
-    run: () => { goTo("trust"); } }
+    run: () => { goTo("trust"); setTimeout(quarantineReplay, 650); } }
 ];
+// Shows the rows Bronze actually refused. Every figure comes from D.quarantine, exported from
+// quarantine.schema_rejections; the rejected payloads themselves hold encrypted PII and never leave the lake.
+function quarantineReplay() {
+  const q = D.quarantine;
+  if (!q || !q.rows) return toast("No quarantined rows in this run");
+  const reason = (q.reasons && q.reasons[0]) || {};
+  const file = (q.files && q.files[0]) || {};
+  const rows = (q.sample_row_numbers || []).slice(0, 5).join(", ");
+  toast(`✓ ${fmtI(q.rows)} rows quarantined at the Bronze write · ${askEsc(reason.reason || "")} ` +
+        `· from ${askEsc(file.file || "the source file")}${rows ? " · rows " + rows : ""} ` +
+        `· Silver never saw them`, 9000);
+}
+
 const chaosBar = document.createElement("div"); chaosBar.id = "chaos-bar"; chaosBar.setAttribute("role", "region"); chaosBar.setAttribute("aria-label", "Chaos bar");
 chaosBar.innerHTML = `<button id="chaos-toggle" type="button" title="Chaos bar — break things on purpose">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
@@ -1696,7 +1709,7 @@ function lifecycleScene() {
 
 /* =========================================================== header: search + profile */
 let toastT = null;
-function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
+function toast(msg, ms = 4200) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
 function flash(el) { if (!el) return; el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
 function runSearch(q) {
   q = q.trim(); if (!q) return; const live = typeof window.MIZAN_QUERY === "function", u = q.toUpperCase();

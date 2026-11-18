@@ -201,6 +201,32 @@ def _mask_id(v: str) -> str:
     return v[:3] + "\u2022" * max(0, len(v) - 6) + v[-3:] if len(v) > 6 else v
 
 
+def quarantine_section() -> dict:
+    """Rows the Bronze write refused, by reason and source file.
+
+    Only the shape of the rejection is exported: the quarantined payloads hold encrypted PII
+    (national_id_enc, mobile_enc), and nothing from them belongs in a page served to a browser.
+    """
+    import duckdb
+    root = LAKE / "LH_MIZAN" / "quarantine" / "schema_rejections"
+    if not (root / "_delta_log").is_dir():
+        return {"rows": 0, "reasons": [], "files": []}
+    con = duckdb.connect()
+    try:
+        rel = delta_rel(root)
+        (rows,), = _q(con, f"SELECT COUNT(*) FROM {rel}")
+        reasons = [{"reason": r, "rows": n}
+                   for r, n in _q(con, f"SELECT reject_reason, COUNT(*) FROM {rel} "
+                                       "GROUP BY 1 ORDER BY 2 DESC, 1")]
+        files = [{"file": f, "source": s, "rows": n}
+                 for f, s, n in _q(con, f"SELECT source_file, source, COUNT(*) FROM {rel} "
+                                        "GROUP BY 1, 2 ORDER BY 3 DESC, 1")]
+        sample = [int(r) for r, in _q(con, f"SELECT row_num FROM {rel} ORDER BY row_num LIMIT 5")]
+    finally:
+        con.close()
+    return {"rows": rows, "reasons": reasons, "files": files, "sample_row_numbers": sample}
+
+
 def pdpl_section() -> dict:
     c = _board_text("03_pdpl_shred_restore")
     before = _after(c, "Tax totals before")[0]
@@ -429,6 +455,7 @@ def build_data() -> dict:
     finally:
         con.close()
     data["chain"] = chain_section()
+    data["quarantine"] = quarantine_section()
     data["pdpl"] = pdpl_section()
     data["mdm"] = mdm_section()
     data["stream"] = stream_section()
