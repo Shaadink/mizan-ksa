@@ -449,6 +449,21 @@ Wave 2 - public page + ZATCA SDK (2026-11-16, owner-approved):
   check then sums. Adding ds:SignedInfo changed 0 of 25,001 hashes (it lives inside UBLExtensions, which the digest
   excludes); the price change deliberately changed every money figure, so the pipeline was regenerated.
 
+Follow one riyal (2026-11-18, owner request): press T, or "Follow one riyal" in the command palette.
+- One real capture followed through four systems, side by side with the keys that join them: till capture
+  PE-0014375 (ORD-0018737, MID100044, MASTERCARD, SAR 898.38, 2026-02-28 11:06:28 Asia/Riyadh) -> ZATCA invoice
+  df824688-9c99-438b-9db2-6e19bf33e917 (ICV 2724, EGS-02, REPORTING, REPORTED, hash + PIH shown) -> bank line
+  STL-20260301-NAJDACQ (gross 898.38 - MDR 17.52 - VAT on fee 2.63 = net 878.23, fees taken from the bank file,
+  never recomputed) -> GL document 1900001962 (CARD_CLEARING SAR 2,632.35, 4 lines).
+- Chosen by rule, and the panel says the rule: largest PAID_BANK card capture between SAR 300 and 900, ordered by
+  payment_event_id. Nobody has to trust that a flattering row was hand-picked; re-running the query reproduces it.
+- Honest about grain: capture, invoice and bank line join on exact keys (payment_event_id, invoice_uuid), but the
+  ERP posts one journal per merchant-day, so the panel states this sale is part of that posting, not the whole of
+  it, rather than implying a 1:1 GL line.
+- scripts/build_command_center.py gains trace_section() (reads slv.payment_lifecycle, slv.settlement_lines,
+  slv.zatca_invoice_documents and slv.erp_gl_journal_lines through delta_rel); riyalJourney() in template.html
+  falls back to the old per-riyal averages if no trace is exported. Ships in the Fabric App and the public page.
+
 ## Left for the owner after Phase 13
 0. **Re-run the pipeline on the Fabric tenant** so `docs/artifacts/10_fabric_run_evidence.json` matches the
    corrected prices (it still records the 2026-11-14 run: gross SAR 22,390,730.16 vs SAR 22,391,236.23 locally).

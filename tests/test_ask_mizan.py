@@ -52,7 +52,7 @@ def test_ask_roles_use_known_tiers_and_no_role_reads_secret_data():
 
 def test_ask_scene_is_registered_in_page_and_app():
     tpl = _tpl()
-    assert '<section class="scene" id="ask"' in tpl and '{ id: "ask", n: "13"' in tpl
+    assert '<section class="scene" id="ask"' in tpl and '{ id: "ask", n: "14"' in tpl
     assert 'safe("ask", askScene)' in tpl
     assert "no language model" in tpl.lower()
     page = (APP / "legacy" / "page.html").read_text(encoding="utf-8")

@@ -1391,7 +1391,7 @@ shortcutsOverlay.innerHTML = `<div class="sc-box"><button class="sc-close" type=
   <tr><td><kbd>1</kbd>&ndash;<kbd>9</kbd></td><td>Jump to scene</td></tr>
   <tr><td><kbd>&#8592;</kbd><kbd>&#8594;</kbd></td><td>Previous / next scene</td></tr>
   <tr><td><kbd>B</kbd></td><td>Break a halala (inject defects)</td></tr>
-  <tr><td><kbd>T</kbd></td><td>Trace one riyal</td></tr>
+  <tr><td><kbd>T</kbd></td><td>Follow one riyal, end to end</td></tr>
   <tr><td><kbd>L</kbd></td><td>Switch to Arabic</td></tr>
   <tr><td><kbd>P</kbd></td><td>Presenter mode</td></tr>
   <tr><td><kbd>Ctrl K</kbd></td><td>Command palette</td></tr>
@@ -1479,7 +1479,8 @@ document.getElementById("chaos-toggle").addEventListener("click", () => {
 
 $("#hero-replay").addEventListener("click", () => hero.replay());
 const ACTIONS = [...SCENES.map(s => ({ t: `${s.n} ${s.label}`, k: "scene", run: () => { goTo(s.id); setTimeout(() => safe(s.id, PLAY[s.id]), 600); } })),
-  { t: "Play the story", k: "action", run: startStory }, { t: "Inject planted defects", k: "action", run: () => { goTo("recon"); setTimeout(() => recon.setDefects(true), 700); } },
+  { t: "Play the story", k: "action", run: startStory },
+  { t: "Follow one riyal", k: "action", run: riyalJourney }, { t: "Inject planted defects", k: "action", run: () => { goTo("recon"); setTimeout(() => recon.setDefects(true), 700); } },
   { t: "Replay the ICV 102 incident", k: "action", run: () => { goTo("zatca"); setTimeout(() => zatca.incident(), 700); } },
   { t: "Execute PDPL erasure", k: "action", run: () => { goTo("pdpl"); setTimeout(() => pdpl.run(), 700); } },
   { t: "Replay the risk stream", k: "action", run: () => { goTo("stream"); setTimeout(() => stream.play(), 700); } },
@@ -1497,13 +1498,14 @@ $("#pal-input").addEventListener("keydown", e => { const items = renderPal();
   if (e.key === "ArrowUp") { palSel = Math.max(0, palSel - 1); renderPal(); e.preventDefault(); }
   if (e.key === "Enter" && items[palSel]) { closePal(); items[palSel].run(); } if (e.key === "Escape") closePal(); });
 addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").hidden ? openPal() : closePal(); }
-  if (e.key === "Escape") { stopStory(); closePal(); closeTour(); shortcutsOverlay.hidden = true; }
+  if (e.key === "Escape") { stopStory(); closePal(); closeTour(); shortcutsOverlay.hidden = true;
+    const rj = document.getElementById("riyal-journey"); if (rj) rj.hidden = true; }
   if (!$("#palette").hidden || /input|textarea|select/i.test(document.activeElement.tagName)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const kk = e.key.toLowerCase();
   if (kk === "p") { document.body.classList.toggle("presenter"); window.ScrollTrigger && ScrollTrigger.refresh(); return; }
   if (/^[1-9]$/.test(e.key)) { const ids = SCENES.map(s => s.id).slice(1); if (ids[+e.key - 1]) goTo(ids[+e.key - 1]); return; }
-  if (kk === "t") { tracePerRiyal(); return; }
+  if (kk === "t") { riyalJourney(); return; }
   if (kk === "b") { goTo("recon"); setTimeout(() => recon.setDefects && recon.setDefects(!recon.defects), 600); return; }
   if (kk === "l") { setLang(lang === "ar" ? "en" : "ar"); return; }
   if (e.key === "?") { shortcutsOverlay.hidden = !shortcutsOverlay.hidden; return; }
@@ -1771,6 +1773,66 @@ function setLang(next) {
 
 /* =========================================================== presenter mode + trace one riyal */
 function chromeH() { return parseFloat(getComputedStyle(document.body).getPropertyValue("--chrome")) || 0; }
+// ---- Follow one riyal: one real capture, through the invoice, the bank file and the GL ----
+// Every value comes from D.trace, exported by scripts/build_command_center.py from Silver. Three hops
+// join on an exact key; the GL posts one journal per merchant-day, so the card-clearing line CONTAINS
+// this sale rather than being it, and the panel says so instead of implying a tidier story.
+function riyalJourney() {
+  const t = D.trace;
+  if (!t || !t.capture) return tracePerRiyal();          // no trace exported: fall back to the averages
+  const { capture: c, invoice: i, bank: b, gl: g } = t;
+  const money = v => `SAR ${fmtH(H(v))}`;
+  const hop = (n, title, when, rows, note) => `<li>
+      <span class="n">${n}</span><b>${title}</b><div class="rj-when">${askEsc(when)}</div>
+      <div class="rj-rows">${rows.map(([k, v, cls]) =>
+        `<div class="rj-row"><span>${askEsc(k)}</span><span class="${cls || ""}">${v}</span></div>`).join("")}</div>
+      ${note ? `<div class="rj-note">${askEsc(note)}</div>` : ""}</li>`;
+
+  const fees = H(b.mdr_fee_sar) + H(b.vat_on_fee_sar);
+  const body = `<ol class="rj-steps">
+    ${hop("1", "Captured at the till", `${c.at} · ${c.merchant_id} · store ${c.store_id}`, [
+      ["Payment event", `<code>${askEsc(c.payment_event_id)}</code>`],
+      ["Order", `<code>${askEsc(c.order_id)}</code>`],
+      ["Scheme", askEsc(c.scheme)],
+      ["Amount", money(c.amount_sar), "rj-money"]])}
+    ${hop("2", "Signed as a ZATCA e-invoice", `${i.flow} · ${i.egs_id} · ${i.state}`, [
+      ["Invoice UUID", `<code>${askEsc(i.invoice_uuid)}</code>`],
+      ["ICV", askEsc(String(i.icv))],
+      ["Previous hash (PIH)", `<code>${askEsc(i.pih.slice(0, 24))}…</code>`],
+      ["This invoice hash", `<code>${askEsc(i.invoice_hash.slice(0, 24))}…</code>`],
+      ["Total incl. VAT", money(i.total_incl_vat_sar), "rj-money"]],
+      H(i.total_incl_vat_sar) === H(c.amount_sar)
+        ? "Same figure as the capture, to the halala." : "")}
+    ${hop("3", "Paid by the bank, T+1", `${b.settlement_batch_id} · settled for ${b.settled_for_date_ksa}`, [
+      ["Gross on the bank line", money(b.gross_sar), "rj-money"],
+      ["Acquirer MDR fee", `− ${money(b.mdr_fee_sar)}`],
+      ["VAT on the fee", `− ${money(b.vat_on_fee_sar)}`],
+      ["Net paid", money(b.net_settled_sar), "rj-money"]],
+      `The fees come from the bank file, never recomputed: ${fmtH(H(b.gross_sar))} − ${fmtH(fees)} = ${fmtH(H(b.net_settled_sar))}.`)}
+    ${hop("4", "Posted to the general ledger", `document ${g.document} · ${g.posting_date_ksa}`, [
+      ["Card clearing line", money(g.card_clearing_sar), "rj-money"],
+      ["Lines in the posting", String((g.lines || []).length)]],
+      "The ERP posts one journal per merchant-day, so this sale is part of that line, not the whole of it.")}
+  </ol>`;
+
+  const el = $("#riyal-journey");
+  el.innerHTML = `<div class="rj-box" role="dialog" aria-label="Follow one riyal">
+      <button class="rj-close" id="rj-close" type="button" aria-label="Close">&times;</button>
+      <div class="rj-head"><div class="tag">Follow one riyal</div>
+        <h3>${money(c.amount_sar)} through four systems</h3>
+        <div class="sub">One real capture, not an average — picked by rule: ${askEsc(t.selected_by)}.</div></div>
+      ${body}
+      <div class="prov">${askEsc(t.note)}</div></div>`;
+  el.hidden = false;
+  $("#rj-close").addEventListener("click", () => { el.hidden = true; });
+  el.addEventListener("click", e => { if (e.target === el) el.hidden = true; });
+  if (window.gsap && !REDUCED) {
+    gsap.fromTo("#riyal-journey .rj-box", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: .4 });
+    gsap.fromTo("#riyal-journey .rj-steps li", { x: -14, opacity: 0 },
+                { x: 0, opacity: 1, duration: .45, stagger: .13, ease: "power2.out" });
+  }
+}
+
 function tracePerRiyal() {
   const G = H(R.gross); if (G <= 0) return toast("No captures for the current filters");
   const parts = [["refunded", H(R.refunds)], ["acquirer fees", H(R.fees)], ["paid by the bank", H(R.bank)], ["in transit (T+1)", H(R.transit)], ["quarantined", H(R.quarantined)]];

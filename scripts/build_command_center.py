@@ -201,6 +201,83 @@ def _mask_id(v: str) -> str:
     return v[:3] + "\u2022" * max(0, len(v) - 6) + v[-3:] if len(v) > 6 else v
 
 
+def _mask_doc(doc: str | None) -> str | None:
+    """Mask an ERP document number down to its last four digits.
+
+    A 10-digit ERP key is not personal data, but the guard in tests/test_command_center.py refuses any
+    bare 10-digit number in the exported JSON because that is the shape of a Saudi national ID or Iqama.
+    Masking a harmless business key is cheaper than teaching a fail-closed PDPL guard to make exceptions,
+    and the trace still joins on payment_event_id, invoice_uuid and the settlement batch.
+    """
+    if doc is None:
+        return None
+    d = str(doc)
+    return d if len(d) <= 4 else "*" * (len(d) - 4) + d[-4:]
+
+
+def trace_section() -> dict:
+    """One real capture, followed through the invoice, the bank line and the general ledger.
+
+    Chosen by rule, not by hand: the largest fully-settled card capture in a band that reads well on
+    screen, so the pick is reproducible and nobody has to trust that a flattering row was cherry-picked.
+    Three of the four hops join on an exact key; the GL posts one daily journal per merchant, so the
+    sale sits *inside* that posting rather than being it, and the export says so.
+    """
+    import duckdb
+    slv = LAKE / "LH_MIZAN" / "slv"
+    if not (slv / "payment_lifecycle" / "_delta_log").is_dir():
+        return {}
+    con = duckdb.connect()
+    try:
+        P, S, Z = (delta_rel(slv / t) for t in ("payment_lifecycle", "settlement_lines",
+                                                "zatca_invoice_documents"))
+        G = delta_rel(slv / "erp_gl_journal_lines")
+        hit = _q(con, f"""
+            SELECT p.payment_event_id, p.order_id, p.invoice_uuid, p.merchant_id, p.store_id,
+                   p.payment_scheme, p.amount_sar, p.event_ts, p.business_date_ksa,
+                   s.settlement_batch_id, s.gross_amount_sar, s.acquirer_mdr_fee_sar,
+                   s.acquirer_vat_sar, s.net_settled_sar, s.settlement_for_date_ksa,
+                   z.icv, z.egs_id, z.invoice_flow, z.state, z.invoice_hash, z.pih,
+                   z.total_incl_vat_sar
+            FROM {P} p
+            JOIN {S} s ON s.payment_event_id = p.payment_event_id
+            JOIN {Z} z ON z.invoice_uuid = p.invoice_uuid
+            WHERE p.event_type = 'CAPTURE' AND s.settlement_status = 'PAID_BANK'
+              AND z.state IN ('REPORTED', 'CLEARED') AND p.amount_sar BETWEEN 300 AND 900
+            ORDER BY p.amount_sar DESC, p.payment_event_id
+            LIMIT 1""")
+        if not hit:
+            return {}
+        (ev, order, uuid, mid, store, scheme, amount, ts, day, batch, gross, fee, vat, net,
+         settled_for, icv, egs, flow, state, ihash, pih, total) = hit[0]
+        gl = [{"account": a, "role": r, "debit_credit": dc, "amount_sar": money(amt),
+               "document": _mask_doc(doc)}
+              for a, r, dc, amt, doc in _q(con, f"""
+                  SELECT gl_account, gl_account_role, debit_credit, amount_sar, document_number
+                  FROM {G} WHERE merchant_id = ? AND posting_date_ksa = ? ORDER BY line_item""",
+                                           mid, day)]
+    finally:
+        con.close()
+    clearing = next((g for g in gl if g["role"] == "CARD_CLEARING"), None)
+    return {
+        "capture": {"payment_event_id": ev, "order_id": order, "merchant_id": mid, "store_id": store,
+                    "scheme": scheme, "amount_sar": money(amount), "at": str(ts),
+                    "business_date_ksa": str(day)},
+        "invoice": {"invoice_uuid": uuid, "icv": int(icv), "egs_id": egs, "flow": flow, "state": state,
+                    "invoice_hash": ihash, "pih": pih, "total_incl_vat_sar": money(total)},
+        "bank": {"settlement_batch_id": batch, "settled_for_date_ksa": str(settled_for),
+                 "gross_sar": money(gross), "mdr_fee_sar": money(fee), "vat_on_fee_sar": money(vat),
+                 "net_settled_sar": money(net)},
+        "gl": {"document": gl[0]["document"] if gl else None, "posting_date_ksa": str(day),
+               "card_clearing_sar": clearing["amount_sar"] if clearing else None, "lines": gl},
+        "selected_by": "largest PAID_BANK card capture between SAR 300 and 900, by payment_event_id",
+        "note": "Capture, invoice and bank line join on exact keys. The GL posts one journal per "
+                "merchant-day, so this sale is part of that posting, not the whole of it. The ERP "
+                "document number is masked: it is a 10-digit business key, and the PDPL guard on this "
+                "export refuses any bare 10-digit number rather than learn exceptions.",
+    }
+
+
 def quarantine_section() -> dict:
     """Rows the Bronze write refused, by reason and source file.
 
@@ -455,6 +532,7 @@ def build_data() -> dict:
     finally:
         con.close()
     data["chain"] = chain_section()
+    data["trace"] = trace_section()
     data["quarantine"] = quarantine_section()
     data["pdpl"] = pdpl_section()
     data["mdm"] = mdm_section()

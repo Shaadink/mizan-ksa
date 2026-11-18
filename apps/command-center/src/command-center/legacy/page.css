@@ -483,6 +483,31 @@ footer .wrap { display: grid; gap: 8px }
   .verified-badge { font-size: 11px }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+/* ---- follow one riyal ---- */
+#riyal-journey { position: fixed; inset: 0; z-index: 72; background: rgba(6,11,22,.86); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto }
+#riyal-journey[hidden] { display: none }
+.rj-box { position: relative; background: #0A1324; border: 1px solid var(--line-2); border-radius: 16px;
+  padding: 26px 30px; max-width: 760px; width: 100%; max-height: calc(100vh - 48px); overflow: auto }
+.rj-close { position: absolute; top: 14px; right: 18px; background: transparent; border: 0; color: var(--muted);
+  font-size: 22px; cursor: pointer; line-height: 1 }
+.rj-head { margin-bottom: 18px } .rj-head h3 { margin: 6px 0 4px; font: 700 22px var(--f-display); color: var(--ink) }
+.rj-steps { list-style: none; margin: 0; padding: 0 }
+.rj-steps li { position: relative; padding: 0 0 20px 34px }
+.rj-steps li::before { content: ""; position: absolute; left: 11px; top: 24px; bottom: 2px; width: 1px; background: var(--line-2) }
+.rj-steps li:last-child::before { display: none }
+.rj-steps .n { position: absolute; left: 0; top: 0; width: 23px; height: 23px; border-radius: 50%; display: grid;
+  place-items: center; font: 700 11px var(--f-mono); background: rgba(217,178,95,.16); color: var(--gold-hi);
+  border: 1px solid var(--line) }
+.rj-steps b { display: block; font: 600 14px var(--f-body); color: var(--ink) }
+.rj-when { font: 500 11px var(--f-mono); color: var(--gold); margin: 2px 0 8px }
+.rj-rows { display: grid; gap: 3px }
+.rj-row { display: flex; justify-content: space-between; gap: 14px; font-size: 12.5px; color: var(--muted) }
+.rj-row span:last-child { color: var(--ink); text-align: right; font: 500 12px var(--f-mono); overflow-wrap: anywhere }
+.rj-row .rj-money { color: var(--emerald); font-weight: 700 }
+.rj-row code { font: 500 11.5px var(--f-mono); color: var(--cyan) }
+.rj-note { margin-top: 7px; font: 400 11.5px/1.5 var(--f-body); color: var(--dim) }
+@media (max-width: 620px) { .rj-box { padding: 20px 16px } .rj-row { flex-direction: column; gap: 0 } }
 /* ---- ZATCA SDK validation ---- */
 .sdkv { margin-bottom: 16px }
 .sdkv-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 4px }
