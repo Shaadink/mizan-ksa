@@ -37,11 +37,72 @@ def test_pages_have_charts_slicers_and_fit_the_canvas():
     kinds_by_page = {}
     for pid, _title, _sub, visuals in PB.PAGES:
         kinds_by_page[pid] = {v[0] for v in visuals}
-        for _kind, _roles, (x, y, w, h), _t in visuals:
+        for spec in visuals:                              # a spec may carry a 5th element: opts
+            x, y, w, h = spec[2]
             assert x >= 0 and y >= 0 and x + w <= 1280 and y + h <= 720, (pid, x, y, w, h)
     for kinds in kinds_by_page.values():
         assert {"card", "slicer", "tableEx"} <= kinds
-        assert kinds & {"lineChart", "clusteredBarChart", "clusteredColumnChart", "donutChart"}
+        assert kinds & {"lineChart", "clusteredBarChart", "clusteredColumnChart", "donutChart",
+                        "treemap", "gauge", "lineStackedColumnComboChart"}
+
+
+def _visuals() -> dict[str, dict]:
+    parts = PB.report_parts("00000000-0000-0000-0000-000000000000")
+    return {p.split("/")[-2]: json.loads(b) for p, b in parts.items() if p.endswith("visual.json")}
+
+
+def _category_fills(container: dict) -> dict[str, str]:
+    """{category value: hex} for the per-category dataPoint rules on one visual."""
+    out = {}
+    for rule in container["visual"].get("objects", {}).get("dataPoint", []):
+        scope = rule.get("selector", {}).get("data", [{}])[0].get("scopeId", {})
+        value = scope.get("Comparison", {}).get("Right", {}).get("Literal", {}).get("Value", "").strip("'")
+        if value:
+            out[value] = rule["properties"]["fill"]["solid"]["color"]["expr"]["Literal"]["Value"].strip("'")
+    return out
+
+
+def test_status_colours_never_depend_on_palette_order():
+    """Green must mean a real pass, everywhere.
+
+    Power BI hands out theme dataColors in whatever order categories happen to sort. That once painted
+    SPLIT_RECOMMENDED (26 of 33 NDMO checks) in the pass colour and PASS in amber, and painted a
+    CONFIRMED_REJECTION cyan. Every status category is now pinned explicitly.
+    """
+    fills = {k: v for c in _visuals().values() for k, v in _category_fills(c).items()}
+    assert fills, "no per-category colours were emitted"
+    assert fills["PASS"] == PB.EMERALD
+    assert fills["REPORTED"] == PB.EMERALD
+    assert fills["SPLIT_RECOMMENDED"] == PB.AMBER
+    assert fills["CONFIRMED_REJECTION"] == PB.CRIT
+    assert fills["TOP_SECRET"] == PB.CRIT
+    # nothing that means trouble may wear the pass colour
+    for bad in ("SPLIT_RECOMMENDED", "CONFIRMED_REJECTION", "FAIL"):
+        assert fills.get(bad) != PB.EMERALD, f"{bad} must never be green"
+
+
+def test_classification_donut_excludes_rows_that_have_no_tier():
+    """The six DATA_QUALITY checks carry no table_classification; counting them produced a "(Blank)"
+    slice on a chart titled "Tables by NDMO classification"."""
+    # Only charts that GROUP BY the tier, not the detail table that merely lists the column.
+    charts = [c for c in _visuals().values()
+              if c["visual"]["visualType"] != "tableEx"
+              and "table_classification" in json.dumps(
+                  c["visual"].get("query", {}).get("queryState", {}).get("Category", {}))]
+    assert charts, "the classification donut is missing"
+    for c in charts:
+        cfg = json.dumps(c.get("filterConfig", {}))        # filterConfig sits beside "visual", not inside
+        assert "metric_family" in cfg and "CLASSIFICATION" in cfg, c["name"]
+
+
+def test_percentage_measures_carry_a_unit():
+    """A card reading "99.07" with no unit is ambiguous; percentages and bps say so in the format."""
+    for table, measures in PB.MEASURES.items():
+        for name, _dax, fmt in measures:
+            if name.endswith("Pct"):
+                assert '"%"' in fmt, f"{table}.{name} has no percent suffix: {fmt}"
+            if name.endswith("bps"):
+                assert "bps" in fmt, f"{table}.{name} has no bps suffix: {fmt}"
 
 
 def test_report_parts_are_json():

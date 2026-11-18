@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import shutil
 import sys
 import time
 import uuid
@@ -58,7 +59,8 @@ MEASURES = {
          "DIVIDE(MAXX(VALUES(fact_merchant_settlement_recon[merchant_id]), "
          "CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]))), "
          "CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]), "
-         "REMOVEFILTERS(fact_merchant_settlement_recon[merchant_id]))) * 100", "0.0"),
+         "REMOVEFILTERS(fact_merchant_settlement_recon[merchant_id]))) * 100", "0.0\"%\""),
+        ("Expected Net Payable SAR", "SUM(fact_merchant_settlement_recon[expected_net_payable_sar])", "#,0.00"),
         ("Merchants", "DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id])", "#,0"),
         ("MID Days", "COUNTROWS(fact_merchant_settlement_recon)", "#,0")],
     "fact_zatca_clearance_ledger": [
@@ -80,12 +82,14 @@ MEASURES = {
                         "NOT ISBLANK(fact_zatca_clearance_ledger[corrects_invoice_uuid])))", "0"),
         ("Retried Documents", "COUNTROWS(FILTER(fact_zatca_clearance_ledger, "
                               "fact_zatca_clearance_ledger[attempts] > 1))", "#,0"),
-        ("EGS Devices", "DISTINCTCOUNT(fact_zatca_clearance_ledger[egs_id])", "0")],
+        ("EGS Devices", "DISTINCTCOUNT(fact_zatca_clearance_ledger[egs_id])", "0"),
+        # A gauge needs a bounded 0-100 figure; this is the share of documents ZATCA did not reject.
+        ("Acceptance Rate Pct", "DIVIDE([Accepted Documents], [Documents in Chain]) * 100", "0.00\"%\"")],
     "fact_payment_method_daily": [
         ("Method Captures SAR", "SUM(fact_payment_method_daily[gross_captures_sar])", "#,0.00"),
         ("Method Bank Fees SAR", "SUM(fact_payment_method_daily[acquirer_fees_sar])", "#,0.00"),
         ("Method Fee Rate bps", "DIVIDE(SUM(fact_payment_method_daily[acquirer_fees_sar]), "
-                                "SUM(fact_payment_method_daily[gross_captures_sar])) * 10000", "0.0")],
+                                "SUM(fact_payment_method_daily[gross_captures_sar])) * 10000", "0.0\" bps\"")],
     "mart_ndmo_scorecard": [
         ("Scorecard Checks", "COUNTROWS(mart_ndmo_scorecard)", "0"),
         # bug 3: ONE shared passing measure; families filter on top of it (6 data quality + 1 classification = 7)
@@ -100,22 +104,24 @@ MEASURES = {
         ("Classification Checks Passing",
          "CALCULATE([Checks Passing], KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"CLASSIFICATION\"))", "0"),
         # bug 4: 99.07% is the data-quality average only; classification has its own score
+        # score_pct is already 0-100, so the suffix is a literal "%": a true percent format would x100 again.
         ("Data Quality Score Pct", "CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), "
-                                   "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\"))", "#,0.00"),
+                                   "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"DATA_QUALITY\"))",
+         "#,0.00\"%\""),
         ("Classification Score Pct",
          "CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), "
-         "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"CLASSIFICATION\"))", "#,0.00"),
+         "KEEPFILTERS(mart_ndmo_scorecard[metric_family] = \"CLASSIFICATION\"))", "#,0.00\"%\""),
         ("Tables Needing Split", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
                                  "KEEPFILTERS(mart_ndmo_scorecard[status] = \"SPLIT_RECOMMENDED\")) + 0", "0"),
-        ("Average Score Pct", "AVERAGE(mart_ndmo_scorecard[score_pct])", "#,0.00"),
-        ("Threshold Pct", "AVERAGE(mart_ndmo_scorecard[threshold_pct])", "#,0.00"),
+        ("Average Score Pct", "AVERAGE(mart_ndmo_scorecard[score_pct])", "#,0.00\"%\""),
+        ("Threshold Pct", "AVERAGE(mart_ndmo_scorecard[threshold_pct])", "#,0.00\"%\""),
         ("Classified Tables", "CALCULATE(COUNTROWS(mart_ndmo_scorecard), "
                               "KEEPFILTERS(NOT ISBLANK(mart_ndmo_scorecard[table_classification]))) + 0", "0")],
 }
 # Layout grid for a 1280 x 720 page. Each visual: (kind, role-spec, (x, y, w, h), title).
 # Roles: ("m", measure) or ("c", table, column). Charts sort descending by their first Y measure.
 R, Z, N = "fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard"
-D = "dim_date_saudi"
+D, S, M = "dim_date_saudi", "merchant_store_reference", "fact_payment_method_daily"
 CARD_Y, CARD_H = 70, 88
 
 
@@ -126,37 +132,50 @@ def _cards(measures: list[str]) -> list[tuple]:
 
 
 PAGES = [
+    # Six cards, not seven: at seven the titles truncate to "Unexplained Bank Varianc...". Merchant
+    # concentration moved to the treemap, which shows it better than a number ever did.
     ("cfo_settlement", "CFO Settlement",
      "Every halala reconciled: captures vs mada/SADAD bank file vs ERP card clearing. Variance must be SAR 0.00.",
-     _cards(["Gross Captures SAR", "Bank Paid SAR", "In Transit SAR", "Unexplained Bank Variance SAR",
-             "Unexplained GL Variance SAR", "MID Days Not Assessed", "Largest Merchant Share of SAR Pct"]) + [
-        ("lineChart", {"Category": [("c", D, "calendar_date")],
-                       "Y": [("m", "Gross Captures SAR"), ("m", "Bank Paid SAR (Assessed)"),
-                             ("m", "GL Card Clearing SAR")]},
-         (20, 168, 800, 270), "Captures vs bank paid vs GL clearing by business day "
-         "(no bank line where the bank file has not arrived: not assessed)"),
-        ("clusteredBarChart", {"Category": [("c", R, "merchant_id")], "Y": [("m", "Gross Captures SAR")]},
-         (830, 168, 430, 270), "Top merchants by gross captures"),
-        ("slicer", {"Values": [("c", R, "merchant_id")]}, (20, 450, 200, 255), "Merchant"),
+     _cards(["Gross Captures SAR", "Bank Paid SAR", "In Transit SAR", "Expected Net Payable SAR",
+             "Unexplained Bank Variance SAR", "MID Days Not Assessed"]) + [
+        # Stacked columns show where each day's money sits (paid vs still in transit); the line is what
+        # was captured. Where the two diverge, the bank file has not arrived yet.
+        ("lineStackedColumnComboChart",
+         {"Category": [("c", D, "calendar_date")],
+          "Y": [("m", "Bank Paid SAR (Assessed)"), ("m", "In Transit SAR")],
+          "Y2": [("m", "Gross Captures SAR")]},
+         (20, 168, 620, 252), "Where each day's money sits: bank paid and in transit, against gross captures"),
+        # A treemap survives one merchant holding 73.8% of SAR; a bar chart flattens the other 120 to
+        # invisible slivers.
+        ("treemap", {"Group": [("c", R, "merchant_id")], "Values": [("m", "Gross Captures SAR")]},
+         (650, 168, 310, 252), "Merchant concentration by gross captures"),
+        ("treemap", {"Group": [("c", S, "city")], "Values": [("m", "Gross Captures SAR")]},
+         (970, 168, 290, 252), "Captures by city"),
+        ("slicer", {"Values": [("c", R, "merchant_id")]}, (20, 430, 180, 275), "Merchant"),
         ("tableEx", {"Values": [("c", R, c) for c in (
             "merchant_id", "business_date_ksa", "gross_captures_sar", "acquirer_fees_sar", "bank_paid_sar",
             "in_transit_sar", "gl_card_clearing_sar", "unexplained_bank_variance_sar",
-            "unexplained_gl_variance_sar")]}, (230, 450, 1030, 255), "Reconciliation by MID-day (key spine)")]),
+            "unexplained_gl_variance_sar")]}, (210, 430, 1050, 275), "Reconciliation by MID-day (key spine)")]),
     ("tax_zatca_health", "Tax ZATCA Health",
      "Phase-2 e-invoice chain: zero ICV gaps, transport failures (5xx/timeout) retried with identical UUID and bytes.",
      _cards(["Documents in Chain", "Accepted Documents", "Rejected Documents", "Net Invoiced SAR", "Corrections",
              "Retried Documents"]) + [
+        # A rejection must read as a rejection: CONFIRMED_REJECTION is red, never the palette's next cyan.
         ("donutChart", {"Category": [("c", Z, "state")], "Y": [("m", "Documents in Chain")]},
-         (20, 168, 380, 270), "Documents by ZATCA outcome"),
+         (20, 168, 330, 252), "Documents by ZATCA outcome",
+         {"colors": ["REPORTED", "CLEARED", "ACCEPTED_WITH_WARNINGS", "CONFIRMED_REJECTION"]}),
+        ("gauge", {"Y": [("m", "Acceptance Rate Pct")], "TargetValue": [("m", "Documents in Chain")]},
+         (360, 168, 250, 252), "Acceptance rate"),
         ("clusteredColumnChart", {"Category": [("c", Z, "egs_id")], "Y": [("m", "Documents in Chain")]},
-         (410, 168, 420, 270), "Documents per EGS device"),
+         (620, 168, 330, 252), "Documents per EGS device"),
         ("clusteredColumnChart", {"Category": [("c", Z, "invoice_flow")],
                                   "Y": [("m", "Net Invoiced SAR")]},
-         (840, 168, 420, 270), "Net invoiced SAR: Simplified (reporting) vs Standard (clearance)"),
-        ("slicer", {"Values": [("c", Z, "document_type")]}, (20, 450, 200, 255), "Document type"),
+         (960, 168, 300, 252), "Net invoiced: simplified vs standard",
+         {"colors": ["REPORTING", "CLEARANCE"]}),
+        ("slicer", {"Values": [("c", Z, "document_type")]}, (20, 430, 180, 275), "Document type"),
         ("tableEx", {"Values": [("c", Z, c) for c in (
             "egs_id", "icv", "invoice_flow", "document_type", "state", "attempts", "issue_date_ksa",
-            "total_incl_vat_sar", "corrects_invoice_uuid")]}, (230, 450, 1030, 255), "Clearance ledger")]),
+            "total_incl_vat_sar", "corrects_invoice_uuid")]}, (210, 430, 1050, 275), "Clearance ledger")]),
     ("cdo_data_trust", "CDO Data Trust",
      "NDMO scorecard: data quality checks against thresholds and 4-tier classification "
      "(TOP_SECRET / SECRET / CONFIDENTIAL / PUBLIC).",
@@ -164,15 +183,23 @@ PAGES = [
              "Classification Score Pct", "Tables Needing Split"]) + [
         ("clusteredBarChart", {"Category": [("c", N, "dimension")],
                                "Y": [("m", "Average Score Pct"), ("m", "Threshold Pct")]},
-         (20, 168, 620, 270), "Score vs threshold by quality dimension"),
+         (20, 168, 600, 252), "Score vs threshold by quality dimension"),
+        ("gauge", {"Y": [("m", "Data Quality Score Pct")], "TargetValue": [("m", "Threshold Pct")]},
+         (630, 168, 240, 252), "Data quality score vs threshold"),
+        # PASS is green and SPLIT_RECOMMENDED amber, pinned per category. Left to the theme's palette
+        # order this donut painted SPLIT_RECOMMENDED -- 26 of 33 checks -- in the pass colour.
         ("donutChart", {"Category": [("c", N, "status")], "Y": [("m", "Scorecard Checks")]},
-         (650, 168, 300, 270), "Checks by status"),
-        ("donutChart", {"Category": [("c", N, "table_classification")], "Y": [("m", "Classified Tables")]},
-         (960, 168, 300, 270), "Tables by NDMO classification"),
-        ("slicer", {"Values": [("c", N, "metric_family")]}, (20, 450, 200, 255), "Metric family"),
+         (880, 168, 380, 252), "Checks by status", {"colors": ["PASS", "SPLIT_RECOMMENDED", "FAIL"]}),
+        ("slicer", {"Values": [("c", N, "metric_family")]}, (20, 430, 180, 275), "Metric family"),
         ("tableEx", {"Values": [("c", N, c) for c in (
             "metric_family", "dimension", "subject_table", "numerator", "denominator", "score_pct",
-            "threshold_pct", "status", "table_classification")]}, (230, 450, 1030, 255), "NDMO scorecard")]),
+            "threshold_pct", "status", "table_classification")]}, (210, 430, 740, 275), "NDMO scorecard"),
+        # Filtered to the classification family: the six data-quality checks carry no tier, and counting
+        # them here produced a "(Blank)" slice on a chart titled "tables by classification".
+        ("donutChart", {"Category": [("c", N, "table_classification")], "Y": [("m", "Classified Tables")]},
+         (960, 430, 300, 275), "Tables by NDMO classification",
+         {"colors": ["PUBLIC", "CONFIDENTIAL", "SECRET", "TOP_SECRET"],
+          "filter": (N, "metric_family", ["CLASSIFICATION"])})]),
 ]
 MEASURE_TABLE = {m: t for t, ms in MEASURES.items() for m, _, _ in ms}
 TYPE_MAP = {"varchar": "string", "char": "string", "nvarchar": "string", "int": "int64", "bigint": "int64",
@@ -290,11 +317,16 @@ def report_parts(model_id: str) -> dict[str, str]:
             "$schema": PAGE, "name": pid, "displayName": title, "displayOption": "FitToPage",
             "height": 720, "width": 1280,
             "objects": {"background": [{"properties": {"color": _solid(BG), "transparency": _lit("0D")}}]}})
-        for i, (kind, roles, (x, y, w, h), vtitle) in enumerate(visuals):
+        for i, spec in enumerate(visuals):
+            kind, roles, (x, y, w, h), vtitle = spec[:4]
+            opts = spec[4] if len(spec) > 4 else None       # optional: colors, filter, labels
             vid = f"{pid}_v{i}"
-            parts[f"definition/pages/{pid}/visuals/{vid}/visual.json"] = json.dumps(
-                {"$schema": VIS, "name": vid, "position": {"x": x, "y": y, "z": i, "width": w, "height": h},
-                 "visual": _visual(kind, roles, vtitle)})
+            container = {"$schema": VIS, "name": vid,
+                         "position": {"x": x, "y": y, "z": i, "width": w, "height": h},
+                         "visual": _visual(kind, roles, vtitle, opts)}
+            if opts and opts.get("filter"):
+                container["filterConfig"] = _visual_filter(*opts["filter"])   # sibling of "visual"
+            parts[f"definition/pages/{pid}/visuals/{vid}/visual.json"] = json.dumps(container)
         parts[f"definition/pages/{pid}/visuals/{pid}_title/visual.json"] = json.dumps({
             "$schema": VIS, "name": f"{pid}_title", "position": {"x": 20, "y": 2, "z": 99, "width": 1240, "height": 64},
             "visual": {"visualType": "textbox", "objects": {"general": [{"properties": {"paragraphs": [
@@ -307,6 +339,17 @@ def report_parts(model_id: str) -> dict[str, str]:
 # "MIZAN Night": the same palette as the Command Center (night page, gold = the scales, emerald = captured money)
 BG, PANEL, LINE, INK, MUTED = "#060B16", "#101B30", "#22314D", "#E9EFF6", "#8D9BB1"
 ACCENT, EMERALD = "#D9B25F", "#2FBF8F"
+CYAN, AMBER, CRIT, VIOLET = "#5CC8FF", "#F2A93B", "#FF5D63", "#9B8CFF"
+
+# Status colours are assigned per category, never left to the theme's palette order. Power BI hands out
+# dataColors in whatever order the categories happen to sort, which once painted SPLIT_RECOMMENDED green
+# and PASS amber on the NDMO donut -- the opposite of what they mean. Green is only ever a real pass.
+STATUS_COLORS = {
+    "PASS": EMERALD, "SPLIT_RECOMMENDED": AMBER, "FAIL": CRIT,
+    "REPORTED": EMERALD, "CLEARED": CYAN, "ACCEPTED_WITH_WARNINGS": AMBER, "CONFIRMED_REJECTION": CRIT,
+    "PUBLIC": CYAN, "CONFIDENTIAL": EMERALD, "SECRET": AMBER, "TOP_SECRET": CRIT,
+    "REPORTING": EMERALD, "CLEARANCE": CYAN,
+}
 THEME_FILE = "MizanNight.json"
 
 
@@ -357,10 +400,45 @@ def _proj(r: tuple) -> dict:
     return _field_measure(r[1]) if r[0] == "m" else _field_column(r[1], r[2])
 
 
-def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None) -> dict:
+def _category_colors(cat: tuple, values: list[str]) -> list[dict]:
+    """Pin one fill per category value, so a status colour never depends on sort order."""
+    _, table, column = cat
+    out = []
+    for v in values:
+        colour = STATUS_COLORS.get(v)
+        if not colour:
+            continue
+        out.append({
+            "properties": {"fill": _solid(colour)},
+            "selector": {"data": [{"scopeId": {"Comparison": {
+                "ComparisonKind": 0,
+                "Left": {"Column": {"Expression": {"SourceRef": {"Entity": table}}, "Property": column}},
+                "Right": {"Literal": {"Value": f"'{v}'"}}}}}]},
+        })
+    return out
+
+
+def _visual_filter(table: str, column: str, values: list[str]) -> dict:
+    """A visual-level 'keep only these values' filter (PBIR filterConfig)."""
+    return {"filters": [{
+        "name": f"keep_{column}",
+        "field": {"Column": {"Expression": {"SourceRef": {"Entity": table}}, "Property": column}},
+        "type": "Categorical",
+        "filter": {
+            "Version": 2,
+            "From": [{"Name": "f", "Entity": table, "Type": 0}],
+            "Where": [{"Condition": {"In": {
+                "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "f"}}, "Property": column}}],
+                "Values": [[{"Literal": {"Value": f"'{v}'"}}] for v in values]}}}],
+        },
+    }]}
+
+
+def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None, opts: dict | None = None) -> dict:
+    opts = opts or {}
     query: dict = {"queryState": {role: {"projections": [_proj(r) for r in rs]} for role, rs in roles.items()}}
     ys = [r for r in roles.get("Y", []) if r[0] == "m"]
-    if ys and kind in ("clusteredBarChart", "clusteredColumnChart", "donutChart"):
+    if ys and kind in ("clusteredBarChart", "clusteredColumnChart", "donutChart", "treemap"):
         query["sortDefinition"] = {"sort": [{"field": _proj(ys[0])["field"], "direction": "Descending"}],
                                    "isDefaultSort": True}
     container = {"background": [{"properties": {"show": _lit("true"), "color": _solid(PANEL),
@@ -386,6 +464,15 @@ def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None) -> dict
             objects["legend"] = [{"properties": {"show": _lit("false")}}]
     elif kind == "slicer":
         objects = {"data": [{"properties": {"mode": _lit("'Basic'")}}]}
+    # Per-category colours win over whatever the theme palette would have assigned by sort order.
+    cats = roles.get("Category") or roles.get("Group") or roles.get("Legend") or []
+    if opts.get("colors") and cats and cats[0][0] == "c":
+        rules = _category_colors(cats[0], opts["colors"])
+        if rules:
+            objects["dataPoint"] = rules
+            objects.setdefault("legend", [{"properties": {"show": _lit("true"), "position": _lit("'Right'")}}])
+    if opts.get("labels"):
+        objects["labels"] = [{"properties": {"show": _lit("true"), "color": _solid(INK)}}]
     v = {"visualType": kind, "query": query, "visualContainerObjects": container, "drillFilterOtherVisuals": True}
     if objects:
         v["objects"] = objects
@@ -431,7 +518,51 @@ def save(folder: str, parts: dict[str, str]) -> None:
                      .replace(os.environ["WH_MIZAN_ID"], "<WH_MIZAN_ID>"), encoding="utf-8", newline="\n")
 
 
+def _prune_visuals(out: Path, parts: dict[str, str]) -> None:
+    """Delete visual folders the current layout no longer produces.
+
+    Fabric replaces the whole definition on upsert, but powerbi/ is only ever written to. A layout that
+    drops a visual would otherwise leave its folder behind, commit it, and show a stale chart to anyone
+    reading the repo. Only pages/*/visuals/* is touched; nothing else under the report is removed.
+    """
+    wanted = {p.rsplit("/", 1)[0] for p in parts if "/visuals/" in p}
+    pages = out / "definition" / "pages"
+    if not pages.is_dir():
+        return
+    for page in sorted(p for p in pages.iterdir() if p.is_dir()):
+        vis = page / "visuals"
+        if not vis.is_dir():
+            continue
+        for folder in sorted(f for f in vis.iterdir() if f.is_dir()):
+            rel = f"definition/pages/{page.name}/visuals/{folder.name}"
+            if rel not in wanted:
+                shutil.rmtree(folder)
+                print(f"  removed stale visual {page.name}/{folder.name}")
+
+
+def main_local() -> None:
+    """Regenerate powerbi/ (report only) without the tenant, so layout work can be reviewed in git.
+
+    The semantic model needs the warehouse's column types, which only Fabric can answer; the report
+    does not, so --local rewrites just the report and leaves the model definition alone.
+    """
+    rparts = report_parts("<SEMANTIC_MODEL_ID>")
+    out = OUT / "MIZAN Control Tower.Report"
+    _prune_visuals(out, rparts)
+    for p, c in rparts.items():
+        f = out / p
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(c, encoding="utf-8", newline="\n")
+    pages = {pid: len(vis) + 1 for pid, _t, _s, vis in PAGES}
+    print(f"{out.relative_to(REPO)}  ({len(rparts)} files)")
+    for pid, n in pages.items():
+        print(f"  {pid:18s} {n:>2} visuals")
+    print("\nDeploy with: .\\.venv\\Scripts\\python.exe scripts\\fabric_powerbi.py   (needs the Fabric tenant)")
+
+
 def main() -> None:
+    if "--local" in sys.argv:
+        return main_local()
     load_dotenv()
     os.environ.setdefault("MIZAN_AZ_PROFILE", ".azure-college")
     P.TOKEN = P.token()                                   # owned by the signed-in user, visible in the portal
