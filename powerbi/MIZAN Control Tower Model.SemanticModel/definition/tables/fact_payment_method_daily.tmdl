@@ -10,7 +10,7 @@ table fact_payment_method_daily
 		lineageTag: ae490985-b35c-5961-9156-f128e1c2a87d
 
 	measure 'Method Fee Rate bps' = DIVIDE(SUM(fact_payment_method_daily[acquirer_fees_sar]), SUM(fact_payment_method_daily[gross_captures_sar])) * 10000
-		formatString: 0.0
+		formatString: 0.0" bps"
 		lineageTag: a0a5ea42-e181-5a44-88fe-0f14f29aa161
 
 	column merchant_id

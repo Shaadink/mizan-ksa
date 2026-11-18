@@ -50,8 +50,12 @@ table fact_merchant_settlement_recon
 		lineageTag: 48956889-54fe-5776-b43e-f2b18563c241
 
 	measure 'Largest Merchant Share of SAR Pct' = DIVIDE(MAXX(VALUES(fact_merchant_settlement_recon[merchant_id]), CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]))), CALCULATE(SUM(fact_merchant_settlement_recon[gross_captures_sar]), REMOVEFILTERS(fact_merchant_settlement_recon[merchant_id]))) * 100
-		formatString: 0.0
+		formatString: 0.0"%"
 		lineageTag: 9d42dce7-6653-52c8-8659-fd047097ce54
+
+	measure 'Expected Net Payable SAR' = SUM(fact_merchant_settlement_recon[expected_net_payable_sar])
+		formatString: #,0.00
+		lineageTag: 275cde32-99d9-56fe-b252-ef84f87de1a9
 
 	measure 'Merchants' = DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id])
 		formatString: #,0

@@ -37,6 +37,10 @@ table fact_zatca_clearance_ledger
 		formatString: 0
 		lineageTag: 27720e09-9f3b-5eb5-8fc1-c1f99194c892
 
+	measure 'Acceptance Rate Pct' = DIVIDE([Accepted Documents], [Documents in Chain]) * 100
+		formatString: 0.00"%"
+		lineageTag: c9f56056-6965-5e3f-8f2b-ec1545d7704a
+
 	column invoice_uuid
 		dataType: string
 		lineageTag: 4e92a0a4-ce3e-5c27-832c-601136796bcb

@@ -26,11 +26,11 @@ table mart_ndmo_scorecard
 		lineageTag: b9729dc5-e365-5503-be6d-67a334343070
 
 	measure 'Data Quality Score Pct' = CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "DATA_QUALITY"))
-		formatString: #,0.00
+		formatString: #,0.00"%"
 		lineageTag: 67dbce03-7d69-5c07-b7ad-76a7dae63004
 
 	measure 'Classification Score Pct' = CALCULATE(AVERAGE(mart_ndmo_scorecard[score_pct]), KEEPFILTERS(mart_ndmo_scorecard[metric_family] = "CLASSIFICATION"))
-		formatString: #,0.00
+		formatString: #,0.00"%"
 		lineageTag: 9b10486e-9ed8-513d-b12b-be15d5908ed9
 
 	measure 'Tables Needing Split' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), KEEPFILTERS(mart_ndmo_scorecard[status] = "SPLIT_RECOMMENDED")) + 0
@@ -38,11 +38,11 @@ table mart_ndmo_scorecard
 		lineageTag: 72a02a13-d36e-5b81-84eb-5799730b778e
 
 	measure 'Average Score Pct' = AVERAGE(mart_ndmo_scorecard[score_pct])
-		formatString: #,0.00
+		formatString: #,0.00"%"
 		lineageTag: 78552570-fdae-5223-af52-f8f4e923526e
 
 	measure 'Threshold Pct' = AVERAGE(mart_ndmo_scorecard[threshold_pct])
-		formatString: #,0.00
+		formatString: #,0.00"%"
 		lineageTag: 9aeddacd-6214-52a5-894c-9160b147b783
 
 	measure 'Classified Tables' = CALCULATE(COUNTROWS(mart_ndmo_scorecard), KEEPFILTERS(NOT ISBLANK(mart_ndmo_scorecard[table_classification]))) + 0
