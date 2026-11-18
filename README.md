@@ -89,7 +89,24 @@ plus a Silver snapshot is re-shredded by the Restore Guard.
 Every Gold column has lineage (64/64), and the build fails otherwise. Each run manifest carries `run_id`, `git_sha` and
 Delta snapshot versions. The residency gate fails the build if a SECRET column targets an open zone.
 
-### 7. MIZAN Command Center: the cinematic control tower
+### 7. Disaster recovery you can check, not just claim
+
+A backup is a claim until someone restores from it. `scripts/dr_drill.py` fingerprints every Gold table,
+rebuilds Gold, fingerprints again, and fails if one value moved. A DuckDB file is never byte-identical
+between builds, so the fingerprint is SHA-256 over table *contents* in a canonical text form, sorted so
+row order cannot matter.
+
+```
+.\.venv\Scripts\python.exe scripts\dr_drill.py                 # Gold from Silver (seconds)
+.\.venv\Scripts\python.exe scripts\dr_drill.py --from source   # from the fixed seed (minutes)
+```
+
+The drill records its own RTO and writes `docs/artifacts/13_dr_drill.json`. `tests/test_dr_drill.py`
+proves it is sensitive to **one halala**: change an amount by 0.01 and the fingerprint changes; change
+it back and the fingerprint returns. A restore check blind to a halala would prove nothing on this
+project.
+
+### 8. MIZAN Command Center: the cinematic control tower
 ![Command Center hero](docs/artifacts/08_command_center_hero.png)
 A golden balance scale fills with captures first and the bank file a day later (T+1), then settles exactly level when
 bank and GL variance reach SAR 0.00. Ten scenes follow, each with a story-mode narration: executive pulse, money

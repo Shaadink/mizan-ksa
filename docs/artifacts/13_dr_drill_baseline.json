@@ -1,0 +1,50 @@
+{
+ "recorded_at": "2026-11-18T13:00:44Z",
+ "tables": {
+  "dim_date_saudi": {
+   "rows": 1095,
+   "columns": 17,
+   "sha256": "52c694cd90047a36609f2878c05eeb111b00f4b8fae40607a224b253fcd451a5"
+  },
+  "dim_party_golden": {
+   "rows": 2552,
+   "columns": 12,
+   "sha256": "39bd3c63e920cbbdd97b4c6c1ee4986c71c5eaee7d897152dbf74c5c1a6a3937"
+  },
+  "fact_merchant_settlement_recon": {
+   "rows": 2233,
+   "columns": 13,
+   "sha256": "0da84ef5350229c557fbf795bf19fb463a3c561a009315f26128c53444b72756"
+  },
+  "fact_payment_method_daily": {
+   "rows": 3476,
+   "columns": 12,
+   "sha256": "22812bce7e92d7463803bcd0aa1e9acbfb6b79256a78942cd619e2e9be5e2566"
+  },
+  "fact_zatca_clearance_ledger": {
+   "rows": 25001,
+   "columns": 13,
+   "sha256": "d84f1c316e118fe683c368421c1d32f8f467651be18afc686af4ae98ce5f918d"
+  },
+  "hijri_announcement_overrides": {
+   "rows": 0,
+   "columns": 5,
+   "sha256": "ab2f63cb831f2ac2e3d1eb3763e535fa7d875e5f7d5bb7b7a500660e37d89f83"
+  },
+  "mart_ndmo_scorecard": {
+   "rows": 33,
+   "columns": 9,
+   "sha256": "4dae58c875a658a8fc20717179e4a5bdeb6cd45c82f187ef4936410b972087a6"
+  },
+  "merchant_store_reference": {
+   "rows": 121,
+   "columns": 6,
+   "sha256": "edd65ebf966f0f46e7ebc230370cfc3226aaab0afe3d1a184d0af0e12910849c"
+  },
+  "umm_al_qura_calendar": {
+   "rows": 1157,
+   "columns": 5,
+   "sha256": "3070214fa92f8287e5669497bbebb7c11a5cab4a3b313a68a36b45fd6425e8c5"
+  }
+ }
+}
