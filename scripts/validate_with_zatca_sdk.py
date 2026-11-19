@@ -120,12 +120,17 @@ def sdk_command(sdk: Path) -> list[str] | None:
     return cmd
 
 
-def export_invoices(limit: int, out_dir: Path) -> list[tuple[str, Path]]:
-    """Re-run the clearance engine and write each signed invoice's XML to out_dir. Returns (label, path)."""
+def export_invoices(limit: int, out_dir: Path, data_dir: Path | None = None) -> list[tuple[str, Path]]:
+    """Re-run the clearance engine and write each signed invoice's XML to out_dir. Returns (label, path).
+
+    `data_dir` defaults to the committed-out `data/generated`, which exists on a developer's machine after a
+    generator run and never on a fresh clone -- the generated data is git-ignored. Tests therefore pass the
+    session's freshly generated directory instead, so they run on CI rather than depending on local state.
+    """
     from mizan.clearance.engine import process_requests
     from mizan.clearance.mock_fatoora import MockFatoora
 
-    data = REPO / "data" / "generated"
+    data = Path(data_dir) if data_dir is not None else REPO / "data" / "generated"
     with (data / "zatca" / "invoice_requests.jsonl").open(encoding="utf-8") as fh:
         reqs = [json.loads(line) for line in fh]
     plan = json.loads((data / "zatca" / "fatoora_fault_plan.json").read_text(encoding="utf-8"))

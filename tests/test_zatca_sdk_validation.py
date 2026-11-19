@@ -38,9 +38,9 @@ def sdk():
 
 
 @pytest.fixture(scope="module")
-def invoices(tmp_path_factory):
+def invoices(tmp_path_factory, gen_dir):
     out = tmp_path_factory.mktemp("zatca_sdk_xml")
-    written = sdk_mod.export_invoices(limit=10, out_dir=out)
+    written = sdk_mod.export_invoices(limit=10, out_dir=out, data_dir=gen_dir)
     assert written, "the clearance engine produced no invoices to validate"
     return written
 
@@ -98,15 +98,19 @@ def test_zatca_sdk_ksa_failures_are_only_the_known_validator_defects(sdk, invoic
     assert not unexpected, "new KSA rule failures (not the known float defect):\n  " + "\n  ".join(unexpected)
 
 
-def test_exported_invoice_is_well_formed_xml():
+def test_exported_invoice_is_well_formed_xml(gen_dir):
     """Runs with or without the SDK: the signed bytes must at least parse and carry the UBL root.
 
     This is the part of the claim we can always check, so a clone without the SDK still gets a real test.
+
+    Takes `gen_dir` -- the session's freshly generated dataset -- rather than reading `data/generated`, which is
+    git-ignored and so never exists on CI. Reading it directly broke every CI run from 2026-11-16, while passing
+    on any machine that had run the generator: the failure mode a test that depends on local state always has.
     """
     from xml.etree import ElementTree
 
     with tempfile.TemporaryDirectory() as tmp:
-        written = sdk_mod.export_invoices(limit=3, out_dir=Path(tmp))
+        written = sdk_mod.export_invoices(limit=3, out_dir=Path(tmp), data_dir=gen_dir)
         assert written, "the clearance engine produced no invoices"
         for label, xml in written:
             root = ElementTree.fromstring(xml.read_bytes())
