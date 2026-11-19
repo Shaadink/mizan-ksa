@@ -107,7 +107,7 @@ flow** -> **Import** -> **Replace**. Imported successfully on 2026-11-19.
 The schema was taken from a real export of Fabric's own predesigned flow, not invented:
 
 ```json
-{"tasks":[{"type":"store data","id":"<uuid>","name":"Store"}],
+{"tasks":[{"type":"store data","id":"<uuid>","name":"Store","description":"..."}],
  "edges":[{"source":"<uuid>","target":"<uuid>"}],
  "name":"...","description":"..."}
 ```
@@ -115,18 +115,12 @@ The schema was taken from a real export of Fabric's own predesigned flow, not in
 The ten `type` values Fabric emits are: `get data`, `store data`, `prepare data`, `analyze and train data`,
 `develop`, `govern data`, `visualize`, `track data`, `distribute data`, `mirror data`.
 
-**What import does and does not carry, established by doing it:**
+**Import carries names, types, descriptions and connectors. It does not carry item assignments** -- the format has
+no field for them, so 4.3 is by hand and always will be.
 
-| Carried | Not carried |
-|---|---|
-| Task names, types, positions | **Per-task descriptions** -- each box keeps its default type subtitle |
-| The connectors between tasks | Item assignments (the format has no field for them) |
-| The task flow's own name and description | |
-
-The first file shipped with a `description` on each task. Fabric accepted the file and silently ignored that field,
-so it has been removed rather than left in to imply something it cannot do. The six descriptions are in
-`docs/fabric/task_descriptions.md` to paste by hand (select task -> **Edit** -> **Save**); this is optional.
-
-Item assignments in 4.3 are still by hand, and always will be: the export format has nowhere to put them.
+Note on where a description shows: the task *card* on the canvas always shows the task **type** label underneath
+the name ("Store data", "Distribute data"), never the description. The description appears in the **task details
+pane** when the task is selected. A card still reading "Prepare data" therefore does not mean the description was
+lost -- click the task and look at the pane.
 
 This whole section is cosmetic. Nothing in the pipeline, the tests or the evidence depends on it.
