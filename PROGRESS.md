@@ -507,6 +507,30 @@ Card-scheme dispute monitoring (2026-11-19, owner-approved Gold addition):
   is what it is for; `dbt/lineage_overrides.json` now maps each to its real inputs. Gold lineage is 91/91.
 - Shown on the Risk stream scene as a 71-versus-1 panel with three suppressed examples.
 
+Making the dispute monitor visible (2026-11-19, owner feedback: "backend doesn't mean done"):
+- Fair hit, twice over. In the Command Center the panel was built but sat at the BOTTOM of scene 08 below a
+  chart -- built and buried is invisible. Moved to the top of the Risk stream scene; the scene heading and the
+  sidebar caption now lead with it instead of only mentioning the KQL rules.
+- In Power BI there was nothing at all. New **Merchant Risk** page (11 visuals): six cards, a scatter of
+  dispute ratio vs capture volume, a portfolio gauge, disputes by merchant, a programme slicer and the full
+  per-merchant table with both tests shown as separate columns. Scatter rather than bars on purpose -- the
+  argument is that a ratio means nothing without volume, and only two axes show a 6.98% ratio sitting on 43
+  captures.
+- `gld.fact_merchant_dispute_monitor` is now built on **WH_MIZAN** (`dbt build --target fabric`, 10/10 PASS) and
+  verified through the SQL endpoint: 121 rows, 71 ratio-only, 1 in programme, MID900001 -- identical to local.
+  Semantic model and report redeployed.
+- Three bugs that only a real Fabric build could surface:
+  1. the model did not run on Fabric at all -- `DATE_DIFF` is DuckDB syntax, T-SQL wants `DATEDIFF`. New
+     `date_diff_days()` macro, same pattern as `bool_true()`.
+  2. the dbt test did not run on Fabric either, twice: dbt wraps a test in a derived table and T-SQL rejects a
+     `WITH` clause inside one ("Invalid object name 'm'"), then `GROUP BY 'x'` turned out to be a DuckDB-ism.
+     Rewritten with a repeated ref() and `HAVING` with no `GROUP BY`; builds on both targets.
+  3. `test_cards_respond_to_their_own_page_slicer` caught six cards that would have ignored their own page
+     slicer -- the same defect found once before on the payments page. The new measures were homed on the recon
+     table; moved onto the dispute table.
+- The non-ascii guard caught a raw em dash typed into fabric_powerbi.py; escaped. CI now lints `scripts` too.
+- 302 passed, dbt 91/91 local and 10/10 on Fabric for the new model.
+
 ## Left for the owner after Phase 13
 0a. ~~Public snapshot site not deployed~~ DONE 2026-11-19: https://delightful-field-01a948c0f.4.azurestaticapps.net
    (no login, serves "follow one riyal", verified HTTP 200 + content). Redeploy after any rebuild with

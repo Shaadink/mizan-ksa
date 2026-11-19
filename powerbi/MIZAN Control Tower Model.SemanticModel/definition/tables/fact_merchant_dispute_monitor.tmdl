@@ -1,0 +1,136 @@
+table fact_merchant_dispute_monitor
+	lineageTag: f13d2851-8da8-5d71-9a86-2897be7b6b26
+
+	measure 'Merchants Flagged By Ratio Only' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[breaches_ratio] = TRUE()))+ 0
+		formatString: #,0
+		lineageTag: 8e567bda-4b30-56d6-9d10-fe51f719956b
+
+	measure 'Merchants In Monitoring Programme' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[in_monitoring_programme] = TRUE()))+ 0
+		formatString: #,0
+		lineageTag: 7af2bb40-890d-5866-ad10-914afaf08331
+
+	measure 'Merchants Monitored' = COUNTROWS(fact_merchant_dispute_monitor) + 0
+		formatString: #,0
+		lineageTag: 07a3a890-c7b6-51bb-ae54-541dc08ffc34
+
+	measure 'Disputes' = SUM(fact_merchant_dispute_monitor[dispute_count]) + 0
+		formatString: #,0
+		lineageTag: 5096098a-0029-535c-87dc-454823ba3973
+
+	measure 'Captures' = SUM(fact_merchant_dispute_monitor[capture_count]) + 0
+		formatString: #,0
+		lineageTag: 0136c8a6-34a5-5707-9fe8-001a9d9c5032
+
+	measure 'Dispute Ratio Pct' = DIVIDE(SUM(fact_merchant_dispute_monitor[dispute_count]), SUM(fact_merchant_dispute_monitor[capture_count])) * 100
+		formatString: 0.00"%"
+		lineageTag: 759a893d-99b2-5cfa-917e-a1496266365c
+
+	measure 'Disputed SAR' = SUM(fact_merchant_dispute_monitor[disputes_sar])
+		formatString: #,0.00
+		lineageTag: 2b9eb6bf-935f-5332-8b08-d98907cde975
+
+	measure 'Portfolio Dispute Ratio Pct' = DIVIDE(SUM(fact_merchant_dispute_monitor[dispute_count]), SUM(fact_merchant_dispute_monitor[capture_count])) * 100
+		formatString: 0.00"%"
+		lineageTag: d67ac1c5-b1dd-54c7-85ed-a20ea38567b6
+
+	column merchant_id
+		dataType: string
+		lineageTag: 467da193-28ed-52fc-9528-2102aab06ace
+		summarizeBy: none
+		sourceColumn: merchant_id
+
+	column window_start_ksa
+		dataType: dateTime
+		lineageTag: b62bc9e2-0dcd-5a4f-9fba-ddd88a7647ce
+		summarizeBy: none
+		sourceColumn: window_start_ksa
+
+	column window_end_ksa
+		dataType: dateTime
+		lineageTag: c660d51b-b12d-5f88-aacc-6024acf1ddda
+		summarizeBy: none
+		sourceColumn: window_end_ksa
+
+	column window_days
+		dataType: int64
+		lineageTag: 4e717f53-336f-521d-80f3-2911bfec67a3
+		summarizeBy: none
+		sourceColumn: window_days
+
+	column capture_count
+		dataType: int64
+		lineageTag: 5853a322-b787-5b7a-9244-1f623fd05b7c
+		summarizeBy: none
+		sourceColumn: capture_count
+
+	column captures_sar
+		dataType: decimal
+		lineageTag: bda48178-d451-5405-a8cb-b934b587d839
+		summarizeBy: none
+		sourceColumn: captures_sar
+		formatString: #,0.00
+
+	column refund_count
+		dataType: int64
+		lineageTag: 3f5c47c9-2d1f-537a-8b83-d3c71b9c2869
+		summarizeBy: none
+		sourceColumn: refund_count
+
+	column refunds_sar
+		dataType: decimal
+		lineageTag: f8dedcee-9854-51c1-baff-5b50d7aa86fd
+		summarizeBy: none
+		sourceColumn: refunds_sar
+		formatString: #,0.00
+
+	column dispute_count
+		dataType: int64
+		lineageTag: 40662816-baac-59ab-afd6-7240d94c1b8f
+		summarizeBy: none
+		sourceColumn: dispute_count
+
+	column disputes_sar
+		dataType: decimal
+		lineageTag: 81b607ad-a792-5e53-9128-5bcc3cb57bfc
+		summarizeBy: none
+		sourceColumn: disputes_sar
+		formatString: #,0.00
+
+	column dispute_ratio_pct
+		dataType: decimal
+		lineageTag: 66576a34-921c-581f-8b82-85531cb79775
+		summarizeBy: none
+		sourceColumn: dispute_ratio_pct
+		formatString: #,0.00
+
+	column refund_ratio_pct
+		dataType: decimal
+		lineageTag: f8c18ecd-56a9-5117-9a2e-da0d6049deaf
+		summarizeBy: none
+		sourceColumn: refund_ratio_pct
+		formatString: #,0.00
+
+	column breaches_ratio
+		dataType: int64
+		lineageTag: e82746b0-d42b-5f3e-a309-0626d577dcc5
+		summarizeBy: none
+		sourceColumn: breaches_ratio
+
+	column meets_count_floor
+		dataType: int64
+		lineageTag: 26704d6a-c474-5f68-a62a-b6dca6864b1a
+		summarizeBy: none
+		sourceColumn: meets_count_floor
+
+	column in_monitoring_programme
+		dataType: int64
+		lineageTag: c59a73e8-da1b-5435-85a2-5ac45c921253
+		summarizeBy: none
+		sourceColumn: in_monitoring_programme
+
+	partition fact_merchant_dispute_monitor = entity
+		mode: directLake
+		source
+			entityName: fact_merchant_dispute_monitor
+			schemaName: gld
+			expressionSource: DatabaseQuery

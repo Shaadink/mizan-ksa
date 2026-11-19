@@ -28,9 +28,11 @@ from mizan.privacy.crypto import load_dotenv  # noqa: E402
 MODEL, REPORT = "MIZAN Control Tower Model", "MIZAN Control Tower"
 TABLES = ("fact_merchant_settlement_recon", "fact_zatca_clearance_ledger", "mart_ndmo_scorecard", "dim_date_saudi",
           "merchant_store_reference",    # store seed (owner-approved): city / EGS / channel per merchant
-          "fact_payment_method_daily")   # owner-approved: captures + bank fees per payment scheme
+          "fact_payment_method_daily",   # owner-approved: captures + bank fees per payment scheme
+          "fact_merchant_dispute_monitor")  # owner-approved: card-scheme dispute ratio + count floor
 OUT = REPO / "powerbi"
 REJ = 'fact_zatca_clearance_ledger[state] = "CONFIRMED_REJECTION"'
+DM = "fact_merchant_dispute_monitor"   # used by measures defined above PAGES, so it lives here
 # Every filter inside CALCULATE is wrapped in KEEPFILTERS: a plain column filter REPLACES the filter coming from a
 # visual's category on that same column (bug 2: the NDMO donut showed 27 / 27 / 27 instead of 17 / 1 / 6 / 3).
 MEASURES = {
@@ -47,6 +49,9 @@ MEASURES = {
         ("MID Days Not Assessed", "CALCULATE(COUNTROWS(fact_merchant_settlement_recon), "
                                   "KEEPFILTERS(fact_merchant_settlement_recon[in_transit_sar] <> 0)) + 0", "#,0"),
         ("In Transit SAR", "SUM(fact_merchant_settlement_recon[in_transit_sar])", "#,0.00"),
+        # Portfolio ratio is disputes over captures, NOT the average of per-merchant ratios: averaging
+        # ratios weights a 43-capture merchant the same as a 10,530-capture one, which is the exact
+        # mistake this page exists to point out.
         ("GL Card Clearing SAR", "SUM(fact_merchant_settlement_recon[gl_card_clearing_sar])", "#,0.00"),
         ("Unexplained Bank Variance SAR", "SUM(fact_merchant_settlement_recon[unexplained_bank_variance_sar])",
          "#,0.00"),
@@ -63,6 +68,21 @@ MEASURES = {
         ("Expected Net Payable SAR", "SUM(fact_merchant_settlement_recon[expected_net_payable_sar])", "#,0.00"),
         ("Merchants", "DISTINCTCOUNT(fact_merchant_settlement_recon[merchant_id])", "#,0"),
         ("MID Days", "COUNTROWS(fact_merchant_settlement_recon)", "#,0")],
+    DM: [
+        # Card-scheme dispute monitoring. Both counts are measures on purpose: the page's claim is that a
+        # ratio without a volume floor is a noise generator, and that claim needs both numbers to stand.
+        ("Merchants Flagged By Ratio Only",
+         f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[breaches_ratio] = TRUE()))+ 0", "#,0"),
+        ("Merchants In Monitoring Programme",
+         f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[in_monitoring_programme] = TRUE()))+ 0", "#,0"),
+        ("Merchants Monitored", f"COUNTROWS({DM}) + 0", "#,0"),
+        ("Disputes", f"SUM({DM}[dispute_count]) + 0", "#,0"),
+        ("Captures", f"SUM({DM}[capture_count]) + 0", "#,0"),
+        ("Dispute Ratio Pct", f"DIVIDE(SUM({DM}[dispute_count]), SUM({DM}[capture_count])) * 100", '0.00"%"'),
+        ("Disputed SAR", f"SUM({DM}[disputes_sar])", "#,0.00"),
+        ("Portfolio Dispute Ratio Pct",
+         f"DIVIDE(SUM({DM}[dispute_count]), SUM({DM}[capture_count])) * 100", '0.00"%"'),
+    ],
     "fact_zatca_clearance_ledger": [
         ("Documents in Chain", "COUNTROWS(fact_zatca_clearance_ledger)", "#,0"),
         # bug 1: the ledger holds the confirmed rejection; "accepted" excludes it explicitly
@@ -258,6 +278,28 @@ PAGES = [
             "business_date_ksa", "payment_method", "payment_scheme", "capture_count", "gross_captures_sar",
             "acquirer_fees_sar", "bank_paid_sar", "in_transit_sar")]},
          (210, 430, 1050, 275), "Payment method by business day")]),
+    # A ratio alone flags 71 of 121 merchants here. The page leads with that number BESIDE the real one,
+    # because the lesson is the gap between them, and a page showing only the finding would be asserting it.
+    ("merchant_risk", "Merchant Risk",
+     "Card-scheme dispute monitoring. A merchant enters a programme only on a ratio AND a minimum dispute "
+     "count: a ratio alone flags most of the portfolio, because 3 disputes on 43 captures reads 6.98%.",
+     _cards(["Merchants Monitored", "Merchants Flagged By Ratio Only", "Merchants In Monitoring Programme",
+             "Disputes", "Disputed SAR", "Portfolio Dispute Ratio Pct"]) + [
+        # Scatter is the right form here and a bar chart is not: the whole argument is that ratio means
+        # nothing without volume, and only two axes can show a high ratio sitting on a tiny capture count.
+        ("scatterChart", {"Category": [("c", DM, "merchant_id")],
+                          "X": [("m", "Captures")], "Y": [("m", "Dispute Ratio Pct")]},
+         (20, 168, 760, 300), "Dispute ratio vs capture volume \u2014 the cluster top-left is noise"),
+        ("gauge", {"Y": [("m", "Portfolio Dispute Ratio Pct")]},
+         (790, 168, 230, 300), "Portfolio dispute ratio"),
+        ("clusteredBarChart", {"Category": [("c", DM, "merchant_id")], "Y": [("m", "Disputes")]},
+         (1030, 168, 230, 300), "Disputes by merchant (top)", {"sort": "desc"}),
+        ("slicer", {"Values": [("c", DM, "in_monitoring_programme")]},
+         (20, 486, 180, 230), "In a programme"),
+        ("tableEx", {"Values": [("c", DM, c) for c in (
+            "merchant_id", "capture_count", "dispute_count", "dispute_ratio_pct", "disputes_sar",
+            "breaches_ratio", "meets_count_floor", "in_monitoring_programme")]},
+         (210, 486, 1050, 230), "Every merchant, both tests shown separately")]),
 ]
 MEASURE_TABLE = {m: t for t, ms in MEASURES.items() for m, _, _ in ms}
 TYPE_MAP = {"varchar": "string", "char": "string", "nvarchar": "string", "int": "int64", "bigint": "int64",

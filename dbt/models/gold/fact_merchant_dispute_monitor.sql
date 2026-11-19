@@ -41,7 +41,7 @@ per_merchant AS (
 SELECT m.merchant_id,
        w.window_start_ksa,
        w.window_end_ksa,
-       CAST(DATE_DIFF('day', w.window_start_ksa, w.window_end_ksa) + 1 AS INTEGER)   AS window_days,
+       CAST({{ date_diff_days('w.window_start_ksa', 'w.window_end_ksa') }} + 1 AS INTEGER)   AS window_days,
        CAST(m.capture_count AS INTEGER)                                              AS capture_count,
        CAST(m.captures_sar AS DECIMAL(18,2))                                         AS captures_sar,
        CAST(m.refund_count AS INTEGER)                                               AS refund_count,

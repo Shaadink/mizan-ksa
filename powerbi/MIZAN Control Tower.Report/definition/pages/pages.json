@@ -1,1 +1,1 @@
-{"$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.0.0/schema.json", "pageOrder": ["cfo_settlement", "tax_zatca_health", "cdo_data_trust", "payments_calendar"], "activePageName": "cfo_settlement"}
+{"$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.0.0/schema.json", "pageOrder": ["cfo_settlement", "tax_zatca_health", "cdo_data_trust", "payments_calendar", "merchant_risk"], "activePageName": "cfo_settlement"}

@@ -821,13 +821,13 @@ footer .wrap { display: grid; gap: 8px }
   <section class="scene" id="stream" data-roles="TAX CDO">
     <div class="wrap">
       <div class="scene-head"><div><div class="tag">Real-time risk stream &middot; Eventstream &rarr; Eventhouse</div><h2>20 days of events, replayed in seconds</h2>
-        <p>Checkouts, invoices and payments carry only HMAC tokens, never PII. KQL rules flag velocity bursts, mule rings and invoices not reported to ZATCA within 24 hours. The same counts landed in Fabric.</p></div>
+        <p>Which merchants the card schemes would put in a dispute monitoring programme &mdash; and why a ratio on its own is not a control. Below it: checkouts, invoices and payments carrying only HMAC tokens, never PII, with KQL rules for velocity bursts, mule rings and invoices not reported to ZATCA within 24 hours. The same counts landed in Fabric.</p></div>
         <div class="actions"><button class="btn primary" id="stream-play">&#9654; Replay stream</button></div></div>
       <div class="counters" id="counters"></div>
       <div class="grid g-12">
+        <div class="panel c-12" id="dispute-panel"></div>
         <div class="panel c-8"><canvas id="river" height="360"></canvas></div>
         <div class="panel c-4"><h3>Alerts</h3><div class="sub">Times in Asia/Riyadh</div><div class="alerts" id="alerts" style="margin-top:10px"></div></div>
-        <div class="panel c-12" id="dispute-panel"></div>
       </div>
     </div>
   </section>
@@ -994,7 +994,7 @@ const SCENES = [
   { id: "zatca", n: "05", label: "ZATCA chain", cap: "ICV 102 times out and the worker is killed mid-submit. It recovers, retries the identical bytes and the chain never breaks." },
   { id: "pdpl", n: "06", label: "PDPL erasure", cap: "One request shreds five keys and removes the identity link. The signed tax journal stays under legal hold, totals unchanged." },
   { id: "mdm", n: "07", label: "Arabic MDM", cap: "Mojibake, tashkeel, ligatures, Arabic-Indic digits and an English nickname resolve to one golden customer. Brothers stay apart." },
-  { id: "stream", n: "08", label: "Risk stream", cap: "91,513 events replayed. The velocity burst, the mule ring and two late ZATCA reports are caught exactly where they happen." },
+  { id: "stream", n: "08", label: "Risk stream", cap: "One merchant in a card-scheme dispute monitoring programme, out of 71 the ratio alone would have flagged. Plus 91,513 events replayed: the velocity burst, the mule ring and two late ZATCA reports are caught by KQL rules." },
   { id: "map", n: "09", label: "Store map", cap: "Stores by city, coloured by reconciliation status for the current filters. Money routes store to acquirer to bank." },
   { id: "trust", n: "10", label: "Data trust", cap: "91 of 91 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
   { id: "platform", n: "11", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },

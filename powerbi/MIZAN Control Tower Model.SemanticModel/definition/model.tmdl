@@ -9,6 +9,7 @@ ref table mart_ndmo_scorecard
 ref table dim_date_saudi
 ref table merchant_store_reference
 ref table fact_payment_method_daily
+ref table fact_merchant_dispute_monitor
 
 relationship e1ac79b0-8d85-59f9-85f2-95c2b97ed4df
 	fromColumn: fact_merchant_settlement_recon.business_date_ksa

@@ -42,7 +42,7 @@ const SCENES = [
   { id: "zatca", n: "05", label: "ZATCA chain", cap: "ICV 102 times out and the worker is killed mid-submit. It recovers, retries the identical bytes and the chain never breaks." },
   { id: "pdpl", n: "06", label: "PDPL erasure", cap: "One request shreds five keys and removes the identity link. The signed tax journal stays under legal hold, totals unchanged." },
   { id: "mdm", n: "07", label: "Arabic MDM", cap: "Mojibake, tashkeel, ligatures, Arabic-Indic digits and an English nickname resolve to one golden customer. Brothers stay apart." },
-  { id: "stream", n: "08", label: "Risk stream", cap: "91,513 events replayed. The velocity burst, the mule ring and two late ZATCA reports are caught exactly where they happen." },
+  { id: "stream", n: "08", label: "Risk stream", cap: "One merchant in a card-scheme dispute monitoring programme, out of 71 the ratio alone would have flagged. Plus 91,513 events replayed: the velocity burst, the mule ring and two late ZATCA reports are caught by KQL rules." },
   { id: "map", n: "09", label: "Store map", cap: "Stores by city, coloured by reconciliation status for the current filters. Money routes store to acquirer to bank." },
   { id: "trust", n: "10", label: "Data trust", cap: "91 of 91 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
   { id: "platform", n: "11", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
