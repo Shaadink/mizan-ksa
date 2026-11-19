@@ -99,11 +99,10 @@ Click the **clip icon** on a task -> tick the items -> **Select**. All eleven wo
 The SQL endpoint and the KQL database are created automatically by the Lakehouse and the Eventhouse; if the portal
 will not let you assign them separately, leave them out and the flow still covers everything.
 
-### 4.4 Faster: import the flow as a file
+### 4.4 Faster: import the flow as a file (done 2026-11-19)
 
-`docs/fabric/mizan_task_flow.json` is the six-task flow above, ready to import: task flow details pane ->
-**Import and export task flow** -> **Import**. It carries the names, descriptions and connectors, so only the item
-assignments in 4.3 are left to do by hand (the format does not store them).
+`docs/fabric/mizan_task_flow.json` is the six-task flow above. Task flow details pane -> **Import and export task
+flow** -> **Import** -> **Replace**. Imported successfully on 2026-11-19.
 
 The schema was taken from a real export of Fabric's own predesigned flow, not invented:
 
@@ -114,13 +113,20 @@ The schema was taken from a real export of Fabric's own predesigned flow, not in
 ```
 
 The ten `type` values Fabric emits are: `get data`, `store data`, `prepare data`, `analyze and train data`,
-`develop`, `govern data`, `visualize`, `track data`, `distribute data`, `mirror data`. Every type used here is one
-of those, every edge points at a task in the same file, and the top-level keys match the export exactly.
+`develop`, `govern data`, `visualize`, `track data`, `distribute data`, `mirror data`.
 
-One uncertainty worth naming: Fabric's own export carries **no** `description` field on individual tasks (its
-default tasks take their subtitle from the type), so it is unproven that `description` is accepted on import.
-`docs/fabric/mizan_task_flow_minimal.json` is the same flow with that field dropped, matching the observed schema
-field for field. Import `mizan_task_flow.json` first; if it is rejected, import the minimal one and add the six
-descriptions by hand.
+**What import does and does not carry, established by doing it:**
+
+| Carried | Not carried |
+|---|---|
+| Task names, types, positions | **Per-task descriptions** -- each box keeps its default type subtitle |
+| The connectors between tasks | Item assignments (the format has no field for them) |
+| The task flow's own name and description | |
+
+The first file shipped with a `description` on each task. Fabric accepted the file and silently ignored that field,
+so it has been removed rather than left in to imply something it cannot do. The six descriptions are in
+`docs/fabric/task_descriptions.md` to paste by hand (select task -> **Edit** -> **Save**); this is optional.
+
+Item assignments in 4.3 are still by hand, and always will be: the export format has nowhere to put them.
 
 This whole section is cosmetic. Nothing in the pipeline, the tests or the evidence depends on it.
