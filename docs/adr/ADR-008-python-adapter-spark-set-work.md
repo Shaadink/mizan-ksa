@@ -24,3 +24,29 @@ The full Bronze + Silver + ZATCA run takes about 6 minutes locally, and the code
 (staging under the Lakehouse `Files/`). Cleartext PII exists only in the adapter's process memory, never on disk
 or in a table. At very large scale the adapter would move into `mapPartitions`, which is the same code applied
 per partition.
+
+## Where this breaks, measured
+
+The standing objection to this ADR is that single-threaded Python in front of a distributed engine cannot scale.
+That objection is correct in shape and wrong in magnitude, so here is the measurement rather than an argument
+(`scripts/bench_adapter.py`, same machine as the rest of the benchmarks):
+
+| Operation | Throughput |
+|---|---|
+| `hmac_hex` (subject tokenisation) | ~400,000 fields/sec |
+| `encrypt_field` (AES-256-GCM, random 96-bit nonce, AAD `token\|column`) | ~296,000 fields/sec |
+| **Combined, per field** | **~170,000 fields/sec** |
+
+Contracts carry 3 to 7 PII columns, so one core sustains roughly **24,000 to 57,000 rows/sec**, or on the order of
+**90M to 200M rows/hour**. The adapter is not the bottleneck at this project's 99K rows, and would not be at a
+hundred times that. What actually binds first is driver **memory** -- the adapter accumulates staged rows in a
+list -- not CPU.
+
+**The migration path, in order:** (1) chunk the adapter so memory is bounded rather than proportional to the file;
+(2) move it into `mapPartitions`, which is the same function applied per partition and needs the DEKs broadcast
+to executors; (3) past that, a tokenisation service behind a private endpoint with keys in Key Vault, so Spark
+still receives only ciphertext.
+
+Step 2 is the one that changes the security property this ADR exists to protect, because it puts per-subject keys
+in executor memory. That is the trade the ADR is really making: **today, cleartext PII and the DEKs never leave
+one process.** The cost of that guarantee is one core's throughput, and the measurement above is what it costs.

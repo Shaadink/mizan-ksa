@@ -186,6 +186,40 @@ def test_chaos8_concurrent_lanes_single_writer_no_gaps(requests):
     assert all(c == 1 for c in gl.calls.values()) and len(gl.postings) == 240
 
 
+def test_chain_head_guard_refuses_a_stale_write_rather_than_forking(requests):
+    """The 8-lane test above proves the happy path. This proves the GUARD, which is the part that matters.
+
+    Those 8 lanes are threads in one process sharing one ChainStore, so `threading.Lock` is sufficient and the
+    test can never exercise what happens when the lock does NOT hold -- which is exactly the case a second
+    worker process, or a retried Fabric job, would create. Two writers both read `last_icv = n`, both mint
+    `n+1`, and the chain forks: two different documents claiming the same ICV, which is unrecoverable because
+    a submitted ICV cannot be withdrawn.
+
+    `ChainStore.commit_signed` guards against this by re-reading the head and refusing to write if it moved
+    (compare-and-set, not read-then-write). Nothing tested that the refusal actually fires, so here it is:
+    simulate the lost race by advancing the head out of band between the mint and the commit.
+    """
+    req = next(r for r in requests if r["egs_id"] == "EGS-03")
+    store, gl, client = ChainStore(), GlPostingSink(), MockFatoora()
+    worker = ZatcaWorker(store, client, gl)
+
+    uuid_1 = worker.enqueue(req)
+    row = store.get(uuid_1)
+    assert row.icv == 1 and row.pih == GENESIS_PIH
+
+    # The competing writer wins the race: the head is now at ICV 1 with a different document's hash.
+    store.egs_chain_state["EGS-03"] = {"egs_id": "EGS-03", "last_icv": 1,
+                                       "last_invoice_hash": "c29tZS1vdGhlci1kb2N1bWVudA=="}
+
+    # Our row was minted against the head as it was. Committing it now would fork the chain.
+    with pytest.raises(RuntimeError, match="single-writer violated"):
+        store.commit_signed(row)
+
+    # The loser wrote nothing: the head is untouched and the journal holds one document at ICV 1.
+    assert store.egs_chain_state["EGS-03"]["last_icv"] == 1
+    assert [k for k in store.zatca_chain_journal if k[0] == "EGS-03"] == [("EGS-03", 1)]
+
+
 # ---------------------------------------------------------------- restart semantics
 
 def test_crash_leaves_submitting_and_new_worker_recovers(requests):

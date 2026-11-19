@@ -5,6 +5,29 @@
 -- file has not arrived carry an IN_TRANSIT expectation row (estimated MDR fee);
 -- the real bank line replaces it. Amounts are positive; event_type carries the sign.
 -- Only change from the spec reference: the GL leg signs amount_sar by debit_credit (ADR-007).
+--
+-- WHICH DATE THIS RECONCILES ON -- read this before assuming a bug.
+-- The settlement leg keys on `settlement_for_date_ksa`: the ORIGINATING CAPTURE business date that the
+-- bank line pays for, NOT the date the bank file arrived. That is the whole reason a T+1 platform can
+-- reconcile a day at all. Keying on the file's own arrival date instead would shift every bank line one
+-- day away from the captures it settles, and every single merchant-day would show a false variance in
+-- both directions -- a textbook off-by-one that looks like a reconciliation and balances to nothing.
+--
+-- So the three legs line up on one meaning of "day":
+--   captures     business_date_ksa      the day the sale happened (Asia/Riyadh)
+--   settlements  settlement_for_date_ksa the capture day this bank line pays for
+--   gl           posting_date_ksa        the day the ledger booked it
+-- The bank file's own arrival date is carried separately on slv.settlement_lines and is NOT a join key.
+--
+-- What a real acquirer would need on top of this: an independent VALUE DATE from the bank, which can
+-- differ from T+1 by scheme, merchant category and the Friday/Saturday KSA weekend. Here the synthetic
+-- bank file states the capture day it settles, so one mapping suffices. Against a real file the spine
+-- would gain a date-mapping leg (capture date -> value date) and the in-transit bucket would carry a lag
+-- distribution rather than a single T+1 flag. Not implemented; stated so it is not mistaken for solved.
+--
+-- Also not implemented, and the harder of the two: cross-period chargeback matching. A chargeback 45 days
+-- after its capture lands on its OWN business date, reducing that day's net while the capture it claws
+-- back sat in a different month. Disputes here are counted on their own event date.
 -- ==============================================================================
 WITH captures AS (
     SELECT merchant_id, business_date_ksa,

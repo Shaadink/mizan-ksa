@@ -573,3 +573,81 @@ Making the dispute monitor visible (2026-11-19, owner feedback: "backend doesn't
 4. **Housekeeping**: the Fabric trial ends after 60 days and lives in the college tenant (can be disabled by the
    college); rebuild anywhere with the four `scripts/fabric_*.py` scripts. Rotate the service principal secret (1 year).
    Stop Docker when not demoing: `docker compose -f docker/docker-compose.airflow.yml down`.
+
+## 2026-11-19 — External review round: packaging fixes, measured scale boundary, chain-head guard test
+
+The blueprint went out to six AI reviewers. One reviewed a different project entirely (a Flask/ChromaDB app)
+and was discarded; the other five converged, and their verified findings were acted on here. Findings that
+turned out to be wrong are recorded too, because the fact that several reviewers independently *suspected* a
+bug is itself a defect in the documentation.
+
+**The repository is now public** (it returned 404 to anyone unauthenticated, which two reviewers hit). Checked
+first that no `.env`, key or credential file is tracked and that no secret-shaped string appears in tracked
+content; the only matches were a `...` placeholder in `docs/STREAMING.md` and `c2VjcmV0` (base64 "secret") in a
+test fixture.
+
+**Front page.** The live Command Center URL is now in the first five lines of `README.md` (it appeared in no
+`.md` file a stranger would open). The eight broken screenshot placeholders are replaced by the same content as
+text. `76 / 76` corrected to `91 / 91` in `README.md` and `docs/ONE_PAGER.md` -- the stale figure sat in both
+headline tables while `ONE_PAGER.md:47` already said 91/91. `ADR-001...013` -> `...014`. The stale Fabric figure
+at `README.md:137` now carries the live figure and the HONESTY pointer in the same cell. The 20M benchmark is
+labelled a local Spark benchmark where the number appears, not only in HONESTY.
+
+**Numbers that invited the wrong question.** The merchant-day denominator is stated: 121 merchants x 20 days =
+2,420 possible = 2,233 with activity (2,121 assessed + 112 in transit) + 187 with no trading. "25,001 in an
+unbroken chain" is five chains (EGS-01..05), now said. CRM 5,000 = 4,000 party records + 1,000 address
+observations, and MDM's 3,985 = 4,000 minus the 15 quarantined `?????` rows.
+
+**Per-phase test counts removed from the blueprint.** They were carried forward by hand rather than counted, and
+it showed: two consecutive pairs were identical and one phase appeared to reduce the suite. PROGRESS records
+only 133, 140, 177, 220, 302, so the per-phase figures are gone rather than guessed.
+
+**Settlement date documented, not changed.** Four reviewers independently assumed the recon joined on the bank
+file's arrival date. It does not -- it keys on `settlement_for_date_ksa`, the originating capture date the bank
+line pays for -- but nothing said so. Now in the model header and the blueprint, along with the two things the
+model does *not* do: an independent bank value date (scheme, MCC and the Fri/Sat KSA weekend), and cross-period
+chargeback matching to the original capture.
+
+**ADR-008 now carries a measurement instead of an argument.** `scripts/bench_adapter.py` (new): ~170,000
+fields/sec combined HMAC + AES-256-GCM, which at 3 to 7 PII columns per row is 24,000-57,000 rows/sec, or
+90M-200M rows/hour on one core. The adapter is not the bottleneck at this volume; driver *memory* binds first,
+because staged rows accumulate in a list. Migration path recorded in order, naming which step gives up the
+property the ADR exists to protect (`mapPartitions` puts per-subject DEKs in executor memory).
+
+**A reviewer's cryptographic worry, checked and answered:** if the generator is byte-deterministic, are the
+AES-GCM nonces deterministic too? They are not -- `secrets.token_bytes(12)` per field, AAD `token|column`.
+Determinism is a property of the generator, never of the ciphertext. Recorded in the blueprint because it is
+the right question to ask.
+
+**Spark skew reframed, because the benchmark does not say what the section implied.** AQE skew-join (15.52 s)
+beat the hand-written 16-bucket salt (17.62 s). That is now stated outright, with the real reasons to have
+written the salt anyway: it is what remains when AQE cannot split a partition (stream-to-static joins, skewed
+pre-shuffle aggregations), and implementing it is how you learn why the built-in wins. Also flagged: the skew
+ratios are `max/median` task duration measured on different stages with 64 tasks vs 5, so they are not
+comparable and should not be quoted as a result until the harness is rerun on matched stages.
+
+**Chain-head guard test (new, `test_zatca_chaos.py`).** Reviewers said the per-EGS sequencer was a read-then-write
+that would fork the chain across two worker processes. Half right. `commit_signed` already does compare-and-set
+-- it re-reads the head and raises `single-writer violated` if it moved -- but nothing proved the refusal fires,
+because the eight-lane test is eight threads sharing one store and can only exercise the happy path. The new
+test simulates the lost race by advancing the head out of band and asserts the stale write is refused and
+nothing is written. **Verified to fail when the guard is removed**, then the guard restored. The remaining gap
+is narrower than the reviewers thought and is now HONESTY row 18: the CAS logic is right, but it runs over a
+Python dict, and a multi-worker deployment needs it in a transactional store.
+
+**Framing.** The duration ("over roughly one week") is deleted rather than replaced -- three reviewers suggested
+claiming three to four months instead, which would be a false claim in the same document as HONESTY.md. The
+attribution stays: AI-assisted development throughout, with decisions in `docs/adr/` and claims bound to tests.
+"Portfolio project for a Data Analyst moving into Data Engineering" and the trial countdown are gone; what
+replaces the countdown is the reproducibility statement, which is the part that matters.
+
+Tests: 303 passed (302 + the new guard test), ruff clean on `src tests scripts`. The non-ascii guard caught
+`scripts/bench_adapter.py` -- the Write tool had turned its `\uXXXX` Arabic escapes into raw characters, exactly
+the failure mode CLAUDE.md warns about; `escape_non_ascii.py src tests scripts` fixed it.
+
+Still open and owner-only: the Fabric re-run (kills HONESTY #5 and #6 and the 65-vs-91 dbt gap), the ZATCA SDK
+minimal repro, the eight screenshots, the video, and a measured FinOps/residency note. Still open and buildable:
+a reconciliation fault-injection test (the answer to "your generator and your reconciler share the same rules,
+so SAR 0.00 holds by construction" -- the one criticism that cannot be argued away), pairwise precision/recall
+for the MDM ladder against generator ground truth, and a check of whether HTTP 409 belongs in the retry-forever
+set or should reconcile as already-accepted.

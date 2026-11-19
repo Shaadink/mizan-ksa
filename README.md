@@ -2,9 +2,12 @@
 
 ### Every assessed halala reconciled. Everything else, honestly flagged.
 
-| `SAR 0.00` | `25,001` | `76 / 76` | `20,000,000` |
+**[Open the live Command Center](https://delightful-field-01a948c0f.4.azurestaticapps.net)** - no sign-in, no account, works on a phone.
+Every figure on it is exported from Gold, never typed.
+
+| `SAR 0.00` | `25,001` | `91 / 91` | `20,000,000` |
 |---|---|---|---|
-| bank **and** GL variance, across 2,121 assessed merchant-days | e-invoices in an unbroken ZATCA hash chain — **0 breaks** | Gold columns traced to source, column by column | rows joined at **62:1 skew** — three execution plans, one identical SAR checksum |
+| bank **and** GL variance, across 2,121 assessed merchant-days of 2,233 | e-invoices in an unbroken ZATCA hash chain — **0 breaks** | Gold columns traced to source, column by column | rows joined at **62:1 skew** in a **local Spark benchmark** — three plans, one identical SAR checksum |
 
 The fourth number matters just as much: **112 merchant-days are not assessed**, because their bank file has not
 arrived yet (SAR 1,125,209.07 in transit). They are counted and labelled, never quietly averaged away. A platform
@@ -36,16 +39,16 @@ app permission; viewers also need Build on the semantic model). Every figure is 
 "MIZAN Control Tower Model"; filters, clicks, search and the map all re-query it. A standalone copy
 (`command_center/index.html`) shows the same scenes from an exported snapshot.
 
-| Screenshot (replace the placeholder files) | What it shows |
-|---|---|
-| ![Live hero](docs/artifacts/demo/01_app_live_hero.png) | The scale settles at SAR 0.00 on 2,121 assessed MID-days; green "Live" label |
-| ![City filter](docs/artifacts/demo/02_city_filter_heatmap.png) | City = Jeddah: the heatmap and every KPI recompute from the semantic model |
-| ![Drill](docs/artifacts/demo/03_mid_day_drill.png) | One merchant-day with every leg (captures, fees, bank paid, GL, variances) |
-| ![Defects](docs/artifacts/demo/04_break_a_halala.png) | B: a planted halala break tilts the scale; the candidate run is not published |
-| ![ZATCA](docs/artifacts/demo/05_zatca_egs_cards.png) | EGS cards, 3-part outcome bar with the kept rejection, 24 h reporting window |
-| ![Map](docs/artifacts/demo/06_store_map.png) | Stores by city coloured by reconciliation status; routes to the acquirer and bank |
-| ![Arabic](docs/artifacts/demo/07_arabic_rtl.png) | L: Arabic, right to left; charts, IDs and numbers stay left to right |
-| ![Life cycle](docs/artifacts/demo/08_data_life_cycle.png) | Sources to Gold to the Control Tower, each box linked to its proof |
+What to look at, in the order it makes sense:
+
+1. **The hero** - the scale settles at SAR 0.00 across 2,121 assessed merchant-days, with 112 held back as in transit.
+2. **City = Jeddah** - the heatmap and every KPI recompute from the semantic model.
+3. **One merchant-day, drilled** - every leg at once: captures, fees, bank paid, GL, both variances.
+4. **Press `B`** - a planted halala break tilts the scale and the candidate run refuses to publish.
+5. **ZATCA** - EGS cards, the outcome bar with the one rejection kept in the chain, the 24 h reporting window.
+6. **The map** - stores by city, coloured by reconciliation status, routed to the acquirer and the bank.
+7. **Press `L`** - Arabic, right to left, while charts, IDs and numbers stay left to right.
+8. **The life cycle** - sources to Gold to the Control Tower, each box linked to its proof.
 
 Keys: `P` presenter mode, `1`-`9` scenes, `T` trace one riyal, `B` break a halala, `L` Arabic, `Ctrl K` jump.
 
@@ -80,6 +83,14 @@ plus a Silver snapshot is re-shredded by the Restore Guard.
 20M-row local Docker Spark run: the AQE-off straggler is 61.8x the median task (15.3 s vs 0.25 s); AQE skew-join
 6.0x; salting caps the slowest task at 3.2 s. Rows and SAR checksum are identical in all three
 ([JSON](docs/artifacts/05_skew_benchmark_20m.json), [AQE skew-join UI](docs/artifacts/05_spark_ui_aqe_skew_join.png)).
+
+**AQE won, and the benchmark says so.** Spark's own skew-join finished in 15.52 s against the hand-written
+16-bucket salt's 17.62 s. Writing the salt by hand to beat a config flag would have been the wrong reason to write
+it; the right reasons are that it is the only option left when AQE cannot split a partition - a stream-to-static
+join, or a skewed pre-shuffle aggregation - and that implementing it is how you learn why the built-in is faster.
+Both are kept in the repo for that comparison. **Read the skew ratios with care:** they are `max/median` task
+duration, and the AQE run was measured over 5 tasks against the AQE-off run's 64, so the ratios describe different
+distributions and are not directly comparable. The durations and the checksum are.
 
 ### 6. Orchestration and lineage (I-13, I-14)
 | Airflow DAG (Fabric jobs, freshness gate, dbt, residency gate) | Marquez: Bronze to Gold, column level |
@@ -131,7 +142,7 @@ Workspace `mizan-ksa-dev`, Fabric trial capacity (UAE North). Evidence: [docs/ar
 | Notebook jobs (Bronze, Silver, MDM, ZATCA, AI index, NDMO catalog) via REST + service principal | all Completed |
 | Source-to-Bronze hash reconciliation | every file sha256 matches; duplicate bank resend = ALL_DUPLICATE |
 | `dbt build` on WH_MIZAN (dbt-fabric, Gold as tables, reads `LH_MIZAN.slv.*`) | 65/65 PASS |
-| `gld.fact_merchant_settlement_recon` | 2,233 MID-days, SAR 22,390,730.16 captured, bank + GL variance 0.00 |
+| `gld.fact_merchant_settlement_recon` | 2,233 MID-days, SAR 22,390,730.16 captured, bank + GL variance 0.00 (this run predates a price correction; local Gold now reads SAR 22,391,236.23 - [HONESTY.md](HONESTY.md) #5) |
 | ZATCA chain | 25,001 documents, 0 chain violations, 1 worker restart recovered |
 | MDM | 3,985 records into 2,552 golden profiles, 1 steward conflict |
 | Power BI Control Tower (Direct Lake TMDL model + 3-page PBIR report, created by API) | DAX returns the same totals |
@@ -157,7 +168,7 @@ WH_MIZAN  gld: fact_merchant_settlement_recon | fact_zatca_clearance_ledger | di
 Direct Lake Control Tower (CFO Settlement | Tax ZATCA Health | CDO Data Trust) | governed AI | EH_MIZAN KQL risk stream
 ```
 
-Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-013); the 14 invariants are in
+Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-014); the 14 invariants are in
 [invariants.md](invariants.md).
 
 ## Run it

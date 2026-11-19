@@ -6,13 +6,15 @@
 
 Live, no sign-in: **https://delightful-field-01a948c0f.4.azurestaticapps.net**
 
+Source: **https://github.com/Shaadink/mizan-ksa**
+
 ---
 
 ## Four numbers, none of them typed by hand
 
-| `SAR 0.00` | `25,001` | `76 / 76` | `20,000,000` |
+| `SAR 0.00` | `25,001` | `91 / 91` | `20,000,000` |
 |---|---|---|---|
-| bank **and** GL variance across 2,121 assessed merchant-days | e-invoices in an unbroken ZATCA Phase-2 hash chain, **0 breaks** | Gold columns traced to source, column by column | rows joined at **62:1 skew** — three execution plans, one identical SAR checksum |
+| bank **and** GL variance across 2,121 assessed merchant-days of 2,233 | e-invoices in an unbroken ZATCA Phase-2 hash chain, **0 breaks** | Gold columns traced to source, column by column | rows joined at **62:1 skew** in a **local Spark benchmark** — three plans, one identical SAR checksum |
 
 **The fifth number is the one that matters most: 112 merchant-days are *not* assessed.** Their bank file has not
 arrived (SAR 1,125,209.07 in transit). They are counted and labelled, never averaged away. A platform that
@@ -48,7 +50,7 @@ This is the part that distinguishes it from an architecture document.
 - **Disaster recovery drill** — source and lake rebuilt from scratch in 9.8 min, Gold in 18.2 s (RTO 604.7 s).
   All 9 tables, 35,668 rows, fingerprinted by SHA-256 and **identical to the live warehouse**.
 - **Determinism** — the generator is fixed-seed and must produce byte-identical output on a rerun.
-- **ADR-001…013** — the decisions, with the reasoning and what was rejected.
+- **ADR-001…014** — the decisions, with the reasoning and what was rejected.
 - Planted defects trip a **circuit breaker**: when variance is not 0.00 the dbt build fails and nothing publishes.
   The system does not email you about bad numbers; it refuses to release them.
 
