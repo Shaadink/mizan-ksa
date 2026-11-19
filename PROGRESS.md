@@ -464,6 +464,27 @@ Follow one riyal (2026-11-18, owner request): press T, or "Follow one riyal" in 
   slv.zatca_invoice_documents and slv.erp_gl_journal_lines through delta_rel); riyalJourney() in template.html
   falls back to the old per-riyal averages if no trace is exported. Ships in the Fabric App and the public page.
 
+Open mirroring (2026-11-19, owner request; ADR-014):
+- `MR_MIZAN` (MirroredDatabase, created through the REST API) mirrors `erp.merchant_master` from a real
+  OneLake landing zone. `scripts/fabric_open_mirror.py` has create / seed / change / verify / status / reset.
+- Proven against the live workspace, not described: 121-row initial load with no `__rowMarker__` ingested
+  ("Replicating", 121 rows), then an incremental batch of one UPDATE, one DELETE and one INSERT applied in
+  order. `verify` reads the table back over its SQL endpoint with a service-principal access token:
+  121 rows, MID100044 register count 4 -> 6, MID100120 gone, MID100121 present in Abha. Fabric applied the
+  delete with a Delta deletion vector.
+- **Gold still reads the dbt seed, not the mirror.** Pointing dbt at a mirrored database would make the
+  models depend on a Fabric-only feature and stop them building on DuckDB locally and in CI; "the same
+  models run locally and on Fabric" is worth more. Stated in ADR-014 and HONESTY row 16.
+- One real constraint, found by hitting it: DuckDB writes a Parquet column as REQUIRED when the data it is
+  given has no nulls, so the initial load produced a non-nullable schema. A delete row padded with nulls --
+  which the format explicitly permits, since only key columns are required -- then arrives as nullable, and
+  Fabric rejects the batch with `SchemaMergeFailure` and **stops replicating that table** with nothing in
+  the pipeline to surface it. Every CDC row now carries every column; `reset` recreates the table folder,
+  which is the documented way to restart one table.
+- tests/test_open_mirroring.py (9): 20-digit continuous file names that sort numerically, keyColumns
+  declared and unique in the source, `__rowMarker__` last or raise, the initial load carrying no marker,
+  and every CDC row carrying every column. The landing-zone contract fails silently, so it is pinned.
+
 ## Left for the owner after Phase 13
 0a. ~~Public snapshot site not deployed~~ DONE 2026-11-19: https://delightful-field-01a948c0f.4.azurestaticapps.net
    (no login, serves "follow one riyal", verified HTTP 200 + content). Redeploy after any rebuild with
