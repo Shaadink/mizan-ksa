@@ -99,10 +99,28 @@ Click the **clip icon** on a task -> tick the items -> **Select**. All eleven wo
 The SQL endpoint and the KQL database are created automatically by the Lakehouse and the Eventhouse; if the portal
 will not let you assign them separately, leave them out and the flow still covers everything.
 
-### 4.4 Faster, if you would rather not click
+### 4.4 Faster: import the flow as a file
 
-A task flow exports and imports as a *.json* file carrying the names, descriptions and connectors (not the item
-assignments). Export the current one from the task flow details pane -> **Import and export task flow**, and the
-MIZAN flow above can be handed back as a file to import in one action.
+`docs/fabric/mizan_task_flow.json` is the six-task flow above, ready to import: task flow details pane ->
+**Import and export task flow** -> **Import**. It carries the names, descriptions and connectors, so only the item
+assignments in 4.3 are left to do by hand (the format does not store them).
+
+The schema was taken from a real export of Fabric's own predesigned flow, not invented:
+
+```json
+{"tasks":[{"type":"store data","id":"<uuid>","name":"Store"}],
+ "edges":[{"source":"<uuid>","target":"<uuid>"}],
+ "name":"...","description":"..."}
+```
+
+The ten `type` values Fabric emits are: `get data`, `store data`, `prepare data`, `analyze and train data`,
+`develop`, `govern data`, `visualize`, `track data`, `distribute data`, `mirror data`. Every type used here is one
+of those, every edge points at a task in the same file, and the top-level keys match the export exactly.
+
+One uncertainty worth naming: Fabric's own export carries **no** `description` field on individual tasks (its
+default tasks take their subtitle from the type), so it is unproven that `description` is accepted on import.
+`docs/fabric/mizan_task_flow_minimal.json` is the same flow with that field dropped, matching the observed schema
+field for field. Import `mizan_task_flow.json` first; if it is rejected, import the minimal one and add the six
+descriptions by hand.
 
 This whole section is cosmetic. Nothing in the pipeline, the tests or the evidence depends on it.

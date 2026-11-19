@@ -1,0 +1,64 @@
+{
+ "tasks": [
+  {
+   "type": "prepare data",
+   "id": "e37afb6d-74d3-4e01-a922-25d136461ae5",
+   "name": "Ingest and build",
+   "description": "One notebook, seven steps: bronze_land, silver_build, mdm_resolve, zatca_chain, ai_index, ndmo_catalog, restore_guard. PII is encrypted at the Bronze write."
+  },
+  {
+   "type": "store data",
+   "id": "edd7fca0-5368-4f57-909f-dbd1f9d4770b",
+   "name": "Store",
+   "description": "Lakehouse LH_MIZAN (brz, ctl, slv, quarantine, security, audit, meta, ai) and Warehouse WH_MIZAN (gld). Money is DECIMAL(18,2); never float."
+  },
+  {
+   "type": "get data",
+   "id": "3a0bcbe7-9d18-436f-bcbb-57fa7cbf6807",
+   "name": "Stream",
+   "description": "Eventstream to Eventhouse. Velocity, mule-ring and reporting-SLA rules evaluated in KQL."
+  },
+  {
+   "type": "develop",
+   "id": "4202dba6-58ed-4480-b41a-2ebf68b077c9",
+   "name": "Model",
+   "description": "Direct Lake semantic model over WH_MIZAN. No import, no scheduled refresh."
+  },
+  {
+   "type": "visualize",
+   "id": "4eb3bd4e-3919-45ce-8c70-bc1876bcdd43",
+   "name": "Report",
+   "description": "Three pages: CFO Settlement, Tax ZATCA Health, CDO Data Trust."
+  },
+  {
+   "type": "distribute data",
+   "id": "4437c531-c0d7-4667-aa21-3c2c582bb448",
+   "name": "Command Center",
+   "description": "Fabric App front end and the user data function behind it."
+  }
+ ],
+ "edges": [
+  {
+   "source": "e37afb6d-74d3-4e01-a922-25d136461ae5",
+   "target": "edd7fca0-5368-4f57-909f-dbd1f9d4770b"
+  },
+  {
+   "source": "3a0bcbe7-9d18-436f-bcbb-57fa7cbf6807",
+   "target": "edd7fca0-5368-4f57-909f-dbd1f9d4770b"
+  },
+  {
+   "source": "edd7fca0-5368-4f57-909f-dbd1f9d4770b",
+   "target": "4202dba6-58ed-4480-b41a-2ebf68b077c9"
+  },
+  {
+   "source": "4202dba6-58ed-4480-b41a-2ebf68b077c9",
+   "target": "4eb3bd4e-3919-45ce-8c70-bc1876bcdd43"
+  },
+  {
+   "source": "4202dba6-58ed-4480-b41a-2ebf68b077c9",
+   "target": "4437c531-c0d7-4667-aa21-3c2c582bb448"
+  }
+ ],
+ "name": "MIZAN platform",
+ "description": "Payments reconciliation and ZATCA Phase-2 e-invoicing for Saudi Arabia. Every Gold figure traces to source; bank and GL variance reconcile to 0.00 SAR."
+}
