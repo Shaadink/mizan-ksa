@@ -119,14 +119,29 @@ def test_cards_respond_to_their_own_page_slicer():
                 "cannot filter through a single-direction relationship")
 
 
-def test_gauges_are_pinned_to_a_0_100_axis():
-    """A gauge left to scale itself invented a maximum of 199.99% for a percentage."""
+def test_gauges_pin_their_axis_and_declare_a_narrowed_one():
+    """Two failures to guard against, and they pull in opposite directions.
+
+    Left to scale itself a gauge invented a maximum of 199.99% for a percentage, so both ends must be
+    pinned. But pinning everything to 0-100 makes a ratio that lives near 2% an invisible sliver, so a
+    narrower maximum is allowed -- and then the TITLE must say so, because a reader who assumes 0-100 on a
+    0-5 gauge misreads it by twenty times. A quietly truncated axis is worse than an auto-scaled one.
+    """
+    import re
     gauges = [c for c in _visuals().values() if c["visual"]["visualType"] == "gauge"]
     assert gauges, "no gauges in the report"
     for g in gauges:
         axis = g["visual"]["objects"]["axis"][0]["properties"]
         assert axis["min"]["expr"]["Literal"]["Value"] == "0D", g["name"]
-        assert axis["max"]["expr"]["Literal"]["Value"] == "100D", g["name"]
+        raw = axis["max"]["expr"]["Literal"]["Value"]
+        assert raw.endswith("D"), g["name"]
+        gmax = float(raw[:-1])
+        assert gmax > 0, g["name"]
+        if gmax != 100:
+            title = g["visual"].get("visualContainerObjects", {}).get("title", [{}])[0]
+            text = json.dumps(title)
+            assert re.search(rf"0\s*-\s*{gmax:g}", text), (
+                f"{g['name']}: axis narrowed to 0-{gmax:g} but the title does not say so: {text}")
 
 
 def test_acceptance_rate_keeps_enough_decimals_to_show_one_rejection():

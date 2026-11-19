@@ -1,11 +1,11 @@
 table fact_merchant_dispute_monitor
 	lineageTag: f13d2851-8da8-5d71-9a86-2897be7b6b26
 
-	measure 'Merchants Flagged By Ratio Only' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[breaches_ratio] = TRUE()))+ 0
+	measure 'Merchants Flagged By Ratio Only' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[breaches_ratio] = 1)) + 0
 		formatString: #,0
 		lineageTag: 8e567bda-4b30-56d6-9d10-fe51f719956b
 
-	measure 'Merchants In Monitoring Programme' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[in_monitoring_programme] = TRUE()))+ 0
+	measure 'Merchants In Monitoring Programme' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[in_monitoring_programme] = 1)) + 0
 		formatString: #,0
 		lineageTag: 7af2bb40-890d-5866-ad10-914afaf08331
 

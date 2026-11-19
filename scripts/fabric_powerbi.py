@@ -71,10 +71,14 @@ MEASURES = {
     DM: [
         # Card-scheme dispute monitoring. Both counts are measures on purpose: the page's claim is that a
         # ratio without a volume floor is a noise generator, and that claim needs both numbers to stand.
+        # = 1, not = TRUE(). The dbt model writes these flags with bool_true(), which is literal 1 on the
+        # Fabric target, so WH_MIZAN types them BIT and the semantic model imports them as int64. Comparing
+        # an int64 to TRUE() does not return false, it errors -- the card renders as "See details" and the
+        # page loses the two numbers it exists to show. Found by looking at the deployed report.
         ("Merchants Flagged By Ratio Only",
-         f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[breaches_ratio] = TRUE()))+ 0", "#,0"),
+         f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[breaches_ratio] = 1)) + 0", "#,0"),
         ("Merchants In Monitoring Programme",
-         f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[in_monitoring_programme] = TRUE()))+ 0", "#,0"),
+         f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[in_monitoring_programme] = 1)) + 0", "#,0"),
         ("Merchants Monitored", f"COUNTROWS({DM}) + 0", "#,0"),
         ("Disputes", f"SUM({DM}[dispute_count]) + 0", "#,0"),
         ("Captures", f"SUM({DM}[capture_count]) + 0", "#,0"),
@@ -291,7 +295,7 @@ PAGES = [
                           "X": [("m", "Captures")], "Y": [("m", "Dispute Ratio Pct")]},
          (20, 168, 760, 300), "Dispute ratio vs capture volume \u2014 the cluster top-left is noise"),
         ("gauge", {"Y": [("m", "Portfolio Dispute Ratio Pct")]},
-         (790, 168, 230, 300), "Portfolio dispute ratio"),
+         (790, 168, 230, 300), "Portfolio dispute ratio (axis 0-5%)", {"axis_max": 5}),
         ("clusteredBarChart", {"Category": [("c", DM, "merchant_id")], "Y": [("m", "Disputes")]},
          (1030, 168, 230, 300), "Disputes by merchant (top)", {"sort": "desc"}),
         ("slicer", {"Values": [("c", DM, "in_monitoring_programme")]},
@@ -554,7 +558,10 @@ def _visual(kind: str, roles: dict[str, list[tuple]], title: str | None, opts: d
     elif kind == "gauge":
         # Pin the axis to 0-100. Left to itself the gauge scales from whatever it is given and invents a
         # maximum like 199.99%, which makes a percentage unreadable.
-        objects = {"axis": [{"properties": {"min": _lit("0D"), "max": _lit("100D")}}],
+        # 0-100 is right for a score, wrong for a ratio that lives near 2%: at that scale the needle is an
+        # invisible sliver and the gauge says nothing. opts["axis_max"] narrows it where that is the case.
+        gmax = opts.get("axis_max", 100)
+        objects = {"axis": [{"properties": {"min": _lit("0D"), "max": _lit(f"{gmax}D")}}],
                    "dataPoint": [{"properties": {"fillColor": _solid(EMERALD),
                                                  "targetColor": _solid(ACCENT)}}],
                    "labels": [{"properties": {"color": _solid(INK), "fontSize": _lit("16D")}}],
