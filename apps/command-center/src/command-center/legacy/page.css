@@ -229,7 +229,7 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .h1-honest { font: 400 clamp(14px, 1.6vw, 22px)/1.3 var(--f-body); letter-spacing: 0; color: rgba(169,182,201,.8);
   background: none; -webkit-background-clip: unset; background-clip: unset; display: block; margin-top: 8px }
 .hero .lede { max-width: 50ch; color: #b8c4d6; font-size: 17px; font-weight: 300 }
-.proof-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; margin: 26px 0 0; max-width: 780px }
+.proof-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; margin: 26px 0 0; max-width: 940px }
 .proof-stat { display: flex; flex-direction: column; gap: 6px; padding: 14px 20px; border-radius: 12px;
   border: 1px solid var(--line-2); background: rgba(10,19,36,.55); backdrop-filter: blur(6px); min-width: 0 }
 .proof-sep { display: none }
@@ -237,9 +237,11 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .proof-val.emerald { color: var(--emerald); text-shadow: 0 0 30px rgba(47,191,143,.55) }
 .proof-val.gold { color: var(--gold-hi); text-shadow: 0 0 30px rgba(217,178,95,.55) }
 .proof-val.cyan { color: var(--cyan); text-shadow: 0 0 30px rgba(92,200,255,.45) }
+.proof-val.violet { color: #9b8cff; text-shadow: 0 0 30px rgba(155,140,255,.45) }
 .proof-stat:nth-child(1) { border-color: rgba(47,191,143,.3) }
 .proof-stat:nth-child(2) { border-color: rgba(217,178,95,.3) }
 .proof-stat:nth-child(3) { border-color: rgba(92,200,255,.28) }
+.proof-stat:nth-child(4) { border-color: rgba(155,140,255,.28) }
 .proof-lbl { font: 500 10.5px var(--f-mono); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; white-space: nowrap }
 @media (max-width: 900px) { .proof-row { gap: 8px } .proof-stat { padding: 11px 15px } }
 .counter { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px }

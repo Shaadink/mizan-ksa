@@ -104,6 +104,15 @@ function heroCopy() {
     $("#pr-inv").textContent = fmtI(docs);
     $("#pr-inv").nextElementSibling.textContent = `invoices · ${D.chain.violations} chain breaks`;
     $("#pr-lin").textContent = `${D.lineage.covered}/${D.lineage.gold_columns}`;
+    const sk = D.skew.filter(r => r.run_type !== "COMPACTION");
+    if (sk.length && $("#pr-skew")) {
+      // One mega-merchant skews the join; three different plans must still agree on the money, to the halala.
+      const sums = new Set(sk.map(r => r.sar_checksum)), worst = Math.max(...sk.map(r => r.skew_ratio));
+      $("#pr-skew").textContent = fmtI(sk[0].rows / 1e6) + "M";
+      $("#pr-skew").nextElementSibling.textContent = sums.size === 1
+        ? `rows at ${worst.toFixed(0)}:1 skew · same checksum ${sk.length} ways`
+        : `rows · ${sums.size} differing checksums`;
+    }
   }
   const st = $("#stamp"), demo = D.heat.demo_breaks.reduce((a, b) => a + Math.abs(H(b.bank_variance)) + Math.abs(H(b.gl_variance)), 0);
   hero.setDefect = on => { hero.defect = on; st.style.borderColor = st.style.color = on ? C.crit : "";

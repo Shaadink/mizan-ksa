@@ -2,12 +2,12 @@
 
 ### Every assessed halala reconciled. Everything else, honestly flagged.
 
-| `SAR 0.00` | `25,001` | `76 / 76` |
-|---|---|---|
-| bank **and** GL variance, across 2,121 assessed merchant-days | e-invoices in an unbroken ZATCA hash chain — **0 breaks** | Gold columns traced to source, column by column |
+| `SAR 0.00` | `25,001` | `76 / 76` | `20,000,000` |
+|---|---|---|---|
+| bank **and** GL variance, across 2,121 assessed merchant-days | e-invoices in an unbroken ZATCA hash chain — **0 breaks** | Gold columns traced to source, column by column | rows joined at **62:1 skew** — three execution plans, one identical SAR checksum |
 
 The fourth number matters just as much: **112 merchant-days are not assessed**, because their bank file has not
-arrived yet (SAR 1,125,184.70 in transit). They are counted and labelled, never quietly averaged away. A platform
+arrived yet (SAR 1,125,209.07 in transit). They are counted and labelled, never quietly averaged away. A platform
 that reconciles everything is lying; this one reconciles what it can prove and flags the rest.
 
 *MIZAN* is Arabic for "the balance / the scales".
@@ -20,7 +20,7 @@ moment it lands and can be erased under PDPL without touching signed tax evidenc
 
 **Stack:** Microsoft Fabric (OneLake Delta `LH_MIZAN`, PySpark notebooks, Warehouse `WH_MIZAN`, Eventhouse/Eventstream,
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
-Actions as the control plane. 269 Python tests and 183 app tests; CI runs the full PySpark + dbt suite and the Fabric
+Actions as the control plane. 286 Python tests and 183 app tests; CI runs the full PySpark + dbt suite and the Fabric
 App tests on every push.
 
 > Every number above is generated, never typed: see the [proof manifest](docs/PROOF_MANIFEST.md), which names the
