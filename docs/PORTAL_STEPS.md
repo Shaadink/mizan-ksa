@@ -44,7 +44,7 @@ in **Edit** if you like. The semantic model **MIZAN Control Tower Model** is Dir
 
 A **task flow** is the diagram across the top of a workspace. It is a label layer: it creates nothing, moves nothing
 and runs nothing. It is worth five minutes because a workspace that opens with a labelled flow reads as a designed
-platform rather than as a pile of eleven items.
+platform rather than as a pile of twelve items.
 
 There is no REST API for it. Probed on 2026-11-19 with the service principal:
 `GET /v1/workspaces/{ws}/taskFlow`, `/taskflow` and `/taskFlows` all return 404 `EntityNotFound`, while
@@ -54,18 +54,21 @@ cannot be scripted.
 **One rule drives the whole design:** an item can be assigned to exactly one task
 ([Microsoft Learn](https://learn.microsoft.com/en-us/fabric/get-started/task-flow-work-with)). So the boxes cannot
 be pipeline *stages* (the one notebook runs seven steps and would have to appear in four of them). They have to be
-*groups of items*. Six boxes cover all eleven items with none repeated.
+*groups of items*. Seven boxes cover all twelve items with none repeated.
 
 ### 4.1 Clear the generic template
 
 Fabric's **Apply predesigned task flow** drops in ten empty boxes (Get data, Mirror, Store, Prepare, Analyze and
-train, Develop, Govern data, Visualize, Track, Distribute). MIZAN has no mirroring, no model training and no
-distribution step, so most of them would stay empty and invite a question the project cannot answer.
+train, Develop, Govern data, Visualize, Track, Distribute). MIZAN has no model training and nothing it distributes
+to other systems, so several would stay empty and invite a question the project cannot answer.
+
+The template's **Mirror** box was deleted on 2026-11-19 for exactly that reason -- there was no mirroring. It comes
+back below, because now there is: `MR_MIZAN` (ADR-014). Keep a box when something real goes in it, not before.
 
 Select a blank area of the canvas -> task flow details pane -> **trash icon** to delete the whole thing and start
 clean. (Deleting a task flow never deletes items.)
 
-### 4.2 Build six tasks
+### 4.2 Build seven tasks
 
 **Add** dropdown -> pick the task type -> select the task -> **Edit** -> set name and description -> **Save**.
 
@@ -77,8 +80,11 @@ clean. (Deleting a task flow never deletes items.)
 | 4 | Model | Develop | Direct Lake semantic model over WH_MIZAN. No import, no refresh. |
 | 5 | Report | Visualize | Three pages: CFO Settlement, Tax ZATCA Health, CDO Data Trust. |
 | 6 | Command Center | Distribute | Fabric App front end and the data function behind it. |
+| 7 | Mirror | Mirror data | Open mirroring: the ERP merchant master arrives as CDC files and Fabric maintains the table. Demonstrated, not wired into Gold (ADR-014). |
 
 Connectors (drag from the edge of one task to the next): 1 -> 2, 3 -> 2, 2 -> 4, 4 -> 5, 4 -> 6.
+
+**Mirror gets no connector, deliberately.** An arrow into Store would claim the mirror feeds the warehouse; it does not, because Gold reads the dbt seed (ADR-014). A diagram that says something the code does not do is worse than a box that floats. If a reviewer asks why it is unconnected, that is the answer, and it is a better one than an arrow would have been.
 
 Then select the canvas -> **Edit** -> name the flow **MIZAN platform**, description
 *"Payments reconciliation and ZATCA e-invoicing for Saudi Arabia. Every Gold figure traces to source."*
@@ -95,6 +101,7 @@ Click the **clip icon** on a task -> tick the items -> **Select**. All eleven wo
 | Model | `MIZAN Control Tower Model` (Semantic model) |
 | Report | `MIZAN Control Tower` (Report) |
 | Command Center | `command-center` (App backend), `command_center_connector` (User data function) |
+| Mirror | `MR_MIZAN` (Mirrored database) |
 
 The SQL endpoint and the KQL database are created automatically by the Lakehouse and the Eventhouse; if the portal
 will not let you assign them separately, leave them out and the flow still covers everything.

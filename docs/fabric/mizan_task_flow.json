@@ -35,6 +35,12 @@
    "id": "4437c531-c0d7-4667-aa21-3c2c582bb448",
    "name": "Command Center",
    "description": "Fabric App front end and the user data function behind it."
+  },
+  {
+   "type": "mirror data",
+   "id": "55594478-7818-417f-b31a-13c94a6ad7dd",
+   "name": "Mirror",
+   "description": "Open mirroring: the ERP merchant master arrives as CDC files in a OneLake landing zone and Fabric maintains the table -- no pipeline, no capacity spent on the copy. Unconnected on purpose: it is demonstrated, not wired into Gold (ADR-014)."
   }
  ],
  "edges": [
