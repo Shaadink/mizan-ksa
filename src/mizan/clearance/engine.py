@@ -39,6 +39,31 @@ from mizan.common.money import fmt_sar
 
 CORRECTION_NS = uuidlib.UUID("6f1d0c3e-6a43-4a49-9d1c-6d2a0b6d9a11")
 
+ZATCA_QR_MAX_CHARS = 500          # BR-CL-KSA-14, on the base64 string
+
+
+def build_invoice_qr(req: dict, *, invoice_hash: str, sig_b64: str, signer) -> str:
+    """The QR exactly as a signed invoice carries it. One definition, used by the engine and the guard.
+
+    It lives here rather than inline because it did not: the engine encoded tag 7 as base64 text and
+    tags 8-9 as the bare point and raw r||s, while the 500-character guard in the tests still built the
+    older shape (raw signature bytes, DER key, DER certificate signature). The guard was therefore
+    measuring 504 characters for an encoding no invoice has used since, and failing about one run in
+    four, while the real QR tops out at 496. Two copies of one rule is the bug; this is the rule.
+    """
+    return build_qr_tlv_base64({
+        1: req["seller"]["name_ar"], 2: req["seller"]["vat_number"],
+        # ZATCA's QR validator compares tag 3 to IssueDate + IssueTime and wants the ISO 8601
+        # "Z" form; without it the check reports "timeStamp does not match". An explicit
+        # +03:00 offset would also satisfy it but costs 6 characters, and the QR has none to
+        # spare against the 500-character cap (BR-CL-KSA-14).
+        3: issue_ts_ksa(req["issue_ts_utc"]).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        4: req["total_incl_vat_sar"], 5: req["vat_total_sar"], 6: invoice_hash, 7: sig_b64,
+        # Tags 8-9 carry the key and the certificate's signature as bytes. The bare EC point
+        # and the raw r||s form are what ZATCA's spec describes, and together they save 30
+        # bytes against the DER wrappers -- the difference between 532 and 492 characters.
+        8: signer.public_key_point, 9: ecdsa_der_to_raw(signer.certificate_signature)})
+
 
 @dataclass
 class OutboxRow:
@@ -145,18 +170,7 @@ class ZatcaWorker:
             signer = signer_for(egs)
             signature = signer.sign_digest(digest)
             sig_b64 = base64.b64encode(signature).decode("ascii")
-            qr = build_qr_tlv_base64({
-                1: req["seller"]["name_ar"], 2: req["seller"]["vat_number"],
-                # ZATCA's QR validator compares tag 3 to IssueDate + IssueTime and wants the ISO 8601
-                # "Z" form; without it the check reports "timeStamp does not match". An explicit
-                # +03:00 offset would also satisfy it but costs 6 characters, and the QR has none to
-                # spare against the 500-character cap (BR-CL-KSA-14).
-                3: issue_ts_ksa(req["issue_ts_utc"]).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                4: req["total_incl_vat_sar"], 5: req["vat_total_sar"], 6: invoice_hash, 7: sig_b64,
-                # Tags 8-9 carry the key and the certificate's signature as bytes. The bare EC point
-                # and the raw r||s form are what ZATCA's spec describes, and together they save 30
-                # bytes against the DER wrappers -- the difference between 532 and 492 characters.
-                8: signer.public_key_point, 9: ecdsa_der_to_raw(signer.certificate_signature)})
+            qr = build_invoice_qr(req, invoice_hash=invoice_hash, sig_b64=sig_b64, signer=signer)
             signed = attach_signature_and_qr(unsigned, signature_b64=sig_b64,
                                              certificate_b64=signer.certificate_der_b64, qr_b64=qr,
                                              invoice_hash=invoice_hash)

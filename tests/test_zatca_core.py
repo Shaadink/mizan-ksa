@@ -9,6 +9,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from lxml import etree
 
+from mizan.clearance.engine import ZATCA_QR_MAX_CHARS, build_invoice_qr
 from mizan.clearance.signing import signer_for, verify_digest
 from mizan.clearance.tlv_qr_and_state_machine import (
     GENESIS_PIH,
@@ -135,23 +136,36 @@ def test_qr_round_trip_and_raw_tag_enforcement():
 
 
 def test_qr_fits_zatca_500_char_limit():
-    """BR-CL-KSA-14 caps the QR at 500 characters, and the margin here is small.
+    """BR-CL-KSA-14 caps the QR at 500 characters, and the margin here is four.
 
-    Tag 7 holds the raw ECDSA signature rather than base64 text precisely because text pushes a real
-    document to 524-532 characters. The longest QR in the shipped dataset lands on 500 exactly, so this
-    test is the guard: lengthen the seller name, or let invoice totals grow by a few digits, and it
-    fails here with a clear reason instead of being rejected by ZATCA later.
+    The guard runs every QR through build_invoice_qr, the same function the engine signs with, because
+    the previous version of this test built the fields itself and drifted: it still used the raw
+    signature, the DER public key and the DER certificate signature after the engine had moved to
+    base64 tag 7, the bare EC point and raw r||s. It was measuring an encoding no invoice has used
+    since, landing on 504 characters whenever the ECDSA signature DER-encoded to 72 bytes -- about one
+    run in four, which is why it failed intermittently and was written off as flaky.
+
+    The ECDSA signature is the only part whose length varies (69-72 bytes DER, so 92 or 96 base64
+    characters), so every signature length is exercised here rather than whichever one the first
+    signature happens to produce. Lengthen the seller name, or let the totals grow by a few digits,
+    and this fails with a clear reason instead of being rejected by ZATCA later.
     """
     signer = signer_for("EGS-T")
-    worst = {1: cat.SELLER_NAME_AR, 2: cat.SELLER_VAT, 3: "2026-02-12T10:00:00",
-             4: "1085.60", 5: "1023.30",                            # longest totals in the dataset
-             6: base64.b64encode(b"x" * 32).decode(),               # a SHA-256 digest, base64 = 44 chars
-             7: signer.sign_digest(hashlib.sha256(b"probe").digest()),
-             8: signer.public_key_der, 9: signer.certificate_signature}
-    qr = build_qr_tlv_base64(worst)
-    assert len(qr) <= 500, (
-        f"QR is {len(qr)} characters, over ZATCA's 500 limit (BR-CL-KSA-14). "
-        "Shorten the seller name, or move another tag to raw bytes.")
+    req = {"seller": {"name_ar": cat.SELLER_NAME_AR, "vat_number": cat.SELLER_VAT},
+           "issue_ts_utc": "2026-02-12T07:00:00Z",
+           "total_incl_vat_sar": "1085.60", "vat_total_sar": "1023.30"}   # longest totals in the dataset
+    invoice_hash = base64.b64encode(b"x" * 32).decode()                   # SHA-256 base64 = 44 chars
+    seen = {}
+    for i in range(400):
+        sig = signer.sign_digest(hashlib.sha256(f"probe-{i}".encode()).digest())
+        qr = build_invoice_qr(req, invoice_hash=invoice_hash,
+                              sig_b64=base64.b64encode(sig).decode("ascii"), signer=signer)
+        seen.setdefault(len(sig), set()).add(len(qr))
+        assert len(qr) <= ZATCA_QR_MAX_CHARS, (
+            f"QR is {len(qr)} characters with a {len(sig)}-byte signature, over ZATCA's 500 limit "
+            "(BR-CL-KSA-14). Shorten the seller name, or move another tag to raw bytes.")
+    assert max(seen) >= 71, f"only saw {sorted(seen)}-byte signatures; the long ones went unmeasured"
+    assert max(max(v) for v in seen.values()) == 496, "the four characters of headroom have moved"
 
 
 # ---------------------------------------------------------------- state machine (I-03)
