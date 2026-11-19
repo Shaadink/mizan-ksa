@@ -465,15 +465,16 @@ Follow one riyal (2026-11-18, owner request): press T, or "Follow one riyal" in 
   falls back to the old per-riyal averages if no trace is exported. Ships in the Fabric App and the public page.
 
 ## Left for the owner after Phase 13
-0a. **Public snapshot site is built but not deployed** (2026-11-19). `public_site/` holds the current page,
-   including "follow one riyal". `az` cannot deploy it from here: the tenant has security defaults on, so the CLI
-   returns `AADSTS530035` and demands an interactive sign-in with MFA. Run
-   `az login --tenant 03eba341-903b-42ab-9495-82f678a0e176 --scope "https://management.core.windows.net//.default"`,
-   then ask for the deploy; the Fabric App itself IS up to date (deployed 2026-11-18).
-0b. **The private claude.ai artifact copy** (https://claude.ai/artifact/HeSui14YJRiTUwiFDAkXqD) returns "not found"
-   to this machine's signed-in account. Either it was deleted or the session is on a different account. It was NOT
-   republished to a new URL, because that would orphan the link already shared. Owner to confirm which.
-0c. Optional, cosmetic, portal-only: the workspace task flow (docs/PORTAL_STEPS.md section 4).
+0a. ~~Public snapshot site not deployed~~ DONE 2026-11-19: https://delightful-field-01a948c0f.4.azurestaticapps.net
+   (no login, serves "follow one riyal", verified HTTP 200 + content). Redeploy after any rebuild with
+   `scripts/build_public_site.py` then the SWA CLI; `az login` needs interactive MFA on this tenant, so the owner
+   signs in first.
+0b. **The private claude.ai artifact copy is retired.** https://claude.ai/artifact/HeSui14YJRiTUwiFDAkXqD lives on
+   the owner's previous Claude account; this machine is signed in to a different one, so it reads "not found" here
+   and can no longer be updated. It was NOT republished to a new URL. The public Static Web App above replaces it
+   and is strictly better: no account needed to view, and it redeploys from a script. ADR-011 recorded the artifact
+   as the chosen hosting; that choice is superseded, the front end itself is unchanged.
+0c. ~~Workspace task flow~~ DONE 2026-11-19: six tasks, all eleven items assigned (PORTAL_STEPS.md section 4).
 0. **Re-run the pipeline on the Fabric tenant** so `docs/artifacts/10_fabric_run_evidence.json` matches the
    corrected prices (it still records the 2026-11-14 run: gross SAR 22,390,730.16 vs SAR 22,391,236.23 locally).
    The dbt 65/65 PASS result is unaffected; only the money figures are from the earlier dataset. See HONESTY.md.
