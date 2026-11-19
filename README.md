@@ -42,11 +42,9 @@ moment it lands and can be erased under PDPL without touching signed tax evidenc
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
 Actions as the control plane.
 
-**Tests, counted separately because they measure different things:** **317 Python tests** (`pytest`), **91 dbt
-tests** on the local DuckDB target, **65 dbt tests** on WH_MIZAN plus **10** for the newest model (the Fabric
-target last ran before three models were added — see [HONESTY.md](HONESTY.md)), and **184 Fabric App tests** of
-which 169 pass and 15 skip while the Fabric dataset is behind. CI runs the full PySpark and dbt suites and the
-app tests on every push.
+**Tests, counted separately because they measure different things:** **Python tests** (`pytest`), **91 dbt
+tests** on the local DuckDB target and **91 on WH_MIZAN** (full parity since the 2026-11-19 re-run), and
+**184 Fabric App tests**. CI runs the full PySpark and dbt suites and the app tests on every push.
 
 > Every number above is generated, never typed: see the [proof manifest](docs/PROOF_MANIFEST.md), which names the
 > proof run behind each claim and its SHA-256. Scope and limits are stated in [HONESTY.md](HONESTY.md). This is a
@@ -194,8 +192,8 @@ Workspace `mizan-ksa-dev`, Fabric trial capacity (UAE North). Evidence: [docs/ar
 |---|---|
 | Notebook jobs (Bronze, Silver, MDM, ZATCA, AI index, NDMO catalog) via REST + service principal | all Completed |
 | Source-to-Bronze hash reconciliation | every file sha256 matches; duplicate bank resend = ALL_DUPLICATE |
-| `dbt build` on WH_MIZAN (dbt-fabric, Gold as tables, reads `LH_MIZAN.slv.*`) | 65/65 PASS |
-| `gld.fact_merchant_settlement_recon` | 2,233 MID-days, SAR 22,390,730.16 captured, bank + GL variance 0.00 (this run predates a price correction; local Gold now reads SAR 22,391,236.23 - [HONESTY.md](HONESTY.md) #5) |
+| `dbt build` on WH_MIZAN (dbt-fabric, Gold as tables, reads `LH_MIZAN.slv.*`) | **91/91 PASS** - full parity with the local target |
+| `gld.fact_merchant_settlement_recon` | 2,233 MID-days, SAR 22,391,236.23 captured, bank + GL variance 0.00 - identical to local Gold |
 | ZATCA chain | 25,001 documents, 0 chain violations, 1 worker restart recovered |
 | MDM | 3,985 records into 2,552 golden profiles, 1 steward conflict |
 | Power BI Control Tower (Direct Lake TMDL model + 3-page PBIR report, created by API) | DAX returns the same totals |

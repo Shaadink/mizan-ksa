@@ -18,6 +18,7 @@ from mizan.clearance.chain_verifier import verify_chain
 from mizan.clearance.engine import ChainStore, process_requests
 from mizan.clearance.mock_fatoora import MockFatoora
 from mizan.spark.lake import Lake, rows_to_df
+from mizan.spark.silver import _latest
 
 S, INT, B, D = T.StringType(), T.IntegerType(), T.BinaryType(), T.DecimalType(18, 2)
 OUTBOX_SCHEMA = T.StructType([T.StructField(n, t) for n, t in (
@@ -47,7 +48,10 @@ def run_zatca(lake: Lake, plan_path: Path | None) -> dict:
     spark = lake.spark
     plan = json.loads(plan_path.read_text(encoding="utf-8")) if plan_path and plan_path.exists() else {}
     store = _hydrate(lake)
-    rows = lake.read("brz", "zatca_invoices_raw").select("request_id", "payload_json").collect()
+    # _latest, not the raw table: Bronze is append-only, so a corrected re-send leaves TWO rows per
+    # request_id and this would hand the engine the superseded payload alongside the current one.
+    rows = _latest(lake.read("brz", "zatca_invoices_raw"), ["request_id"]) \
+        .select("request_id", "payload_json").collect()
     reqs = sorted((json.loads(r["payload_json"]) for r in rows if r["request_id"] not in store.by_request_id),
                   key=lambda q: q["request_id"])
     run = process_requests(reqs, MockFatoora(plan), store=store)
@@ -71,7 +75,11 @@ def run_zatca(lake: Lake, plan_path: Path | None) -> dict:
 
     # slv.zatca_invoice_documents (hop 3) from the outbox + request issue date
     ob = lake.read("ctl", "invoice_outbox")
-    req = lake.read("brz", "zatca_invoices_raw").select(
+    # _latest matters more here than anywhere: this is a JOIN key. Two Bronze rows for one request_id fan every
+    # outbox row into two, so slv.zatca_invoice_documents silently doubles and every invoice_uuid stops being
+    # unique. Found on Fabric 2026-11-19 by `source_unique_..._invoice_uuid` after a price correction re-landed
+    # all 25,000 requests as corrections -- the first re-run this pipeline had ever had against real corrections.
+    req = _latest(lake.read("brz", "zatca_invoices_raw"), ["request_id"]).select(
         "request_id", F.to_date(F.to_timestamp("issue_ts_utc", "yyyy-MM-dd'T'HH:mm:ssX")).alias("issue_date_ksa"))
     corr_req = req.select(F.concat(F.col("request_id"), F.lit("-C1")).alias("request_id"), "issue_date_ksa")
     docs = ob.join(req.unionByName(corr_req), "request_id", "left").select(

@@ -264,3 +264,60 @@ def test_zatca_invoice_documents_hold_no_cleartext_buyer_pii(lake, gen_dir):
     cells = {v for row in docs.select(*cols).collect() for v in row if v}
     assert not cells & probes
     assert all(not any(p in v for p in probes if len(p) >= 8) for v in list(cells)[:2000])
+
+
+def test_a_corrected_zatca_resend_does_not_double_the_silver_documents(lake_run, spark, test_keys, tmp_path):
+    """Bronze is append-only, so a corrected re-send leaves TWO rows per request_id. Silver must take the latest.
+
+    THE BUG THIS PINS, found on Fabric on 2026-11-19 and by no test here. Six item prices had been corrected
+    weeks earlier, so re-running the pipeline on the tenant re-landed all 25,000 ZATCA requests as corrections
+    -- the first time this pipeline had ever seen real corrections on a re-run. `zatca_land` then joined
+    `ctl.invoice_outbox` to `brz.zatca_invoices_raw` on request_id, hit two Bronze rows per request, and fanned
+    every outbox row into two: `slv.zatca_invoice_documents` doubled to 50,002 and invoice_uuid stopped being
+    unique. dbt caught it (`source_unique_..._invoice_uuid`, 25,001 duplicates) and refused to publish Gold --
+    the circuit breaker working -- but the defect reached the warehouse, so the breaker was the second line of
+    defence. This test is the first.
+
+    Why the existing replay could not catch it: `lake_run` replays the SAME bytes, so Bronze dedup drops every
+    row and nothing lands. Idempotency on identical input was proven; idempotency on CORRECTED input was not,
+    and those are different claims. Every other Bronze reader already used `_latest()`; zatca_land did not.
+    """
+    import json as _json
+    import shutil
+
+    from mizan.spark.bronze import land_invoice_requests
+    from mizan.spark.lake import Lake
+    from mizan.spark.session import TableLocator
+    from mizan.spark.zatca_land import run_zatca
+
+    root = tmp_path / "corrected"
+    shutil.copytree(lake_run["root"], root, dirs_exist_ok=True)
+    lk = Lake(spark, TableLocator("local", root))
+
+    before = lk.read("slv", "zatca_invoice_documents").count()
+    assert before == 25_001, "fixture changed: this test pins the document count against doubling"
+
+    # Re-send 50 requests with a changed payload: same request_id (business key), different bytes -> correction.
+    rows = lk.read("brz", "zatca_invoices_raw").limit(50).collect()
+    lines = []
+    for r in rows:
+        payload = _json.loads(r["payload_json"])
+        payload["_correction_probe"] = True
+        lines.append(_json.dumps(payload, sort_keys=True))
+    resend_dir = tmp_path / "resend"
+    resend_dir.mkdir(parents=True, exist_ok=True)
+    f = resend_dir / "zatca" / "invoice_requests.jsonl"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    stats = land_invoice_requests(lk, test_keys, f, resend_dir)
+    assert stats["landed_rows"] == 50, f"the probe did not land as corrections: {stats}"
+    assert lk.read("brz", "zatca_invoices_raw").count() == 25_050, "Bronze must hold both versions"
+
+    run_zatca(lk, None)
+
+    docs = lk.read("slv", "zatca_invoice_documents")
+    assert docs.count() == before, (
+        f"Silver doubled on a corrected re-send: {docs.count()} rows, expected {before}. zatca_land must read "
+        "Bronze through _latest() -- a join key with two rows per key fans out the whole table.")
+    assert docs.select("invoice_uuid").distinct().count() == docs.count(), "invoice_uuid is no longer unique"
