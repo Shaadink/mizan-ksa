@@ -105,3 +105,35 @@ def test_export_is_deterministic(tmp_path, monkeypatch):
     for d in (first, committed):           # run ids and the git SHA change with every build/commit by design
         d.pop("runs", None)
     assert first == committed
+
+
+def test_the_engineering_drawer_is_present_and_links_to_the_real_repository():
+    """A recruiter is sold by the 3D scale; an engineer is not, and leaves unless the plumbing is one click away.
+
+    The drawer is that click. It must exist, open from the hero, carry the four proofs, and link to the public
+    repository -- not to a path that only resolves on the owner's disk.
+    """
+    page = (CC / "index.html").read_text(encoding="utf-8")
+    assert 'id="open-proof"' in page, "the hero has no button to open the engineering drawer"
+    assert 'id="proof-drawer"' in page
+    for needed in ("UNION SELECT merchant_id",                       # 1: the key spine, in its own words
+                   "assert_zero_unexplained_halala_variance",        # 2: the circuit breaker
+                   "money must be Decimal",                          # 3: the boundary that refuses floats
+                   "14.399999999999999",                             # 3: the SDK's float bug
+                   'id="pd-lineage"'):                               # 4: lineage as a build gate
+        assert needed in page, f"the engineering drawer no longer shows {needed!r}"
+    assert "github.com/Shaadink/mizan-ksa" in page, "the drawer does not link to the public repository"
+
+
+def test_the_drawer_never_hardcodes_the_lineage_count(data):
+    """The exact way this project drifted before: a hand-kept "64 of 64" caption while Gold had moved on.
+
+    The drawer must write the figure from the data at open time, so the markup carries a placeholder and the
+    real number arrives from D.lineage.covered.
+    """
+    page = (CC / "index.html").read_text(encoding="utf-8")
+    covered = data["lineage"]["covered"]
+    drawer = page.split('id="proof-drawer"', 1)[1].split("</div></div>", 1)[0]
+    assert f"{covered} / {covered}" not in drawer, (
+        "the lineage count is typed into the drawer markup; it must be written from D.lineage at open time")
+    assert "D.lineage" in page

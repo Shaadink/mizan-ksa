@@ -446,6 +446,22 @@ table.t td.r, table.t th.r { text-align: right }
 .caption.on { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); transition: .4s }
 .caption .sc { font: 600 11px var(--f-mono); color: var(--gold); letter-spacing: .14em; white-space: nowrap }
 .caption .tx { font-size: 14px; color: #d6dfec }
+/* ---------- engineering proof drawer ----------
+   A recruiter is sold by the 3D scale; an engineer is not, and will leave unless the plumbing is one click
+   away. This is that click: the key spine, the breaker, the lineage count and the float bug, in their own
+   words, with links into the repository. */
+.proofdw { position: fixed; inset: 0; z-index: 90; background: rgba(3,6,12,.72); backdrop-filter: blur(8px); display: grid; justify-items: end }
+.proofdw .sheet { width: min(760px, 100%); height: 100%; overflow: auto; background: var(--panel-solid); border-left: 1px solid var(--line); padding: 26px clamp(18px, 3vw, 34px) 60px; box-shadow: -30px 0 80px rgba(0,0,0,.6) }
+[dir="rtl"] .proofdw { justify-items: start }
+[dir="rtl"] .proofdw .sheet { border-left: 0; border-right: 1px solid var(--line); box-shadow: 30px 0 80px rgba(0,0,0,.6) }
+.proofdw h3 { font: 700 20px/1.2 var(--f-display); margin: 0 0 4px }
+.proofdw .sub { color: var(--ink-2); font-size: 13.5px; margin: 0 0 22px }
+.proofdw section { border-top: 1px solid var(--line-2); padding: 18px 0 2px }
+.proofdw h4 { font: 700 14px/1.3 var(--f-body); margin: 0 0 6px; letter-spacing: .02em }
+.proofdw p { color: var(--ink-2); font-size: 13.5px; line-height: 1.65; margin: 0 0 10px }
+.proofdw pre { margin: 0 0 10px; padding: 12px 14px; border-radius: 10px; background: rgba(0,0,0,.34); border: 1px solid var(--line-2); overflow-x: auto; font: 12.5px/1.6 var(--f-mono, ui-monospace, monospace); color: #d6e3f5; direction: ltr; text-align: left }
+.proofdw .links { display: flex; flex-wrap: wrap; gap: 8px; padding: 18px 0 0; border-top: 1px solid var(--line-2) }
+.proofdw .close { position: sticky; top: 0; float: right; margin: -6px -6px 0 0 }
 .palette { position: fixed; inset: 0; z-index: 80; display: grid; place-items: start center; padding-top: 14vh; background: rgba(3,6,12,.6); backdrop-filter: blur(6px) }
 .palette .box { width: min(560px, calc(100% - 32px)); border-radius: 16px; background: var(--panel-solid); border: 1px solid var(--line); overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.6) }
 .palette input { width: 100%; padding: 16px 18px; border: 0; border-bottom: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 15px var(--f-body); outline: none }
@@ -686,6 +702,7 @@ footer .wrap { display: grid; gap: 8px }
     <div class="hero-cta">
       <button class="btn primary" id="hero-play">&#9654; Play the story</button>
       <button class="btn" id="hero-replay">&#8635; Replay the scales</button>
+      <button class="btn" id="open-proof" aria-haspopup="dialog" aria-controls="proof-drawer">&#60;/&#62; Inspect the engineering</button>
     </div>
     <div id="press-b-hint" hidden aria-live="polite">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 7h14M7 7l-3 7h6l-3-7M17 7l-3 7h6l-3-7"/></svg>
@@ -942,6 +959,68 @@ footer .wrap { display: grid; gap: 8px }
 </div></footer>
 
 <div class="caption" id="caption" role="status" aria-live="polite"><span class="sc" id="cap-sc"></span><span class="tx" id="cap-tx"></span><button class="btn" id="cap-stop">Stop</button></div>
+<div class="proofdw" id="proof-drawer" hidden><div class="sheet" role="dialog" aria-modal="true" aria-label="Engineering proof">
+  <button class="btn close" id="proof-close" aria-label="Close">&#10005;</button>
+  <h3>The engineering, not the animation</h3>
+  <p class="sub">Four things an engineer would want to check before believing any number on this page.</p>
+
+  <section>
+    <h4>1 &middot; The key spine: why no row can be silently dropped</h4>
+    <p>A reconciliation built as a <code>LEFT JOIN</code> from payments loses any bank line that has no matching
+       payment &mdash; silently, forever. The spine is a <code>UNION</code> of keys from all three legs, so a row
+       that exists anywhere survives into the result and shows up as a variance instead of vanishing.</p>
+    <pre>spine AS (                       -- every key from ANY leg: nothing is dropped
+    SELECT merchant_id, business_date_ksa FROM captures
+    UNION SELECT merchant_id, business_date_ksa FROM settlements
+    UNION SELECT merchant_id, business_date_ksa FROM gl
+)</pre>
+    <p>The settlement leg keys on <code>settlement_for_date_ksa</code> &mdash; the capture date a bank line pays
+       for, not the date the file arrived. Keying on arrival would shift every line one day and balance to
+       nothing.</p>
+  </section>
+
+  <section>
+    <h4>2 &middot; The circuit breaker: bad numbers do not get published</h4>
+    <p>A singular dbt test fails the build when any merchant-day carries an unexplained variance. The system does
+       not email you about bad numbers; it refuses to release them. Press <kbd>B</kbd> on this page to plant a
+       one-halala defect and watch it fire.</p>
+    <pre>-- assert_zero_unexplained_halala_variance.sql
+SELECT * FROM {{ ref('fact_merchant_settlement_recon') }}
+WHERE unexplained_bank_variance_sar &lt;&gt; 0.00
+   OR unexplained_gl_variance_sar   &lt;&gt; 0.00</pre>
+    <p>Detection is measured rather than assumed: 50 injected faults across six classes are caught at
+       <strong>recall 1.000</strong>, and the one blind spot &mdash; offsetting errors on the same merchant-day
+       &mdash; is asserted by a test so it cannot be quietly lost.</p>
+  </section>
+
+  <section>
+    <h4>3 &middot; Money is <code>Decimal</code>, and the boundary refuses floats</h4>
+    <p>Not "we are careful with rounding" &mdash; the function raises rather than converting, so a float cannot
+       enter by accident. A dbt test enforces the same rule in SQL.</p>
+    <pre>def q2(value: Decimal) -&gt; Decimal:
+    if not isinstance(value, Decimal):
+        raise TypeError(f"money must be Decimal, got {type(value).__name__}")
+    return value.quantize(HALALA, rounding=ROUND_HALF_UP)</pre>
+    <p>Validating against ZATCA's own SDK (3.0.8) found the same class of bug <em>in the validator</em>:
+       <code>BR-KSA-50</code> compares line VAT in IEEE-754 doubles, computing
+       <code>96.00 &times; 0.15 = 14.399999999999999</code> and rejecting our exact <code>14.40</code>.</p>
+  </section>
+
+  <section>
+    <h4>4 &middot; Lineage is a build gate, not a diagram</h4>
+    <p>Every Gold column must trace to its source columns through OpenLineage, or the build raises. It currently
+       stands at <strong id="pd-lineage">&mdash;</strong>, and it has caught every new Gold model since &mdash;
+       including the newest one, twice.</p>
+  </section>
+
+  <div class="links">
+    <a class="btn" href="https://github.com/Shaadink/mizan-ksa" target="_blank" rel="noopener">Source on GitHub</a>
+    <a class="btn" href="https://github.com/Shaadink/mizan-ksa/tree/main/docs/adr" target="_blank" rel="noopener">14 ADRs</a>
+    <a class="btn" href="https://github.com/Shaadink/mizan-ksa/blob/main/invariants.md" target="_blank" rel="noopener">14 invariants</a>
+    <a class="btn" href="https://github.com/Shaadink/mizan-ksa/blob/main/HONESTY.md" target="_blank" rel="noopener">What it does not do</a>
+    <a class="btn" href="https://github.com/Shaadink/mizan-ksa/blob/main/docs/zatca_sdk_repro.md" target="_blank" rel="noopener">The SDK float bug</a>
+  </div>
+</div></div>
 <div class="palette" id="palette" hidden><div class="box" role="dialog" aria-label="Command palette"><input id="pal-input" placeholder="Jump to a scene or run an action" autocomplete="off"><ul id="pal-list" role="listbox"></ul></div></div>
 <div class="tip" id="tip"></div>
 <div id="riyal-journey" hidden></div>
@@ -2452,6 +2531,21 @@ function renderPal() { const q = $("#pal-input").value.toLowerCase(); const item
 function openPal() { $("#palette").hidden = false; $("#pal-input").value = ""; palSel = 0; renderPal(); $("#pal-input").focus(); }
 function closePal() { $("#palette").hidden = true; }
 $("#open-palette").addEventListener("click", openPal);
+
+/* ---------- engineering proof drawer ----------
+   The lineage figure is written from the data like every other number on this page, never typed into the
+   markup: a hand-kept "64 of 64" caption is exactly how this project drifted before. */
+function openProof() {
+  const n = D.lineage && D.lineage.covered;
+  const el = document.getElementById("pd-lineage");
+  if (el && n) el.textContent = n + " / " + n;
+  $("#proof-drawer").hidden = false;
+  $("#proof-close").focus();
+}
+function closeProof() { $("#proof-drawer").hidden = true; }
+$("#open-proof").addEventListener("click", openProof);
+$("#proof-close").addEventListener("click", closeProof);
+$("#proof-drawer").addEventListener("click", e => { if (e.target.id === "proof-drawer") closeProof(); });
 $("#palette").addEventListener("click", e => { if (e.target.id === "palette") closePal(); const li = e.target.closest("li"); if (li) { closePal(); ACTIONS[+li.dataset.i].run(); } });
 $("#pal-input").addEventListener("input", () => { palSel = 0; renderPal(); });
 $("#pal-input").addEventListener("keydown", e => { const items = renderPal();
@@ -2459,7 +2553,7 @@ $("#pal-input").addEventListener("keydown", e => { const items = renderPal();
   if (e.key === "ArrowUp") { palSel = Math.max(0, palSel - 1); renderPal(); e.preventDefault(); }
   if (e.key === "Enter" && items[palSel]) { closePal(); items[palSel].run(); } if (e.key === "Escape") closePal(); });
 addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").hidden ? openPal() : closePal(); }
-  if (e.key === "Escape") { stopStory(); closePal(); closeTour(); shortcutsOverlay.hidden = true;
+  if (e.key === "Escape") { stopStory(); closePal(); closeTour(); closeProof(); shortcutsOverlay.hidden = true;
     const rj = document.getElementById("riyal-journey"); if (rj) rj.hidden = true; }
   if (!$("#palette").hidden || /input|textarea|select/i.test(document.activeElement.tagName)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;

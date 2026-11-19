@@ -101,7 +101,16 @@ def recover_after_restart(state: str) -> str:
 def resolve_submission_attempt(http_status: int | None, invoice_flow: str) -> dict:
     """I-03: only 200/202/400/401/403 are definitive. Every other code (408, 429,
     5xx, gateway errors, 409, unexpected 3xx) is UNKNOWN_OUTCOME: never a new UUID/ICV.
-    Addition: http_status=None means a transport failure (timeout / no response)."""
+    Addition: http_status=None means a transport failure (timeout / no response).
+
+    On 409 specifically, since external review asked. A 409 can mean "you already sent this", which is the
+    likely answer when a previous attempt succeeded and the response was lost. Treating it as UNKNOWN_OUTCOME
+    and resending is **safe**, not wrong: the retry carries the same invoice_uuid and the same signed bytes, so
+    a portal that already holds the document cannot be made to hold a second one, and no new ICV is minted.
+    What the retry cannot do is make progress -- the pair can loop. Resolving that needs a status query against
+    the portal for the UUID, which is a read the mock does not implement and is therefore **not built**: an
+    operator would see the attempt count climb. The status set itself is design-frozen (spec Section 12), so it
+    is documented here rather than quietly widened."""
     flow = invoice_flow.strip().upper()  # CLEARANCE (B2B) | REPORTING (B2C)
     if flow not in ("CLEARANCE", "REPORTING"):
         raise ValueError(f"Unknown invoice_flow {invoice_flow!r}")

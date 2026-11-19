@@ -196,6 +196,94 @@ def verify_numbers(answer: str, messages: list[dict]) -> list[str]:
     return bad
 
 
+# ----------------------------------------------------------- context binding (the half verify_numbers cannot do)
+#
+# verify_numbers proves a number was in SOME tool result. It cannot prove the number is in the right sentence,
+# and that is the failure that actually costs something: "SAR 1,125,209.07 reconciled" passes the lexical check
+# while saying the opposite of the truth, because 1,125,209.07 is the money still in transit. Every reviewer who
+# read HONESTY row 15 made this point, and they were right.
+#
+# So the tool results are read as labelled facts -- a tool returns {"in_transit_sar": "1125209.07", ...} -- and
+# each number in the answer is checked against the words around it. If the surrounding text names a metric, the
+# number must be that metric's value. A number used with no metric vocabulary nearby is left alone: this
+# catches misattribution, it does not force a house style on the prose.
+
+#: Words that identify a metric in prose, per label fragment. Deliberately small and explicit: a guessed
+#: synonym that is wrong would reject correct answers, which is worse than missing a misattribution.
+_METRIC_WORDS: dict[str, tuple[str, ...]] = {
+    "in_transit": ("in transit", "in-transit", "not assessed", "not-assessed", "pending", "has not arrived"),
+    "bank_paid": ("bank paid", "paid by the bank", "settled", "bank settlement"),
+    "gross_captures": ("gross", "captured", "captures"),
+    "refunds": ("refund", "refunds"),
+    "fees": ("fee", "fees", "mdr"),
+    "variance": ("variance", "unexplained", "reconciled", "reconciles", "balances", "balanced"),
+    "assessed": ("assessed", "balanced"),
+    "disputes": ("dispute", "disputes", "chargeback", "chargebacks"),
+}
+
+#: How far either side of a number to look for metric vocabulary.
+_CONTEXT_CHARS = 70
+
+
+def labelled_tool_facts(messages: list[dict]) -> dict[str, set[Decimal]]:
+    """metric-word group -> every value any tool reported under a label containing that fragment."""
+    facts: dict[str, set[Decimal]] = {g: set() for g in _METRIC_WORDS}
+    for m in messages:
+        if m.get("role") != "tool":
+            continue
+        try:
+            payload = json.loads(str(m.get("content", "")))
+        except (ValueError, TypeError):
+            continue
+        for key, value in _flatten(payload):
+            d = _dec(str(value))
+            if d is None:
+                continue
+            lowered = key.lower()
+            for group in _METRIC_WORDS:
+                if group in lowered:
+                    facts[group].add(d)
+    return facts
+
+
+def _flatten(obj, prefix: str = ""):
+    """Yield (dotted_key, scalar) for a nested tool result, so nesting cannot hide a label."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield from _flatten(v, f"{prefix}_{k}" if prefix else str(k))
+    elif isinstance(obj, list):
+        for item in obj:
+            yield from _flatten(item, prefix)
+    else:
+        yield prefix, obj
+
+
+def verify_number_context(answer: str, messages: list[dict]) -> list[str]:
+    """Numbers presented as a metric they are not. Empty list = every number sits with its own metric.
+
+    A number is rejected only when the text around it names a metric whose reported values do not include it.
+    Ambiguity is resolved in the answer's favour: if any nearby metric does claim the value, it passes.
+    """
+    facts = labelled_tool_facts(messages)
+    if not any(facts.values()):
+        return []                                       # no labelled facts to bind against; lexical check stands
+    low = answer.lower()
+    bad = []
+    for m in _NUM.finditer(answer):
+        token = m.group().rstrip(".,")
+        d = _dec(token)
+        if d is None:
+            continue
+        window = low[max(0, m.start() - _CONTEXT_CHARS):m.end() + _CONTEXT_CHARS]
+        named = {g for g, words in _METRIC_WORDS.items()
+                 if facts.get(g) and any(w in window for w in words)}
+        if not named:
+            continue                                    # no metric claimed nearby: not this check's business
+        if not any(d in facts[g] for g in named):
+            bad.append(f"{token} (presented as {'/'.join(sorted(named))})")
+    return bad
+
+
 # ----------------------------------------------------------------------------- one step of the loop
 
 MAX_MESSAGES = 24
@@ -253,13 +341,16 @@ def step(role: str, page_filters: dict, messages: list, chat: Chat) -> dict:
         return {"type": "tool_calls", "message": {"role": "assistant", "content": reply.get("content"),
                                                     "tool_calls": ok}}
     text = (reply.get("content") or "").strip()
-    bad = verify_numbers(text, msgs)
+    # Two checks, in order of severity. A number from nowhere is a fabrication; a real number under the wrong
+    # label is a misstatement, and the second is the one a reader would act on without noticing.
+    bad = verify_numbers(text, msgs) or verify_number_context(text, msgs)
     if bad:                                                              # one chance to correct itself
         convo += [{"role": "assistant", "content": text},
-                  {"role": "user", "content": "These numbers are not in any tool result: " + ", ".join(bad) +
-                   ". Rewrite the answer using only numbers copied exactly from the tool results."}]
+                  {"role": "user", "content": "These numbers are wrong or attached to the wrong metric: "
+                   + ", ".join(bad) + ". Rewrite the answer using only numbers copied exactly from the tool "
+                   "results, each stated as the metric the tool reported it under."}]
         text = (chat(convo, []).get("content") or "").strip()
-        bad = verify_numbers(text, msgs)
+        bad = verify_numbers(text, msgs) or verify_number_context(text, msgs)
         if bad:
             return {"type": "unverified", "unverified": bad}
     return {"type": "answer", "text": text}

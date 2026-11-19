@@ -35,7 +35,7 @@ requiring a human (a demo video and eight screenshots).
 | **Gold** | 9 tables, 35,668 rows, **91 of 91 columns traced to source** |
 | **ADRs** | 14 |
 | **Invariants** | 14 (I-01 … I-14), each bound to named tests |
-| **Honesty rows** | 17 documented limitations |
+| **Honesty rows** | 60, sorted into scope decisions / findings / open items |
 | **Live, no login** | https://delightful-field-01a948c0f.4.azurestaticapps.net |
 | **Live, Fabric tenant** | https://fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net |
 | **Fabric workspace** | `mizan-ksa-dev`, trial capacity FTL64, UAE North (a tenant the owner does not control; the whole workspace rebuilds from `scripts/fabric_*.py` on any capacity) |
@@ -747,7 +747,8 @@ Specific questions, rather than "what do you think":
    classification, streaming, skew, orchestration, lineage, AI governance, mirroring and dispute monitoring.
    Does that read as breadth or as a lack of focus? Which two or three would you cut?
 
-2. **Is the "honesty" framing an asset or a liability?** `HONESTY.md` lists 17 limitations. Does that build
+2. **Is the "honesty" framing an asset or a liability?** `HONESTY.md` is sorted into three sections -- scope
+   decisions, findings (including two defects in ZATCA's own validator), and open items. Does that build
    credibility with an interviewer, or does it hand them a list of objections?
 
 3. **Scale.** 99K rows generated, 20M in a benchmark. A competing blueprint claims 98.5M rows (unbuilt). Is

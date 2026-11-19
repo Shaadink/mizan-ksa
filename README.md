@@ -2,8 +2,12 @@
 
 ### Every assessed halala reconciled. Everything else, honestly flagged.
 
+A ZATCA Phase-2 and payment-settlement platform on Microsoft Fabric. It proves 2,121 merchant-days close to
+SAR 0.00 — and refuses to call the other 112 balanced, because their bank file has not arrived.
+
 **[Open the live Command Center](https://delightful-field-01a948c0f.4.azurestaticapps.net)** - no sign-in, no account, works on a phone.
 Every figure on it is exported from Gold, never typed.
+The same thing as a **[Fabric App](https://fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net)** (tenant sign-in) runs on live DAX instead of a snapshot.
 
 | `SAR 0.00` | `25,001` | `91 / 91` | `20,000,000` |
 |---|---|---|---|
@@ -15,6 +19,19 @@ that reconciles everything is lying; this one reconciles what it can prove and f
 
 *MIZAN* is Arabic for "the balance / the scales".
 
+> ### Validating against ZATCA's own SDK found a floating-point bug in the validator
+>
+> ZATCA's offline toolbox (3.0.8) checks `BR-KSA-50` — line VAT must equal net × rate — **in IEEE-754 doubles,
+> comparing with `=` and no tolerance.** For a line of SAR 96.00 it computes `96.00 × 0.15 = 14.399999999999999`
+> and rejects our exact `14.40`.
+>
+> That is the same class of bug this project's money layer exists to prevent: `q2()` raises `TypeError` on a
+> float rather than converting it, and a dbt test (`no_float_columns`) enforces the same rule in SQL. Nine real
+> defects in *our* XML were found by the same validator and fixed; XSD and EN 16931 now pass.
+>
+> Version, input, output and the second finding (a QR stage made unsatisfiable by two other rules):
+> **[docs/zatca_sdk_repro.md](docs/zatca_sdk_repro.md)**.
+
 MIZAN-KSA follows one commercial transaction end to end: order capture, ZATCA Phase-2 e-invoice, mada/SADAD T+1 bank
 settlement, and an ACDOCA-shaped ERP general ledger. The invoice chain stays intact through transport failures
 (5xx/timeout) and a worker killed mid-submit — the retry resends byte-identical signed bytes. PII is encrypted the
@@ -23,8 +40,13 @@ moment it lands and can be erased under PDPL without touching signed tax evidenc
 
 **Stack:** Microsoft Fabric (OneLake Delta `LH_MIZAN`, PySpark notebooks, Warehouse `WH_MIZAN`, Eventhouse/Eventstream,
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
-Actions as the control plane. 302 Python tests and 184 app tests (15 skipped while the Fabric dataset is behind); CI runs the full PySpark + dbt suite and the Fabric
-App tests on every push.
+Actions as the control plane.
+
+**Tests, counted separately because they measure different things:** **317 Python tests** (`pytest`), **91 dbt
+tests** on the local DuckDB target, **65 dbt tests** on WH_MIZAN plus **10** for the newest model (the Fabric
+target last ran before three models were added — see [HONESTY.md](HONESTY.md)), and **184 Fabric App tests** of
+which 169 pass and 15 skip while the Fabric dataset is behind. CI runs the full PySpark and dbt suites and the
+app tests on every push.
 
 > Every number above is generated, never typed: see the [proof manifest](docs/PROOF_MANIFEST.md), which names the
 > proof run behind each claim and its SHA-256. Scope and limits are stated in [HONESTY.md](HONESTY.md). This is a
@@ -52,7 +74,10 @@ What to look at, in the order it makes sense:
 
 Keys: `P` presenter mode, `1`-`9` scenes, `T` trace one riyal, `B` break a halala, `L` Arabic, `Ctrl K` jump.
 
-## Proof artifacts
+## The four pillars
+
+These are the engines. Everything after them exists to serve them, and each one is proven by a named artifact
+rather than described.
 
 ### 1. ZATCA chain tape: zero ICV gaps, PIH continuity, one GL posting per sale (I-01 to I-04)
 ![ZATCA chain tape](docs/artifacts/01_zatca_chain_tape.png)
@@ -74,6 +99,12 @@ plus a Silver snapshot is re-shredded by the Restore Guard.
 
 ### 4. Bilingual Arabic MDM: five spellings, one golden id, zero brother false-merges (I-09, I-10)
 ![Arabic MDM board](docs/artifacts/04_arabic_mdm_board.png)
+
+## Supporting platform engineering
+
+Real work, deliberately ranked below the four pillars: the skew lab is a local benchmark, the streaming layer is
+a deterministic replay harness rather than a live feed, open mirroring is demonstrated and not load-bearing
+(ADR-014), and the Command Center is a presentation layer outside the frozen stack (ADR-011).
 
 ### 5. Spark skew: 65% mega-MID, AQE off vs AQE skew-join vs 16-bucket salting (I-11, I-12)
 | AQE off: one task reads 13M rows | 16-bucket salted |
@@ -97,7 +128,7 @@ distributions and are not directly comparable. The durations and the checksum ar
 |---|---|
 | ![Airflow](docs/artifacts/06_airflow_dag.png) | ![Marquez](docs/artifacts/07_marquez_lineage.png) |
 
-Every Gold column has lineage (64/64), and the build fails otherwise. Each run manifest carries `run_id`, `git_sha` and
+Every Gold column has lineage (91/91), and the build fails otherwise. Each run manifest carries `run_id`, `git_sha` and
 Delta snapshot versions. The residency gate fails the build if a SECRET column targets an open zone.
 
 ### 7. Disaster recovery you can check, not just claim
@@ -132,6 +163,28 @@ risk stream replay, lineage and NDMO, and the Spark skew race. CFO, Tax and CDO 
 Every figure is exported by `scripts/build_command_center.py` from Gold and the proof runs; money stays exact as
 integer halalas, and `tests/test_command_center.py` checks the identities, masking and pinned scripts. Open
 `command_center/index.html` locally, or ask for the private link. Power BI remains the governed report (ADR-011).
+
+## Data residency, and where this deployment does not match its own policy
+
+Every regulated Saudi workload gets asked this in the first meeting, so it is answered here rather than left to
+be discovered.
+
+`config/residency_policy.yml` declares a ceiling per zone and an approved region, and `residency_gate` in the
+Airflow DAG **fails the pipeline** when a column's NDMO tier exceeds what its zone may hold, or when SECRET or
+TOP_SECRET data sits outside an approved region. `security` and `audit` may hold TOP_SECRET; `WH_MIZAN.gld` is
+capped at CONFIDENTIAL precisely because BI users read it; `EXPORT.open_data` is PUBLIC only.
+
+**The honest part: the policy says `region: KSA` for every zone, and this deployment runs in UAE North.** The
+policy describes the intended production placement — in-Kingdom, which is what SAMA and NDMO expectations point
+to for a workload like this — while the Fabric trial capacity available here is UAE North. The gate therefore
+passes against the intent, not against the deployed reality, and that is a gap rather than a subtlety. Moving to
+Azure Saudi Arabia (Dammam) is a capacity and workspace-region change plus a provisioning re-run; the policy
+file itself would not change, because it already says KSA.
+
+**Cost.** Not stated, because it has not been measured. Capacity Unit consumption has to come from the Fabric
+Capacity Metrics app against a real run, and an estimate typed from a pricing page would be the kind of number
+this project exists to refuse. The full local pipeline (Bronze + Silver + ZATCA) runs in about six minutes and
+Gold rebuilds in 18.2 s, which bounds the work but is not a CU figure.
 
 ## Results on Microsoft Fabric
 

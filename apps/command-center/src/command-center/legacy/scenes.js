@@ -1500,6 +1500,21 @@ function renderPal() { const q = $("#pal-input").value.toLowerCase(); const item
 function openPal() { $("#palette").hidden = false; $("#pal-input").value = ""; palSel = 0; renderPal(); $("#pal-input").focus(); }
 function closePal() { $("#palette").hidden = true; }
 $("#open-palette").addEventListener("click", openPal);
+
+/* ---------- engineering proof drawer ----------
+   The lineage figure is written from the data like every other number on this page, never typed into the
+   markup: a hand-kept "64 of 64" caption is exactly how this project drifted before. */
+function openProof() {
+  const n = D.lineage && D.lineage.covered;
+  const el = document.getElementById("pd-lineage");
+  if (el && n) el.textContent = n + " / " + n;
+  $("#proof-drawer").hidden = false;
+  $("#proof-close").focus();
+}
+function closeProof() { $("#proof-drawer").hidden = true; }
+$("#open-proof").addEventListener("click", openProof);
+$("#proof-close").addEventListener("click", closeProof);
+$("#proof-drawer").addEventListener("click", e => { if (e.target.id === "proof-drawer") closeProof(); });
 $("#palette").addEventListener("click", e => { if (e.target.id === "palette") closePal(); const li = e.target.closest("li"); if (li) { closePal(); ACTIONS[+li.dataset.i].run(); } });
 $("#pal-input").addEventListener("input", () => { palSel = 0; renderPal(); });
 $("#pal-input").addEventListener("keydown", e => { const items = renderPal();
@@ -1507,7 +1522,7 @@ $("#pal-input").addEventListener("keydown", e => { const items = renderPal();
   if (e.key === "ArrowUp") { palSel = Math.max(0, palSel - 1); renderPal(); e.preventDefault(); }
   if (e.key === "Enter" && items[palSel]) { closePal(); items[palSel].run(); } if (e.key === "Escape") closePal(); });
 addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").hidden ? openPal() : closePal(); }
-  if (e.key === "Escape") { stopStory(); closePal(); closeTour(); shortcutsOverlay.hidden = true;
+  if (e.key === "Escape") { stopStory(); closePal(); closeTour(); closeProof(); shortcutsOverlay.hidden = true;
     const rj = document.getElementById("riyal-journey"); if (rj) rj.hidden = true; }
   if (!$("#palette").hidden || /input|textarea|select/i.test(document.activeElement.tagName)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
