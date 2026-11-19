@@ -39,3 +39,70 @@ proven by `tests/test_governed_ai.py` and `tests/test_pdpl_ndmo.py`.
 Workspace `mizan-ksa-dev` -> **MIZAN Control Tower** (report). The three pages (CFO Settlement, Tax ZATCA Health,
 CDO Data Trust) were generated as PBIR. Layout is deliberately simple (cards + one table per page); resize or restyle
 in **Edit** if you like. The semantic model **MIZAN Control Tower Model** is Direct Lake over WH_MIZAN.
+
+## 4. The workspace task flow (5 minutes, portal only)
+
+A **task flow** is the diagram across the top of a workspace. It is a label layer: it creates nothing, moves nothing
+and runs nothing. It is worth five minutes because a workspace that opens with a labelled flow reads as a designed
+platform rather than as a pile of eleven items.
+
+There is no REST API for it. Probed on 2026-11-19 with the service principal:
+`GET /v1/workspaces/{ws}/taskFlow`, `/taskflow` and `/taskFlows` all return 404 `EntityNotFound`, while
+`/items` and `/folders` return 200. The portal uses an internal endpoint. So this is the one part of MIZAN that
+cannot be scripted.
+
+**One rule drives the whole design:** an item can be assigned to exactly one task
+([Microsoft Learn](https://learn.microsoft.com/en-us/fabric/get-started/task-flow-work-with)). So the boxes cannot
+be pipeline *stages* (the one notebook runs seven steps and would have to appear in four of them). They have to be
+*groups of items*. Six boxes cover all eleven items with none repeated.
+
+### 4.1 Clear the generic template
+
+Fabric's **Apply predesigned task flow** drops in ten empty boxes (Get data, Mirror, Store, Prepare, Analyze and
+train, Develop, Govern data, Visualize, Track, Distribute). MIZAN has no mirroring, no model training and no
+distribution step, so most of them would stay empty and invite a question the project cannot answer.
+
+Select a blank area of the canvas -> task flow details pane -> **trash icon** to delete the whole thing and start
+clean. (Deleting a task flow never deletes items.)
+
+### 4.2 Build six tasks
+
+**Add** dropdown -> pick the task type -> select the task -> **Edit** -> set name and description -> **Save**.
+
+| # | Name | Task type to pick | Description to paste |
+|---|---|---|---|
+| 1 | Ingest and build | Prepare | One notebook, seven steps: bronze_land, silver_build, mdm_resolve, zatca_chain, ai_index, ndmo_catalog, restore_guard. PII is encrypted at the Bronze write. |
+| 2 | Store | Store | Lakehouse schemas brz, ctl, slv, quarantine, security, audit, meta, ai; Warehouse schema gld. |
+| 3 | Stream | Get data | Eventstream to Eventhouse: velocity, mule-ring and reporting-SLA rules evaluated in KQL. |
+| 4 | Model | Develop | Direct Lake semantic model over WH_MIZAN. No import, no refresh. |
+| 5 | Report | Visualize | Three pages: CFO Settlement, Tax ZATCA Health, CDO Data Trust. |
+| 6 | Command Center | Distribute | Fabric App front end and the data function behind it. |
+
+Connectors (drag from the edge of one task to the next): 1 -> 2, 3 -> 2, 2 -> 4, 4 -> 5, 4 -> 6.
+
+Then select the canvas -> **Edit** -> name the flow **MIZAN platform**, description
+*"Payments reconciliation and ZATCA e-invoicing for Saudi Arabia. Every Gold figure traces to source."*
+
+### 4.3 Assign the items
+
+Click the **clip icon** on a task -> tick the items -> **Select**. All eleven workspace items, each used once:
+
+| Task | Items |
+|---|---|
+| Ingest and build | `nb_mizan_step` (Notebook) |
+| Store | `LH_MIZAN` (Lakehouse), `LH_MIZAN` (SQL endpoint), `WH_MIZAN` (Warehouse) |
+| Stream | `ES_MIZAN` (Eventstream), `EH_MIZAN` (Eventhouse), `EH_MIZAN` (KQL database) |
+| Model | `MIZAN Control Tower Model` (Semantic model) |
+| Report | `MIZAN Control Tower` (Report) |
+| Command Center | `command-center` (App backend), `command_center_connector` (User data function) |
+
+The SQL endpoint and the KQL database are created automatically by the Lakehouse and the Eventhouse; if the portal
+will not let you assign them separately, leave them out and the flow still covers everything.
+
+### 4.4 Faster, if you would rather not click
+
+A task flow exports and imports as a *.json* file carrying the names, descriptions and connectors (not the item
+assignments). Export the current one from the task flow details pane -> **Import and export task flow**, and the
+MIZAN flow above can be handed back as a file to import in one action.
+
+This whole section is cosmetic. Nothing in the pipeline, the tests or the evidence depends on it.
