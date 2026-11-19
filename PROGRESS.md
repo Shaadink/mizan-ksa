@@ -485,6 +485,28 @@ Open mirroring (2026-11-19, owner request; ADR-014):
   declared and unique in the source, `__rowMarker__` last or raise, the initial load carrying no marker,
   and every CDC row carrying every column. The landing-zone contract fails silently, so it is pinned.
 
+Card-scheme dispute monitoring (2026-11-19, owner-approved Gold addition):
+- `gld.fact_merchant_dispute_monitor` (grain: merchant_id over the dataset window) from `slv.payment_lifecycle`
+  alone -- CAPTURE, REFUND and CHARGEBACK are already native event types, so no new source, seed or column.
+  Chosen over impossible-travel and IBAN ring detection after research: this is the control an acquiring and
+  settlement platform actually runs, and unlike the other two the finding is already in the data rather than
+  planted.
+- The model's point is the **count floor**, not the ratio. On this data the ratio alone flags 71 of 121
+  merchants (59% of the portfolio -- not a control, a noise generator), because a merchant with 43 captures and
+  3 disputes reads 6.98%. Requiring a minimum dispute count as well, which is why the real programmes have one,
+  flags 1: MID900001, 200 disputes on 10,530 captures, 1.90%, SAR 319,280.25 taken back. `breaches_ratio`,
+  `meets_count_floor` and `in_monitoring_programme` are all exported so the difference is shown, not claimed.
+- Thresholds are dbt vars (1.5%, 100 disputes) read from secondary industry sources, **not** the Visa or
+  Mastercard rulebooks, and the window is the dataset's 20-day span, not a calendar month. Both caveats are on
+  screen and in HONESTY row 17; no scheme or regulator clause is cited.
+- Tests: dbt `assert_dispute_floor_suppresses_small_merchants` fails if the floor ever stops suppressing anything
+  (the way this model would rot silently), plus `no_float_columns`, uniqueness and not-null; and
+  tests/test_dispute_monitor.py (7) pins the exported figures the panel shows, including that the window is
+  declared and the note does not claim the thresholds are authoritative.
+- The column-lineage guard caught the addition immediately (14 derived columns with no same-named source), which
+  is what it is for; `dbt/lineage_overrides.json` now maps each to its real inputs. Gold lineage is 91/91.
+- Shown on the Risk stream scene as a 71-versus-1 panel with three suppressed examples.
+
 ## Left for the owner after Phase 13
 0a. ~~Public snapshot site not deployed~~ DONE 2026-11-19: https://delightful-field-01a948c0f.4.azurestaticapps.net
    (no login, serves "follow one riyal", verified HTTP 200 + content). Redeploy after any rebuild with

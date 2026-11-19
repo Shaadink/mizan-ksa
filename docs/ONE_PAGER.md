@@ -32,6 +32,7 @@ settlement → ACDOCA-shaped ERP general ledger.** The scales settle only when b
 | **PDPL right to erasure** | PII encrypted at the Bronze write (HMAC token + per-subject AES-256-GCM key). Erasure destroys the key, shreds across all layers, VACUUMs the vault, and leaves 25,001 signed tax documents intact. Restore Guard re-shreds anything a time-travel restore brings back — tested against **data *and* vault** history. |
 | **Reconciliation that silently drops rows** | A **key spine**: the union of keys from payments, settlement and GL. No LEFT JOIN that can lose a row. Unclassified events are counted, not discarded. |
 | **Mega-merchant data skew** | One merchant on 65% of rows. Three plans benchmarked on 20M rows; salting cuts the skew ratio 61.8 → 9.5 with **zero spill** — and all three produce the same `50020661413.78` SAR checksum. |
+| **Merchants with too many disputes** | Card schemes fine merchants whose chargeback ratio crosses a line, and an acquirer has to watch for it. The ratio **alone** flags 71 of 121 merchants here — useless. The real programmes require a ratio **and** a minimum dispute count, and so does this: **1** merchant, 200 disputes on 10,530 captures, SAR 319,280 clawed back. Both numbers are published so the floor's effect is shown, not claimed. |
 | **Arabic master data** | Five spellings of one entity resolved to a single golden record; steward merge/unmerge is reversible SCD2. |
 
 ---
@@ -43,7 +44,7 @@ This is the part that distinguishes it from an architecture document.
 - **`docs/PROOF_MANIFEST.md`** — 13 claims, each with the proof file behind it and that file's SHA-256.
 - **`HONESTY.md`** — what the project does *not* do, where evidence is stale, and two defects found in ZATCA's own
   validator (a float VAT comparison, and a QR rule made unsatisfiable by two other rules).
-- **286 Python tests + app tests**, run in CI on every push, including the full PySpark and dbt suites.
+- **302 Python tests and 184 app tests**, and dbt **91/91**, run in CI on every push, including the full PySpark and dbt suites.
 - **Disaster recovery drill** — source and lake rebuilt from scratch in 9.8 min, Gold in 18.2 s (RTO 604.7 s).
   All 9 tables, 35,668 rows, fingerprinted by SHA-256 and **identical to the live warehouse**.
 - **Determinism** — the generator is fixed-seed and must produce byte-identical output on a rerun.

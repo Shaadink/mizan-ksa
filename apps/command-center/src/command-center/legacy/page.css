@@ -238,6 +238,15 @@ body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail
 .proof-val.gold { color: var(--gold-hi); text-shadow: 0 0 30px rgba(217,178,95,.55) }
 .proof-val.cyan { color: var(--cyan); text-shadow: 0 0 30px rgba(92,200,255,.45) }
 .proof-val.violet { color: #9b8cff; text-shadow: 0 0 30px rgba(155,140,255,.45) }
+.dm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 12px }
+.dm-box { border: 1px solid var(--line-2); border-radius: 12px; padding: 14px 16px; background: rgba(10,19,36,.5) }
+.dm-box.bad { border-color: rgba(255,93,99,.35) } .dm-box.good { border-color: rgba(58,210,159,.35) }
+.dm-n { font: 700 34px/1 var(--f-mono); letter-spacing: -.02em }
+.dm-n.bad { color: var(--crit) } .dm-n.good { color: var(--emerald) }
+.dm-k { font: 500 10.5px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 6px }
+.dm-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); padding: 3px 0 }
+.dm-row span:last-child { font: 500 12px var(--f-mono); color: var(--ink) }
+.dm-note { margin-top: 12px; font: 400 11.5px/1.6 var(--f-body); color: var(--dim) }
 .proof-stat:nth-child(1) { border-color: rgba(47,191,143,.3) }
 .proof-stat:nth-child(2) { border-color: rgba(217,178,95,.3) }
 .proof-stat:nth-child(3) { border-color: rgba(92,200,255,.28) }

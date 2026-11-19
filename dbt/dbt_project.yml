@@ -9,6 +9,16 @@ macro-paths: ["macros"]
 target-path: "target"
 clean-targets: ["target", "logs"]
 
+# Card-scheme dispute monitoring thresholds (owner-approved addition, 2026-11-19).
+# A ratio ALONE is noise at small volumes: a merchant with 43 captures and 3 disputes reads 6.98% and means
+# nothing. The real programmes therefore require a ratio AND a minimum dispute count, and so does this model.
+# These numbers are read from secondary sources (chargeback-industry write-ups), NOT from Visa's or Mastercard's
+# own rulebooks, and they move -- Visa replaced its earlier programme in 2025 and cut the merchant line from
+# 2.2% to 1.5% in April 2026. They are vars so they can be corrected without touching the model. See HONESTY.md.
+vars:
+  dispute_ratio_pct_threshold: 1.5    # merchant dispute ratio, percent
+  dispute_count_threshold: 100        # minimum disputes in the window before the ratio is judged at all
+
 models:
   mizan_ksa:
     gold:

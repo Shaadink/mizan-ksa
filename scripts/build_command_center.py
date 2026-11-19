@@ -278,6 +278,44 @@ def trace_section() -> dict:
     }
 
 
+def dispute_section() -> dict:
+    """Card-scheme dispute monitoring, read from Gold.
+
+    Exports BOTH counts on purpose: how many merchants the ratio alone would flag, and how many actually meet
+    the programme's own minimum dispute count. The gap between them is the finding -- a ratio on small volumes
+    is noise -- and a panel that showed only the second number would be asserting that rather than showing it.
+    """
+    import duckdb
+    con = duckdb.connect(GOLD.as_posix(), read_only=True)
+    try:
+        rows = _q(con, """
+            SELECT merchant_id, capture_count, dispute_count, dispute_ratio_pct, disputes_sar,
+                   breaches_ratio, in_monitoring_programme, window_days, window_start_ksa, window_end_ksa
+            FROM gld.fact_merchant_dispute_monitor ORDER BY dispute_ratio_pct DESC""")
+    finally:
+        con.close()
+    if not rows:
+        return {}
+    flagged = [r for r in rows if r[6]]
+    noisy = [r for r in rows if r[5] and not r[6]]
+    return {
+        "merchants": len(rows),
+        "ratio_only": sum(1 for r in rows if r[5]),
+        "in_programme": len(flagged),
+        "window_days": int(rows[0][7]),
+        "window": [str(rows[0][8]), str(rows[0][9])],
+        "thresholds": {"ratio_pct": "1.50", "min_disputes": 100},
+        "flagged": [{"merchant_id": r[0], "captures": int(r[1]), "disputes": int(r[2]),
+                     "ratio_pct": f"{r[3]:.2f}", "disputes_sar": money(r[4])} for r in flagged],
+        "suppressed_examples": [{"merchant_id": r[0], "captures": int(r[1]), "disputes": int(r[2]),
+                                 "ratio_pct": f"{r[3]:.2f}"} for r in noisy[:3]],
+        "note": "A dispute ratio on small volumes is noise, so the card-scheme programmes judge a ratio AND a "
+                "minimum dispute count. The ratio alone would flag most of the portfolio; both together flag one "
+                "merchant. Thresholds are read from secondary sources, not the scheme rulebooks, and the window "
+                "is this dataset's span, not a calendar month.",
+    }
+
+
 def quarantine_section() -> dict:
     """Rows the Bronze write refused, by reason and source file.
 
@@ -534,6 +572,7 @@ def build_data() -> dict:
     data["chain"] = chain_section()
     data["trace"] = trace_section()
     data["quarantine"] = quarantine_section()
+    data["disputes"] = dispute_section()
     data["pdpl"] = pdpl_section()
     data["mdm"] = mdm_section()
     data["stream"] = stream_section()
@@ -579,6 +618,7 @@ def proof_sections(data: dict) -> dict:
         "stream": "mizan.streaming replay + rules; Fabric EH_MIZAN counts",
         "lineage": "dbt/target/manifest.json column lineage",
         "skew": "docs/artifacts/05_skew_benchmark_20m.json (proof run)",
+        "disputes": "gld.fact_merchant_dispute_monitor (dbt; thresholds are dbt vars)",
         "fabric": "docs/artifacts/10_fabric_run_evidence.json (proof run)",
         "ndmo.catalog": "LH_MIZAN meta.column_classification",
         "truth.zatca_sar": "Gold ledger joined to slv.payment_lifecycle (not in the semantic model)",

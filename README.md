@@ -20,7 +20,7 @@ moment it lands and can be erased under PDPL without touching signed tax evidenc
 
 **Stack:** Microsoft Fabric (OneLake Delta `LH_MIZAN`, PySpark notebooks, Warehouse `WH_MIZAN`, Eventhouse/Eventstream,
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
-Actions as the control plane. 286 Python tests and 183 app tests; CI runs the full PySpark + dbt suite and the Fabric
+Actions as the control plane. 302 Python tests and 184 app tests (15 skipped while the Fabric dataset is behind); CI runs the full PySpark + dbt suite and the Fabric
 App tests on every push.
 
 > Every number above is generated, never typed: see the [proof manifest](docs/PROOF_MANIFEST.md), which names the

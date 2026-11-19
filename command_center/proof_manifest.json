@@ -1,5 +1,5 @@
 {
- "git_sha": "3aacf93c7e3b",
+ "git_sha": "d2476e3f776d",
  "generated_from": "command_center/data.json",
  "note": "Each claim's value is read from the Gold export; the proof file is the artifact that produced it. Recompute any sha256 to confirm the file has not changed.",
  "claims": [
@@ -45,19 +45,19 @@
   },
   {
    "claim": "Gold columns traced to source",
-   "value": 76,
+   "value": 91,
    "data_key": "lineage.covered",
    "proof_file": "dbt/target/manifest.json",
    "proof_is": "dbt manifest, column-level lineage",
-   "sha256": "1f46af7006db93d4e22c4b77ce74d34898f6f6b811013cdc85d16a519096e313"
+   "sha256": "55746c24bed637e0ac2a6a21bcafae9ca99c17f785e2d347e2e47d7859ce203f"
   },
   {
    "claim": "Gold columns in total",
-   "value": 76,
+   "value": 91,
    "data_key": "lineage.gold_columns",
    "proof_file": "dbt/target/manifest.json",
    "proof_is": "dbt manifest, column-level lineage",
-   "sha256": "1f46af7006db93d4e22c4b77ce74d34898f6f6b811013cdc85d16a519096e313"
+   "sha256": "55746c24bed637e0ac2a6a21bcafae9ca99c17f785e2d347e2e47d7859ce203f"
   },
   {
    "claim": "dbt models passing on Fabric",

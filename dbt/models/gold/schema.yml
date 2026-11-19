@@ -12,6 +12,25 @@ models:
         data_tests: [not_null]
       - name: business_date_ksa
         data_tests: [not_null]
+  - name: fact_merchant_dispute_monitor
+    description: "Card-scheme dispute (chargeback) ratio per merchant over the dataset window, judged on BOTH a
+      ratio and a minimum dispute count. Owner-approved addition 2026-11-19. Thresholds are dbt vars read from
+      secondary sources, not the scheme rulebooks -- see HONESTY.md."
+    data_tests:
+      - no_float_columns
+      - unique_combination:
+          arguments: {columns: ["merchant_id"]}
+    columns:
+      - name: merchant_id
+        data_tests: [not_null, unique]
+      - name: capture_count
+        data_tests: [not_null]
+      - name: dispute_count
+        data_tests: [not_null]
+      - name: dispute_ratio_pct
+        data_tests: [not_null]
+      - name: in_monitoring_programme
+        data_tests: [not_null]
   - name: fact_payment_method_daily
     description: "Captures and bank fees (MDR + VAT from the settlement file) per merchant, business day and payment scheme."
     data_tests:

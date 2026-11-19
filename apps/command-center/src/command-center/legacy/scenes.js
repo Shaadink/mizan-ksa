@@ -44,7 +44,7 @@ const SCENES = [
   { id: "mdm", n: "07", label: "Arabic MDM", cap: "Mojibake, tashkeel, ligatures, Arabic-Indic digits and an English nickname resolve to one golden customer. Brothers stay apart." },
   { id: "stream", n: "08", label: "Risk stream", cap: "91,513 events replayed. The velocity burst, the mule ring and two late ZATCA reports are caught exactly where they happen." },
   { id: "map", n: "09", label: "Store map", cap: "Stores by city, coloured by reconciliation status for the current filters. Money routes store to acquirer to bank." },
-  { id: "trust", n: "10", label: "Data trust", cap: "64 of 64 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
+  { id: "trust", n: "10", label: "Data trust", cap: "91 of 91 Gold columns traced to source. 350 columns classified on the four NDMO tiers, fail-closed on anything unknown." },
   { id: "platform", n: "11", label: "Platform", cap: "A skew test with one mega-merchant on 65% of rows, tamed by salting. The same pipeline ran on Microsoft Fabric with dbt 65/65 green." },
   { id: "lifecycle", n: "12", label: "Data life cycle", cap: "Sources to Bronze, Silver and Gold, then the Control Tower and this app: every box is a working, tested part." },
   { id: "ops", n: "13", label: "Operations", cap: "Service levels stated as targets, then measured: reconciliation, chain integrity, build, lineage and settlement coverage, with what the run cost." },
@@ -1786,6 +1786,35 @@ function chromeH() { return parseFloat(getComputedStyle(document.body).getProper
 // Every value comes from D.trace, exported by scripts/build_command_center.py from Silver. Three hops
 // join on an exact key; the GL posts one journal per merchant-day, so the card-clearing line CONTAINS
 // this sale rather than being it, and the panel says so instead of implying a tidier story.
+function disputePanel() {
+  // Both numbers, not just the finding: the gap between them IS the point, and a panel showing only the
+  // final count would be asserting the lesson instead of showing it.
+  const d = D.disputes, el = $("#dispute-panel");
+  if (!el) return;
+  if (!d || !d.merchants) { el.remove(); return; }
+  const row = (k, v) => `<div class="dm-row"><span>${askEsc(k)}</span><span>${askEsc(v)}</span></div>`;
+  const f = d.flagged[0];
+  el.innerHTML = `<h3>Card-scheme dispute monitoring</h3>
+    <div class="sub">${d.merchants} merchants &middot; ${d.window[0]} to ${d.window[1]} (${d.window_days} days) &middot;
+      threshold ${d.thresholds.ratio_pct}% of captures AND at least ${d.thresholds.min_disputes} disputes</div>
+    <div class="dm-grid">
+      <div class="dm-box bad"><div class="dm-n bad">${d.ratio_only}</div>
+        <div class="dm-k">flagged by the ratio alone</div>
+        <div class="dm-note">${Math.round(100 * d.ratio_only / d.merchants)}% of the portfolio. Nobody can
+          investigate that, which is why a ratio on its own is not a control.</div></div>
+      <div class="dm-box good"><div class="dm-n good">${d.in_programme}</div>
+        <div class="dm-k">in the monitoring programme</div>
+        ${f ? `<div class="dm-note">${askEsc(f.merchant_id)} &middot; ${fmtI(f.disputes)} disputes on
+          ${fmtI(f.captures)} captures &middot; ${f.ratio_pct}% &middot; SAR ${fmtH(H(f.disputes_sar))} taken back.</div>` : ""}</div>
+      <div class="dm-box"><div class="dm-k" style="margin:0 0 8px">suppressed by the count floor</div>
+        ${d.suppressed_examples.map(x =>
+          row(x.merchant_id, `${x.ratio_pct}% — ${x.disputes} of ${fmtI(x.captures)}`)).join("")}
+        <div class="dm-note">High ratios, tiny volumes. Three disputes is three disputes.</div></div>
+    </div>
+    <div class="dm-note">${askEsc(d.note)}</div>`;
+}
+
+
 function riyalJourney() {
   const t = D.trace;
   if (!t || !t.capture) return tracePerRiyal();          // no trace exported: fall back to the averages
@@ -1859,7 +1888,7 @@ $("#seed").textContent = D.meta.seed;
 { const el = $("#skew-share"); if (el) el.textContent = Math.round(parseFloat(D.skew_setup.mega_share_of_rows) * 100) + "%"; }
 safe("heroCopy", heroCopy); safe("hero", heroScene);
 safe("pulse", pulseScene); safe("flow", flowScene); safe("ledger", ledgerScene); safe("recon", reconScene); safe("zatca", zatcaScene);
-safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("trust", trustScene); safe("platform", platformScene);
+safe("pdpl", pdplScene); safe("mdm", mdmScene); safe("stream", streamScene); safe("stream", disputePanel); safe("trust", trustScene); safe("platform", platformScene);
 safe("map", mapScene); safe("lifecycle", lifecycleScene); safe("ops", opsScene); safe("ask", askScene); safe("header", initHeader);
 safe("filters", initFilterBar); safe("prov", updateProv);
 if (window.gsap && window.ScrollTrigger) { gsap.registerPlugin(ScrollTrigger);

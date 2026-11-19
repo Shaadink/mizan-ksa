@@ -1,218 +1,265 @@
 {
-  "_comment": "Column lineage for DERIVED Gold columns (same-named columns are matched automatically). Keys: model -> column -> [relation.column]. Relations: slv.<t>, meta.<t>, gld.<t>.",
-  "fact_merchant_settlement_recon": {
-    "business_date_ksa": [
-      "slv.payment_lifecycle.business_date_ksa",
-      "slv.settlement_lines.settlement_for_date_ksa",
-      "slv.erp_gl_journal_lines.posting_date_ksa"
-    ],
-    "gross_captures_sar": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type"
-    ],
-    "refunds_and_disputes_sar": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type"
-    ],
-    "acquirer_fees_sar": [
-      "slv.settlement_lines.acquirer_mdr_fee_sar",
-      "slv.settlement_lines.acquirer_vat_sar"
-    ],
-    "expected_net_payable_sar": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type",
-      "slv.settlement_lines.acquirer_mdr_fee_sar",
-      "slv.settlement_lines.acquirer_vat_sar"
-    ],
-    "bank_paid_sar": [
-      "slv.settlement_lines.net_settled_sar",
-      "slv.settlement_lines.settlement_status"
-    ],
-    "in_transit_sar": [
-      "slv.settlement_lines.net_settled_sar",
-      "slv.settlement_lines.settlement_status"
-    ],
-    "quarantined_sar": [
-      "slv.settlement_lines.net_settled_sar",
-      "slv.settlement_lines.settlement_status"
-    ],
-    "gl_card_clearing_sar": [
-      "slv.erp_gl_journal_lines.amount_sar",
-      "slv.erp_gl_journal_lines.debit_credit",
-      "slv.erp_gl_journal_lines.gl_account_role"
-    ],
-    "unexplained_bank_variance_sar": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type",
-      "slv.settlement_lines.acquirer_mdr_fee_sar",
-      "slv.settlement_lines.acquirer_vat_sar",
-      "slv.settlement_lines.net_settled_sar",
-      "slv.settlement_lines.settlement_status"
-    ],
-    "unexplained_gl_variance_sar": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type",
-      "slv.erp_gl_journal_lines.amount_sar",
-      "slv.erp_gl_journal_lines.debit_credit"
-    ],
-    "unclassified_events": [
-      "slv.payment_lifecycle.event_type",
-      "slv.payment_lifecycle.amount_sar"
-    ]
-  },
-  "dim_date_saudi": {
-    "date_key": [
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "gregorian_year": [
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "gregorian_month": [
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "gregorian_day": [
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "gregorian_quarter": [
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "iso_day_of_week": [
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "is_saudi_weekend": [
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "hijri_year": [
-      "gld.umm_al_qura_calendar.hijri_year",
-      "gld.hijri_announcement_overrides.announced_start_date"
-    ],
-    "hijri_month": [
-      "gld.umm_al_qura_calendar.hijri_month",
-      "gld.hijri_announcement_overrides.announced_start_date"
-    ],
-    "hijri_day": [
-      "gld.umm_al_qura_calendar.calendar_date",
-      "gld.hijri_announcement_overrides.announced_start_date"
-    ],
-    "hijri_date_key": [
-      "gld.umm_al_qura_calendar.hijri_year",
-      "gld.umm_al_qura_calendar.hijri_month",
-      "gld.hijri_announcement_overrides.announced_start_date"
-    ],
-    "hijri_month_name": [
-      "gld.umm_al_qura_calendar.hijri_month"
-    ],
-    "is_ramadan": [
-      "gld.umm_al_qura_calendar.hijri_month"
-    ],
-    "ramadan_day": [
-      "gld.umm_al_qura_calendar.hijri_month",
-      "gld.umm_al_qura_calendar.calendar_date"
-    ],
-    "is_override_adjusted": [
-      "gld.umm_al_qura_calendar.hijri_day",
-      "gld.hijri_announcement_overrides.announced_start_date"
-    ],
-    "calendar_version": [
-      "gld.umm_al_qura_calendar.calendar_version",
-      "gld.hijri_announcement_overrides.override_version"
-    ]
-  },
-  "dim_party_golden": {
-    "scd2_version": [
-      "slv.golden_party_scd2.version"
-    ],
-    "has_verified_anchor": [
-      "slv.golden_party_scd2.anchor_id_type"
-    ],
-    "address_city": [
-      "slv.address_observations.city"
-    ],
-    "address_observed_date": [
-      "slv.address_observations.observed_date"
-    ]
-  },
-  "mart_ndmo_scorecard": {
-    "metric_family": [
-      "meta.column_classification.classification"
-    ],
-    "dimension": [
-      "meta.column_classification.classification"
-    ],
-    "subject_table": [
-      "meta.column_classification.schema_name",
-      "meta.column_classification.table_name"
-    ],
-    "numerator": [
-      "slv.payment_lifecycle.merchant_id",
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type",
-      "slv.settlement_lines.payment_event_id",
-      "slv.settlement_lines.settlement_status",
-      "slv.zatca_invoice_documents.state",
-      "gld.fact_merchant_settlement_recon.unexplained_bank_variance_sar",
-      "meta.column_classification.is_over_classified"
-    ],
-    "denominator": [
-      "slv.payment_lifecycle.payment_event_id",
-      "slv.settlement_lines.payment_event_id",
-      "slv.zatca_invoice_documents.invoice_uuid",
-      "meta.column_classification.column_name"
-    ],
-    "score_pct": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.settlement_lines.settlement_status",
-      "slv.zatca_invoice_documents.state",
-      "gld.fact_merchant_settlement_recon.unexplained_gl_variance_sar",
-      "meta.column_classification.is_over_classified"
-    ],
-    "threshold_pct": [
-      "meta.column_classification.classification"
-    ],
-    "status": [
-      "slv.payment_lifecycle.event_type",
-      "meta.column_classification.is_over_classified"
-    ]
-  },
-  "fact_payment_method_daily": {
-    "business_date_ksa": [
-      "slv.payment_lifecycle.business_date_ksa",
-      "slv.settlement_lines.settlement_for_date_ksa"
-    ],
-    "payment_method": [
-      "slv.payment_lifecycle.payment_scheme"
-    ],
-    "capture_count": [
-      "slv.payment_lifecycle.event_type"
-    ],
-    "gross_captures_sar": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type"
-    ],
-    "refunds_and_disputes_sar": [
-      "slv.payment_lifecycle.amount_sar",
-      "slv.payment_lifecycle.event_type"
-    ],
-    "acquirer_fees_sar": [
-      "slv.settlement_lines.acquirer_mdr_fee_sar",
-      "slv.settlement_lines.acquirer_vat_sar"
-    ],
-    "fees_estimated_sar": [
-      "slv.settlement_lines.acquirer_mdr_fee_sar",
-      "slv.settlement_lines.acquirer_vat_sar",
-      "slv.settlement_lines.is_estimate"
-    ],
-    "bank_paid_sar": [
-      "slv.settlement_lines.net_settled_sar",
-      "slv.settlement_lines.settlement_status"
-    ],
-    "in_transit_sar": [
-      "slv.settlement_lines.net_settled_sar",
-      "slv.settlement_lines.settlement_status"
-    ],
-    "quarantined_sar": [
-      "slv.settlement_lines.net_settled_sar",
-      "slv.settlement_lines.settlement_status"
-    ]
-  }
+ "_comment": "Column lineage for DERIVED Gold columns (same-named columns are matched automatically). Keys: model -> column -> [relation.column]. Relations: slv.<t>, meta.<t>, gld.<t>.",
+ "fact_merchant_settlement_recon": {
+  "business_date_ksa": [
+   "slv.payment_lifecycle.business_date_ksa",
+   "slv.settlement_lines.settlement_for_date_ksa",
+   "slv.erp_gl_journal_lines.posting_date_ksa"
+  ],
+  "gross_captures_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type"
+  ],
+  "refunds_and_disputes_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type"
+  ],
+  "acquirer_fees_sar": [
+   "slv.settlement_lines.acquirer_mdr_fee_sar",
+   "slv.settlement_lines.acquirer_vat_sar"
+  ],
+  "expected_net_payable_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type",
+   "slv.settlement_lines.acquirer_mdr_fee_sar",
+   "slv.settlement_lines.acquirer_vat_sar"
+  ],
+  "bank_paid_sar": [
+   "slv.settlement_lines.net_settled_sar",
+   "slv.settlement_lines.settlement_status"
+  ],
+  "in_transit_sar": [
+   "slv.settlement_lines.net_settled_sar",
+   "slv.settlement_lines.settlement_status"
+  ],
+  "quarantined_sar": [
+   "slv.settlement_lines.net_settled_sar",
+   "slv.settlement_lines.settlement_status"
+  ],
+  "gl_card_clearing_sar": [
+   "slv.erp_gl_journal_lines.amount_sar",
+   "slv.erp_gl_journal_lines.debit_credit",
+   "slv.erp_gl_journal_lines.gl_account_role"
+  ],
+  "unexplained_bank_variance_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type",
+   "slv.settlement_lines.acquirer_mdr_fee_sar",
+   "slv.settlement_lines.acquirer_vat_sar",
+   "slv.settlement_lines.net_settled_sar",
+   "slv.settlement_lines.settlement_status"
+  ],
+  "unexplained_gl_variance_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type",
+   "slv.erp_gl_journal_lines.amount_sar",
+   "slv.erp_gl_journal_lines.debit_credit"
+  ],
+  "unclassified_events": [
+   "slv.payment_lifecycle.event_type",
+   "slv.payment_lifecycle.amount_sar"
+  ]
+ },
+ "dim_date_saudi": {
+  "date_key": [
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "gregorian_year": [
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "gregorian_month": [
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "gregorian_day": [
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "gregorian_quarter": [
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "iso_day_of_week": [
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "is_saudi_weekend": [
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "hijri_year": [
+   "gld.umm_al_qura_calendar.hijri_year",
+   "gld.hijri_announcement_overrides.announced_start_date"
+  ],
+  "hijri_month": [
+   "gld.umm_al_qura_calendar.hijri_month",
+   "gld.hijri_announcement_overrides.announced_start_date"
+  ],
+  "hijri_day": [
+   "gld.umm_al_qura_calendar.calendar_date",
+   "gld.hijri_announcement_overrides.announced_start_date"
+  ],
+  "hijri_date_key": [
+   "gld.umm_al_qura_calendar.hijri_year",
+   "gld.umm_al_qura_calendar.hijri_month",
+   "gld.hijri_announcement_overrides.announced_start_date"
+  ],
+  "hijri_month_name": [
+   "gld.umm_al_qura_calendar.hijri_month"
+  ],
+  "is_ramadan": [
+   "gld.umm_al_qura_calendar.hijri_month"
+  ],
+  "ramadan_day": [
+   "gld.umm_al_qura_calendar.hijri_month",
+   "gld.umm_al_qura_calendar.calendar_date"
+  ],
+  "is_override_adjusted": [
+   "gld.umm_al_qura_calendar.hijri_day",
+   "gld.hijri_announcement_overrides.announced_start_date"
+  ],
+  "calendar_version": [
+   "gld.umm_al_qura_calendar.calendar_version",
+   "gld.hijri_announcement_overrides.override_version"
+  ]
+ },
+ "dim_party_golden": {
+  "scd2_version": [
+   "slv.golden_party_scd2.version"
+  ],
+  "has_verified_anchor": [
+   "slv.golden_party_scd2.anchor_id_type"
+  ],
+  "address_city": [
+   "slv.address_observations.city"
+  ],
+  "address_observed_date": [
+   "slv.address_observations.observed_date"
+  ]
+ },
+ "mart_ndmo_scorecard": {
+  "metric_family": [
+   "meta.column_classification.classification"
+  ],
+  "dimension": [
+   "meta.column_classification.classification"
+  ],
+  "subject_table": [
+   "meta.column_classification.schema_name",
+   "meta.column_classification.table_name"
+  ],
+  "numerator": [
+   "slv.payment_lifecycle.merchant_id",
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type",
+   "slv.settlement_lines.payment_event_id",
+   "slv.settlement_lines.settlement_status",
+   "slv.zatca_invoice_documents.state",
+   "gld.fact_merchant_settlement_recon.unexplained_bank_variance_sar",
+   "meta.column_classification.is_over_classified"
+  ],
+  "denominator": [
+   "slv.payment_lifecycle.payment_event_id",
+   "slv.settlement_lines.payment_event_id",
+   "slv.zatca_invoice_documents.invoice_uuid",
+   "meta.column_classification.column_name"
+  ],
+  "score_pct": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.settlement_lines.settlement_status",
+   "slv.zatca_invoice_documents.state",
+   "gld.fact_merchant_settlement_recon.unexplained_gl_variance_sar",
+   "meta.column_classification.is_over_classified"
+  ],
+  "threshold_pct": [
+   "meta.column_classification.classification"
+  ],
+  "status": [
+   "slv.payment_lifecycle.event_type",
+   "meta.column_classification.is_over_classified"
+  ]
+ },
+ "fact_payment_method_daily": {
+  "business_date_ksa": [
+   "slv.payment_lifecycle.business_date_ksa",
+   "slv.settlement_lines.settlement_for_date_ksa"
+  ],
+  "payment_method": [
+   "slv.payment_lifecycle.payment_scheme"
+  ],
+  "capture_count": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "gross_captures_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type"
+  ],
+  "refunds_and_disputes_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type"
+  ],
+  "acquirer_fees_sar": [
+   "slv.settlement_lines.acquirer_mdr_fee_sar",
+   "slv.settlement_lines.acquirer_vat_sar"
+  ],
+  "fees_estimated_sar": [
+   "slv.settlement_lines.acquirer_mdr_fee_sar",
+   "slv.settlement_lines.acquirer_vat_sar",
+   "slv.settlement_lines.is_estimate"
+  ],
+  "bank_paid_sar": [
+   "slv.settlement_lines.net_settled_sar",
+   "slv.settlement_lines.settlement_status"
+  ],
+  "in_transit_sar": [
+   "slv.settlement_lines.net_settled_sar",
+   "slv.settlement_lines.settlement_status"
+  ],
+  "quarantined_sar": [
+   "slv.settlement_lines.net_settled_sar",
+   "slv.settlement_lines.settlement_status"
+  ]
+ },
+ "fact_merchant_dispute_monitor": {
+  "window_start_ksa": [
+   "slv.payment_lifecycle.business_date_ksa"
+  ],
+  "window_end_ksa": [
+   "slv.payment_lifecycle.business_date_ksa"
+  ],
+  "window_days": [
+   "slv.payment_lifecycle.business_date_ksa"
+  ],
+  "capture_count": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "captures_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type"
+  ],
+  "refund_count": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "refunds_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type"
+  ],
+  "dispute_count": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "disputes_sar": [
+   "slv.payment_lifecycle.amount_sar",
+   "slv.payment_lifecycle.event_type"
+  ],
+  "dispute_ratio_pct": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "refund_ratio_pct": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "breaches_ratio": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "meets_count_floor": [
+   "slv.payment_lifecycle.event_type"
+  ],
+  "in_monitoring_programme": [
+   "slv.payment_lifecycle.event_type"
+  ]
+ }
 }
