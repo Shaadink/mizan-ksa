@@ -5,9 +5,9 @@ table fact_merchant_dispute_monitor
 		formatString: #,0
 		lineageTag: 8e567bda-4b30-56d6-9d10-fe51f719956b
 
-	measure 'Merchants In Monitoring Programme' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[in_monitoring_programme] = 1)) + 0
+	measure 'Merchants In Programme' = CALCULATE(COUNTROWS(fact_merchant_dispute_monitor), KEEPFILTERS(fact_merchant_dispute_monitor[in_monitoring_programme] = 1)) + 0
 		formatString: #,0
-		lineageTag: 7af2bb40-890d-5866-ad10-914afaf08331
+		lineageTag: 07e5bff3-f706-50d3-9118-22b73084a1bc
 
 	measure 'Merchants Monitored' = COUNTROWS(fact_merchant_dispute_monitor) + 0
 		formatString: #,0

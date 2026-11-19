@@ -77,7 +77,7 @@ MEASURES = {
         # page loses the two numbers it exists to show. Found by looking at the deployed report.
         ("Merchants Flagged By Ratio Only",
          f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[breaches_ratio] = 1)) + 0", "#,0"),
-        ("Merchants In Monitoring Programme",
+        ("Merchants In Programme",
          f"CALCULATE(COUNTROWS({DM}), KEEPFILTERS({DM}[in_monitoring_programme] = 1)) + 0", "#,0"),
         ("Merchants Monitored", f"COUNTROWS({DM}) + 0", "#,0"),
         ("Disputes", f"SUM({DM}[dispute_count]) + 0", "#,0"),
@@ -287,13 +287,13 @@ PAGES = [
     ("merchant_risk", "Merchant Risk",
      "Card-scheme dispute monitoring. A merchant enters a programme only on a ratio AND a minimum dispute "
      "count: a ratio alone flags most of the portfolio, because 3 disputes on 43 captures reads 6.98%.",
-     _cards(["Merchants Monitored", "Merchants Flagged By Ratio Only", "Merchants In Monitoring Programme",
+     _cards(["Merchants Monitored", "Merchants Flagged By Ratio Only", "Merchants In Programme",
              "Disputes", "Disputed SAR", "Portfolio Dispute Ratio Pct"]) + [
         # Scatter is the right form here and a bar chart is not: the whole argument is that ratio means
         # nothing without volume, and only two axes can show a high ratio sitting on a tiny capture count.
         ("scatterChart", {"Category": [("c", DM, "merchant_id")],
                           "X": [("m", "Captures")], "Y": [("m", "Dispute Ratio Pct")]},
-         (20, 168, 760, 300), "Dispute ratio vs capture volume \u2014 the cluster top-left is noise"),
+         (20, 168, 760, 300), "Dispute ratio vs capture volume \u2014 the column on the left is noise"),
         ("gauge", {"Y": [("m", "Portfolio Dispute Ratio Pct")]},
          (790, 168, 230, 300), "Portfolio dispute ratio (axis 0-5%)", {"axis_max": 5}),
         ("clusteredBarChart", {"Category": [("c", DM, "merchant_id")], "Y": [("m", "Disputes")]},
