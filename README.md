@@ -122,7 +122,17 @@ duration, and the AQE run was measured over 5 tasks against the AQE-off run's 64
 distributions and are not directly comparable. The durations and the checksum are.
 
 ### 6. Orchestration and lineage (I-13, I-14)
-| Airflow DAG (Fabric jobs, freshness gate, dbt, residency gate) | Marquez: Bronze to Gold, column level |
+
+Apache Airflow **inside Microsoft Fabric** (`AF_MIZAN`) runs the six lakehouse jobs over the Fabric REST API --
+a real run, not a diagram: six tasks, 15 minutes, with the AI index and the NDMO catalogue in parallel.
+
+![mizan_fabric_daily on Fabric's Apache Airflow](docs/artifacts/09_fabric_airflow_dag.png)
+
+The item and the DAG are deployed by `scripts/fabric_airflow.py`, so the whole thing rebuilds from one command.
+It runs on Fabric's starter pool, which pauses when idle, so the 03:00 schedule is written and proven by a manual
+trigger but is not yet unattended -- see HONESTY.md row 30.
+
+| Airflow DAG in Docker (adds the gates, dbt and lineage) | Marquez: Bronze to Gold, column level |
 |---|---|
 | ![Airflow](docs/artifacts/06_airflow_dag.png) | ![Marquez](docs/artifacts/07_marquez_lineage.png) |
 
