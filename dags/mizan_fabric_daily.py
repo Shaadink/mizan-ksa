@@ -47,16 +47,26 @@ TERMINAL = ("Completed", "Failed", "Cancelled", "Deduped")
 CHAIN = ("bronze_land", "silver_build", "mdm_resolve", "zatca_chain")
 FAN_OUT = ("ai_index", "ndmo_catalog")
 STEP_ORDER = CHAIN + FAN_OUT
+DBT_TASK = "dbt_build_gold"
 
 # A notebook step that has not finished in this long has not merely been slow: bronze_land, the longest,
 # took 714 seconds on the 2026-11-19 run (docs/artifacts/10_fabric_run_evidence.json).
 STEP_TIMEOUT_S = 5400
+DBT_TIMEOUT_S = 3600
+
+# Uploaded beside this file by `scripts/fabric_airflow.py push-dbt`. dbt writes its target and logs under
+# /tmp because the synced dags folder is not a safe place to assume is writable.
+DBT_PROJECT_DIR = "/opt/airflow/dags/dbt"
+DBT_SCRATCH = "/tmp/dbt-mizan"                                            # noqa: S108 (the worker's own tmp)
 
 
 def edges() -> list[tuple[str, str]]:
     """The DAG's dependencies, as pairs, so the shape can be asserted without importing Airflow."""
     out = [(CHAIN[i], CHAIN[i + 1]) for i in range(len(CHAIN) - 1)]
-    return out + [(CHAIN[-1], step) for step in FAN_OUT]
+    out += [(CHAIN[-1], step) for step in FAN_OUT]
+    # Gold is built last and only after everything it reads exists. The fan-out pair feed it too: the NDMO
+    # catalogue is a source of mart_ndmo_scorecard, so a dbt build that started earlier would read a stale one.
+    return out + [(step, DBT_TASK) for step in FAN_OUT]
 
 
 def setting(name: str) -> str:
@@ -155,6 +165,50 @@ def run_step(step: str, poll_seconds: float = 20, **_ctx) -> dict:
     return {"step": step, "run_id": instance, "status": state, "polls": polls}
 
 
+def dbt_build(**_ctx) -> dict:
+    """Build and test Gold on WH_MIZAN with dbt, as the last step of the run.
+
+    Shelled out rather than imported, which is the whole trick: this module still imports nothing but the
+    standard library and Airflow, so a missing or broken dbt cannot stop the DAG from being parsed -- it
+    fails one task, with a readable reason, and the five Fabric steps before it keep their result.
+
+    dbt-fabric is not in the worker by default. It is added in the portal under **Apache Airflow
+    requirements** (the REST route for requirements is refused for our service principal, see HONESTY row
+    31), and it needs `ODBC Driver 18 for SQL Server` present in the image -- which is the part Microsoft
+    does not promise. If that driver is missing this task is where it shows, and the project keeps running
+    dbt from the developer machine as it did before.
+
+    Credentials reach dbt the way dbt expects: profiles.yml is committed with `env_var(...)` and no secrets,
+    so the values go into the subprocess environment here and never into a file.
+    """
+    # stdlib, imported late so the DAG still parses in an environment that has not run it
+    import subprocess
+
+    env = {**os.environ,
+           "MIZAN_DBT_TARGET": "fabric",
+           "FABRIC_SQL_ENDPOINT": setting("mizan_sql_endpoint"),
+           "FABRIC_TENANT_ID": setting("mizan_tenant_id"),
+           "FABRIC_CLIENT_ID": setting("mizan_client_id"),
+           "FABRIC_CLIENT_SECRET": setting("mizan_client_secret"),
+           "DBT_LOG_PATH": f"{DBT_SCRATCH}/logs"}
+    cmd = ["dbt", "build", "--target", "fabric", "--project-dir", DBT_PROJECT_DIR,
+           "--profiles-dir", DBT_PROJECT_DIR, "--target-path", f"{DBT_SCRATCH}/target"]
+    try:
+        done = subprocess.run(cmd, capture_output=True, text=True,  # noqa: S603 (fixed argv, no shell)
+                              timeout=DBT_TIMEOUT_S, env=env, check=False)
+    except FileNotFoundError:
+        raise RuntimeError(
+            "dbt is not installed in this Airflow worker. Add dbt-fabric under Apache Airflow requirements "
+            "in the AF_MIZAN portal, then restart the job. See docs/FABRIC_AIRFLOW.md.") from None
+    out = done.stdout or ""
+    print(out[-8000:])                                  # the build summary belongs in the task log
+    if done.returncode:
+        tail = "\n".join([ln for ln in out.splitlines() if " Failure " in ln or "Error" in ln][-20:])
+        raise RuntimeError(f"dbt build failed (exit {done.returncode}). {tail or (done.stderr or '')[-2000:]}")
+    summary = next((ln for ln in reversed(out.splitlines()) if "PASS=" in ln), "")
+    return {"step": DBT_TASK, "summary": summary.strip(), "returncode": done.returncode}
+
+
 # pytest runs without Airflow installed, and the logic above is the part worth testing, so importing this
 # module must not require it.
 try:
@@ -181,5 +235,6 @@ if DAG is not None:                        # pragma: no cover - needs a schedule
         tasks = {step: PythonOperator(task_id=step, python_callable=run_step, op_kwargs={"step": step},
                                       retries=0)   # a step that failed is re-run by hand, after reading why
                  for step in STEP_ORDER}
+        tasks[DBT_TASK] = PythonOperator(task_id=DBT_TASK, python_callable=dbt_build, retries=0)
         for upstream, downstream in edges():
             tasks[upstream] >> tasks[downstream]

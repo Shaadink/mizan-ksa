@@ -48,14 +48,17 @@ def _mmss(seconds: int) -> str:
     return f"{seconds // 60}m {seconds % 60:02d}s" if seconds >= 60 else f"{seconds}s"
 
 
-def layout(chain: tuple[str, ...], fan_out: tuple[str, ...]) -> dict[str, tuple[int, int]]:
-    """Chain left to right on one row; the fan-out stacked in a column after it."""
+def layout(chain: tuple[str, ...], fan_out: tuple[str, ...], last: str | None = None,
+           ) -> dict[str, tuple[int, int]]:
+    """Chain left to right on one row, the fan-out stacked after it, then the join back on the row."""
     span = len(fan_out) * BOX_H + (len(fan_out) - 1) * GAP_Y
     row_y = TITLE_H + (span - BOX_H) // 2
     at = {step: (PAD + i * (BOX_W + GAP_X), row_y) for i, step in enumerate(chain)}
     x = PAD + len(chain) * (BOX_W + GAP_X)
     for i, step in enumerate(fan_out):
         at[step] = (x, TITLE_H + i * (BOX_H + GAP_Y))
+    if last:
+        at[last] = (x + BOX_W + GAP_X, row_y)
     return at
 
 
@@ -64,7 +67,8 @@ def _esc(text: str) -> str:
 
 
 def render(module) -> str:
-    at = layout(module.CHAIN, module.FAN_OUT)
+    at = layout(module.CHAIN, module.FAN_OUT, module.DBT_TASK)
+    nodes = (*module.STEP_ORDER, module.DBT_TASK)
     secs = _seconds_by_step()
     width = max(x for x, _ in at.values()) + BOX_W + PAD
     height = max(y for _, y in at.values()) + BOX_H + FOOT_H
@@ -73,7 +77,7 @@ def render(module) -> str:
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="{width}" '
         f'height="{height}" font-family="Segoe UI, Inter, system-ui, sans-serif" role="img" '
-        f'aria-label="mizan_fabric_daily: {" then ".join(module.STEP_ORDER)}">',
+        f'aria-label="mizan_fabric_daily: {" then ".join(nodes)}">',
         '<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" '
         f'orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{LINE}"/></marker></defs>',
         f'<text x="{PAD}" y="26" font-size="17" font-weight="600" fill="{INK}">mizan_fabric_daily</text>',
@@ -90,7 +94,13 @@ def render(module) -> str:
                 f"M{x1},{y1} C{mid},{y1} {mid},{y2} {x2 - 8},{y2}")
         parts.append(f'<path d="{path}" fill="none" stroke="{LINE}" stroke-width="1.6" marker-end="url(#a)"/>')
 
-    for step in module.STEP_ORDER:
+    def subtitle(step: str) -> str:
+        """What each box runs. The dbt box has no recorded duration: it has not run in Fabric."""
+        if step == module.DBT_TASK:
+            return "dbt build --target fabric"
+        return f"nb_mizan_step &#183; {_mmss(secs.get(step, 0))}"
+
+    for step in nodes:
         x, y = at[step]
         parts += [
             f'<rect x="{x}" y="{y}" width="{BOX_W}" height="{BOX_H}" rx="9" fill="{FILL}" '
@@ -98,12 +108,13 @@ def render(module) -> str:
             f'<text x="{x + 14}" y="{y + 26}" font-size="14" font-weight="600" fill="{ACCENT}" '
             f'font-family="Consolas, monospace">{_esc(step)}</text>',
             f'<text x="{x + 14}" y="{y + 45}" font-size="11.5" fill="{MUTED}">'
-            f'nb_mizan_step &#183; {_mmss(secs.get(step, 0))}</text>',
+            f'{subtitle(step)}</text>',
         ]
 
     parts += [
         f'<text x="{PAD}" y="{height - 26}" font-size="11.5" fill="{MUTED}">Drawn from the DAG\'s own '
-        f'edges() and the 2026-11-19 run ({_mmss(total)} across {len(module.STEP_ORDER)} notebook jobs). '
+        f'edges() and the 2026-11-19 run ({_mmss(total)} across {len(module.STEP_ORDER)} notebook jobs, '
+        f'then dbt on WH_MIZAN). '
         f'Not a screenshot: 06_airflow_dag.png is the real Airflow UI.</text>',
         "</svg>",
     ]

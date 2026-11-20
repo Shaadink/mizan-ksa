@@ -46,7 +46,8 @@ ENV_FILE = REPO / ".env"
 
 # Only identifiers. The DAG reads mizan_client_secret from an Airflow Variable, never from here.
 SETTING_KEYS = {"MIZAN_TENANT_ID": "FABRIC_TENANT_ID", "MIZAN_CLIENT_ID": "FABRIC_CLIENT_ID",
-                "MIZAN_WORKSPACE_ID": "FABRIC_WORKSPACE_ID", "MIZAN_LAKEHOUSE_ID": "LH_MIZAN_ID"}
+                "MIZAN_WORKSPACE_ID": "FABRIC_WORKSPACE_ID", "MIZAN_LAKEHOUSE_ID": "LH_MIZAN_ID",
+                "MIZAN_SQL_ENDPOINT": "FABRIC_SQL_ENDPOINT"}
 
 
 def env(name: str) -> str:
@@ -141,13 +142,39 @@ def create(token: str) -> None:
     set_env_value("AF_MIZAN_ID", body["id"])
 
 
-def push(token: str) -> None:
-    path = urllib.parse.quote(DAG_REMOTE, safe="")
+def _put_file(token: str, remote: str, data: bytes) -> None:
+    path = urllib.parse.quote(remote, safe="")
     status, _, body = req("PUT", job_url(token, f"/files/{path}", beta=True), token,
-                          data=DAG_LOCAL.read_bytes(), content_type="application/octet-stream")
+                          data=data, content_type="application/octet-stream")
     if status not in (200, 201):
-        raise SystemExit(f"upload {DAG_REMOTE} failed ({status}): {body}")
+        raise SystemExit(f"upload {remote} failed ({status}): {body}")
+
+
+def push(token: str) -> None:
+    _put_file(token, DAG_REMOTE, DAG_LOCAL.read_bytes())
     print(f"  dag        {DAG_REMOTE:<30} {DAG_LOCAL.stat().st_size:,} bytes uploaded")
+
+
+def push_dbt(token: str) -> None:
+    """Upload the dbt project so the DAG's dbt_build task has something to build.
+
+    Only the sources: models, tests, macros, seeds, the project file and profiles.yml -- which carries no
+    secrets, because every credential in it is an `env_var(...)` the task fills from Airflow Variables.
+    target/, logs/ and dbt_packages/ are build output and are never sent.
+    """
+    skip = {"target", "logs", "dbt_packages", "__pycache__", ".user.yml"}
+    files = sorted(p for p in (REPO / "dbt").rglob("*")
+                   if p.is_file() and not (skip & set(p.relative_to(REPO / "dbt").parts))
+                   and p.name not in skip)
+    total = 0
+    for local in files:
+        remote = "dags/dbt/" + local.relative_to(REPO / "dbt").as_posix()
+        _put_file(token, remote, local.read_bytes())
+        total += local.stat().st_size
+    print(f"  dbt        {len(files)} files uploaded to dags/dbt/  ({total:,} bytes)")
+    print("  NOTE: the worker also needs dbt-fabric. Add it in the portal under "
+          "'Apache Airflow requirements':")
+    print("          dbt-fabric==1.9.10")
 
 
 def settings(token: str) -> None:
@@ -199,14 +226,15 @@ def status_cmd(token: str) -> None:
     print(f"  environment variables  {names or 'none'} (HTTP {code})")
 
 
-COMMANDS = {"create": create, "push": push, "settings": settings, "start": start, "status": status_cmd}
+COMMANDS = {"create": create, "push": push, "push-dbt": push_dbt, "settings": settings,
+            "start": start, "status": status_cmd}
 
 
 def main() -> None:
     load_dotenv()
     command = sys.argv[1] if len(sys.argv) > 1 else "status"
     token = sp_token(env("FABRIC_TENANT_ID"), env("FABRIC_CLIENT_ID"), env("FABRIC_CLIENT_SECRET"))
-    for name in (("create", "push", "settings", "start") if command == "all" else (command,)):
+    for name in (("create", "push", "push-dbt", "settings", "start") if command == "all" else (command,)):
         if name not in COMMANDS:
             raise SystemExit(__doc__)
         print(f"=== {name} ===")

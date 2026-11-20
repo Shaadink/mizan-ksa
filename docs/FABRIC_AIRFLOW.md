@@ -75,7 +75,7 @@ variable, and Variables are the better home anyway: Airflow masks any variable w
 `secret`, while the settings API stores values in plain text and hands them back in full on a `GET`. The
 client secret was never going to be sent through that API for exactly that reason.
 
-## Step 1 — add six Airflow Variables (8 minutes, the only manual step)
+## Step 1 — add seven Airflow Variables
 
 1. Open `AF_MIZAN` in the workspace, then the **Airflow UI** button at the top.
 2. Go to **Admin → Variables**.
@@ -89,8 +89,29 @@ client secret was never going to be sent through that API for exactly that reaso
 | `mizan_workspace_id` | `FABRIC_WORKSPACE_ID` from `.env` |
 | `mizan_lakehouse_id` | `LH_MIZAN_ID` from `.env` |
 | `mizan_notebook_id` | the `nb_mizan_step` item id — `fabric_airflow.py status` prints it |
+| `mizan_sql_endpoint` | `FABRIC_SQL_ENDPOINT` from `.env` — only the dbt task needs this one |
 
 Open `.env` in the editor to copy from. **Do not paste it into a chat, a commit, or a screenshot.**
+
+## Step 1b — add dbt to the worker (only for the `dbt_build_gold` task)
+
+The six notebook tasks need nothing installed. The seventh, `dbt_build_gold`, builds Gold on WH_MIZAN and
+needs dbt in the worker. The REST route for requirements is refused for our service principal (HONESTY row
+31), so this one is a portal click:
+
+1. In `AF_MIZAN`, press **Apache Airflow requirements** in the top toolbar.
+2. Add `dbt-fabric==1.9.10`.
+3. Save, and **restart the job** so the install takes effect.
+
+`scripts/fabric_airflow.py push-dbt` has already uploaded the dbt project itself to `dags/dbt/`, so the task
+has something to build.
+
+**This may not work, and the DAG is built to survive that.** dbt-fabric needs `ODBC Driver 18 for SQL Server`
+in the worker image, which Microsoft does not promise for Apache Airflow jobs. The task shells out to `dbt`
+rather than importing it, so a missing driver or a failed install turns one task red with a readable reason
+instead of making the whole DAG vanish from the list — and the six Fabric steps before it keep their result.
+If it cannot be made to work, dbt keeps running from the developer machine against the same warehouse, as it
+did before, and this stays an honest open item rather than a claim.
 
 ## Step 2 — run it once by hand
 

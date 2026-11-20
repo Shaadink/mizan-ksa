@@ -35,13 +35,14 @@ def dag_module():
 def settings(monkeypatch):
     for name, value in {"MIZAN_TENANT_ID": "tenant", "MIZAN_CLIENT_ID": "client",
                         "MIZAN_CLIENT_SECRET": "shh", "MIZAN_WORKSPACE_ID": "ws",
-                        "MIZAN_LAKEHOUSE_ID": "lh", "MIZAN_NOTEBOOK_ID": "nb"}.items():
+                        "MIZAN_LAKEHOUSE_ID": "lh", "MIZAN_NOTEBOOK_ID": "nb",
+                        "MIZAN_SQL_ENDPOINT": "wh.datawarehouse.fabric.microsoft.com"}.items():
         monkeypatch.setenv(name, value)
 
 
 def test_the_dag_file_imports_nothing_the_fabric_worker_lacks():
     """Fabric's Airflow workers have the standard library and Airflow. A third import is a failed DAG."""
-    allowed = {"json", "os", "time", "urllib", "airflow", "pendulum", "__future__"}
+    allowed = {"json", "os", "subprocess", "time", "urllib", "airflow", "pendulum", "__future__"}
     tree = ast.parse(DAG_FILE.read_text(encoding="utf-8"))
     imported = set()
     for node in ast.walk(tree):
@@ -71,7 +72,11 @@ def test_the_pipeline_order_is_the_one_the_lakehouse_requires(dag_module):
     assert {("zatca_chain", "ai_index"), ("zatca_chain", "ndmo_catalog")} <= set(e)
     # The fan-out pair must not be chained to each other, or the run is needlessly serial.
     assert ("ai_index", "ndmo_catalog") not in e and ("ndmo_catalog", "ai_index") not in e
-    assert len(dag_module.STEP_ORDER) == 6 and len(e) == 5
+    # Gold is built last, and after BOTH fan-out tasks: mart_ndmo_scorecard reads the NDMO catalogue, so a
+    # dbt build that started alongside it would publish Gold from a stale one.
+    assert {("ai_index", "dbt_build_gold"), ("ndmo_catalog", "dbt_build_gold")} <= set(e)
+    assert not [d for u, d in e if u == "dbt_build_gold"], "nothing may run after Gold is published"
+    assert len(dag_module.STEP_ORDER) == 6 and len(e) == 7
 
 
 def test_a_missing_setting_names_itself_instead_of_failing_at_the_rest_call(dag_module, monkeypatch):
@@ -157,3 +162,64 @@ def test_the_rendered_diagram_matches_the_dag_rather_than_a_drawing_of_it(dag_mo
         assert f">{step}<" in committed, f"{step} is missing from the diagram"
     # It must never be mistaken for the Airflow screenshot, which is evidence of a run rather than a shape.
     assert "Not a screenshot" in committed
+
+
+def test_dbt_is_shelled_out_so_a_missing_dbt_cannot_stop_the_dag_parsing():
+    """The module must stay importable with nothing but the standard library.
+
+    dbt-fabric is installed into the Airflow worker separately and needs an ODBC driver the image does not
+    promise. Importing dbt at module level would turn that into "the DAG disappeared"; shelling out turns it
+    into one red task with a reason, and the five Fabric steps before it keep their result.
+    """
+    tree = ast.parse(DAG_FILE.read_text(encoding="utf-8"))
+    top_level = {n.names[0].name.split(".")[0] for n in tree.body if isinstance(n, ast.Import)}
+    assert "subprocess" not in top_level, "import subprocess inside dbt_build, not at module level"
+    assert "subprocess" in DAG_FILE.read_text(encoding="utf-8"), "the task must shell out to dbt"
+
+
+def test_a_missing_dbt_says_how_to_install_it(dag_module, settings, monkeypatch):
+    import subprocess
+
+    def boom(*_a, **_k):
+        raise FileNotFoundError("dbt")
+    monkeypatch.setattr(subprocess, "run", boom)
+    with pytest.raises(RuntimeError, match="Apache Airflow requirements"):
+        dag_module.dbt_build()
+
+
+def test_a_failed_dbt_build_surfaces_the_failing_lines_not_the_whole_log(dag_module, settings, monkeypatch):
+    import subprocess
+
+    class Done:
+        returncode = 1
+        stdout = "\n".join(["noise"] * 500 + ["12:00:01  Failure in test unique_gld_fact_x (models/x.sql)"])
+        stderr = ""
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: Done())
+    with pytest.raises(RuntimeError) as err:
+        dag_module.dbt_build()
+    assert "unique_gld_fact_x" in str(err.value) and "noise" not in str(err.value)
+
+
+def test_the_client_secret_goes_to_dbt_by_environment_never_by_file(dag_module, settings, monkeypatch):
+    import subprocess
+    captured = {}
+
+    class Done:
+        returncode = 0
+        stdout = "12:00:09  Done. PASS=91 WARN=0 ERROR=0 SKIP=0 TOTAL=91"
+        stderr = ""
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"], captured["env"] = cmd, kwargs["env"]
+        return Done()
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = dag_module.dbt_build()
+    assert result["summary"].endswith("TOTAL=91") and result["returncode"] == 0
+    assert captured["env"]["FABRIC_CLIENT_SECRET"] == "shh"       # profiles.yml reads it with env_var()
+    assert captured["env"]["MIZAN_DBT_TARGET"] == "fabric"
+    assert "--target" in captured["cmd"] and "fabric" in captured["cmd"]
+    # Build output must not be written into the synced dags folder, which may not be writable.
+    assert captured["cmd"][captured["cmd"].index("--target-path") + 1].startswith("/tmp/")
+    profiles = (REPO / "dbt" / "profiles.yml").read_text(encoding="utf-8")
+    assert "env_var('FABRIC_CLIENT_SECRET'" in profiles, "the profile must read the secret from the env"
+    assert "shh" not in profiles and "client_secret: \"{{ env_var" in profiles
