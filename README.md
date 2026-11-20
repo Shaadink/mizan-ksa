@@ -232,6 +232,18 @@ Direct Lake Control Tower (CFO Settlement | Tax ZATCA Health | CDO Data Trust) |
 Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-014); the 14 invariants are in
 [invariants.md](invariants.md).
 
+### Operating it, and how far it is from production
+
+| | |
+|---|---|
+| [docs/RUNBOOKS.md](docs/RUNBOOKS.md) | What to do when it breaks at 03:00. Ten failures that can actually happen, including the two that must **not** be answered by re-running. Alerts link to a heading here, and a test fails the build if one ever points at a heading that does not exist. |
+| [docs/compliance/DPIA.md](docs/compliance/DPIA.md) | A data protection impact assessment, self-assessed and explicitly **not legally reviewed**, with nine residual risks ranked and three of them still open. |
+| [docs/PROJECT_IN_PLAIN_ENGLISH.md](docs/PROJECT_IN_PLAIN_ENGLISH.md) | The whole system explained without jargon, and an honest answer to "is this production ready?" -- which is **no**, with the four things that are already production-grade and the seven that are missing. |
+
+The close has a stated deadline (06:00 Asia/Riyadh), a task that measures it and reports a breach, and
+`scripts/backfill.py` is a re-run procedure that fingerprints Gold before and after: its last run reported
+10/10 Gold tables identical. There is still nobody on call, and the runbooks say so.
+
 ## Run it
 
 ### Local (Windows)

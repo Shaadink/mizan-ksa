@@ -1,0 +1,12 @@
+{
+  "ran_at": "2026-11-20T14:56:13+00:00",
+  "seconds": 9.1,
+  "expected_changes": false,
+  "tables_compared": 10,
+  "tables_unchanged": 10,
+  "tables_changed": [],
+  "tables_lost": [],
+  "tables_new": [],
+  "differences": [],
+  "difference_count": 0
+}

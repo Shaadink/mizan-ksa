@@ -762,3 +762,53 @@ schedule is not dependable until an always-on custom pool is chosen, and that bi
 `docs/linkedin/VIDEO_SHOT_LIST.md` now opens on the orchestrator rather than the data -- the Airflow Graph at
 0:06-0:15, because "it runs itself in the cloud" is the claim most portfolio projects cannot make. It also
 had a stale `PASS=65` where the Fabric target now stands at 91.
+
+## 2026-11-20 (late) — closing the production gaps that can be closed
+
+An external review of the blueprint made the point that "production" in regulated payments is mostly the
+things that are not code, and that almost none of them existed here. It was right. Four of its seven gaps are
+now closed or materially narrowed; three cannot be closed by writing code and are stated instead.
+
+**The operational layer** (HONESTY row 33). `src/mizan/orchestration/oncall.py` turns a failure into an alert
+that names the step, the run, the git SHA and the runbook heading that answers it, with severity by blast
+radius -- the money path pages, the AI index and the NDMO catalogue raise a ticket, because a pager that fires
+for a stale search index is a pager people learn to ignore. Wired into both DAGs. Alerting never raises: a
+webhook that is down must not turn a failed task into a crashed one, and the task log is the delivery that
+cannot fail.
+
+`docs/RUNBOOKS.md` covers the ten failures that actually happen, including the two that must **not** be met by
+re-running -- a uniqueness failure (re-running reproduces it) and a ZATCA unknown outcome (never re-sign,
+never re-UUID). A test fails the build if an alert ever points at a heading that does not exist, because a
+dead link at 03:00 costs the time it was meant to save.
+
+The close now has a stated deadline, 06:00 Asia/Riyadh, a task that measures it and reports a breach without
+failing the run, and timezone handling with a test -- 03:30 UTC is 06:30 Riyadh, and comparing raw clocks
+would call a late close three hours early.
+
+`scripts/backfill.py` is the tested re-run procedure. It deliberately does not re-run a date range, because
+this pipeline has no date-range rebuild and inventing one would add the question that is easiest to get wrong
+under pressure. It fingerprints Gold, rebuilds, fingerprints again, and fails if anything moved that should
+not have. Run: **10/10 Gold tables identical**. A tripped circuit breaker is reported as a correct outcome
+with its runbook, not as a tool failure.
+
+**Caller authentication** (HONESTY row 15, rewritten). The Function could not verify its caller; now it can
+and does not, which is a different claim. `apps/ask-agent/entra_auth.py` validates an Entra access token end
+to end -- RS256 against the tenant's published keys, issuer, audience, directory, expiry, with two minutes of
+skew -- in about 120 lines and **no new dependency**, because `cryptography` is already here for ZATCA
+signing and adding a library to a security boundary is a decision rather than a default. Sixteen tests attack
+it, each removing one protection: unsigned, foreign key, payload edited after signing, Graph audience, another
+directory, expired, not yet valid, rotated key id. Rate limiting keys on the verified object id rather than a
+forwardable IP. It ships behind `REQUIRE_ENTRA_AUTH=0` and fails closed if the flag is set without a tenant
+configured, because "authentication required" must never silently become "authentication skipped".
+
+**The compliance pack** (HONESTY row 34). `docs/compliance/DPIA.md`: purpose, lawful basis, minimisation with
+the test behind each claim, the PDPL-versus-tax retention conflict and how crypto-shredding resolves it,
+cross-border transfer, subject rights, and nine ranked residual risks. Three are High and open -- residency
+declared KSA against a capacity in UAE North, the agent API shipping unauthenticated, and no legal review.
+`tests/test_compliance_docs.py` pins the claims most likely to drift optimistic.
+
+**Not done, and why.** Incremental Gold models would close the scale gap and would also break a frozen
+decision (Gold materialised as tables, spec rule 3), so that is the owner's call, not a refactor to slip in.
+Real data, live ZATCA onboarding, a lawyer's review and a second engineer cannot be supplied by code at all.
+
+Tests: 4 new files, 48 new tests.

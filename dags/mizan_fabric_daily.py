@@ -209,6 +209,64 @@ def dbt_build(**_ctx) -> dict:
     return {"step": DBT_TASK, "summary": summary.strip(), "returncode": done.returncode}
 
 
+# The runbook each step's alert points at. This mirrors mizan.orchestration.oncall.RUNBOOKS, which the
+# Fabric worker cannot import, and tests/test_oncall.py asserts the two agree -- the QR-code bug on
+# 2026-11-19 was one rule written down twice and allowed to drift, so this one is pinned by a test.
+RUNBOOKS = {"bronze_land": "the-bank-file-did-not-arrive", "silver_build": "a-silver-step-failed",
+            "mdm_resolve": "a-silver-step-failed",
+            "zatca_chain": "zatca-documents-are-stuck-in-an-unknown-outcome",
+            "ai_index": "a-serving-step-failed", "ndmo_catalog": "a-serving-step-failed",
+            "dbt_build_gold": "the-circuit-breaker-tripped"}
+PAGES = tuple(k for k in RUNBOOKS if k not in ("ai_index", "ndmo_catalog"))
+
+
+def alert_payload(step: str, detail: str, run_id: str = "") -> dict:
+    """What a human needs at 03:00, in the order they need it.
+
+    The AI index and the NDMO catalogue raise a ticket rather than paging: nothing downstream of them
+    moves money, and a pager that fires for a stale search index is a pager people learn to ignore.
+    """
+    severity = "PAGE" if step in PAGES else "TICKET"
+    runbook = RUNBOOKS.get(step, "an-unrecognised-failure")
+    return {"severity": severity, "step": step, "summary": f"{step} failed", "run_id": run_id,
+            "detail": detail[:2000], "runbook": f"docs/RUNBOOKS.md#{runbook}",
+            "text": "\n".join([f"[{severity}] MIZAN {step}: failed",
+                              f"run {run_id or 'unknown'}",
+                              f"Runbook: docs/RUNBOOKS.md#{runbook}",
+                              detail[:1000]])}
+
+
+def on_failure(context) -> None:                # pragma: no cover - Airflow calls this, not a test
+    """Airflow's failure hook: print the alert, and POST it if a webhook is configured.
+
+    Printing first and unconditionally is the point. A webhook can be unset, wrong or down, and the
+    task log is the one place the message is guaranteed to exist. Nothing here raises: an alerting
+    failure must never turn a failed task into a crashed one, or a failed run into a lost one.
+    """
+    task = context.get("task_instance")
+    step = getattr(task, "task_id", "unknown")
+    run_id = str(context.get("run_id") or "")
+    payload = alert_payload(step, str(context.get("exception") or "no exception recorded"), run_id)
+    print(payload["text"])
+    url = ""
+    try:
+        from airflow.models import Variable
+        url = Variable.get("mizan_alert_webhook", default_var="") or ""
+    except Exception as e:                      # alerting must not raise, ever
+        print(f"[alert] could not read mizan_alert_webhook: {e}")
+    if not url.startswith("https://"):
+        print("[alert] no https webhook configured; the task log above is the alert")
+        return
+    try:
+        request = urllib.request.Request(  # noqa: S310 (https checked)
+            url, data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+            print(f"[alert] delivered, HTTP {response.status}")
+    except Exception as e:                      # see above: alerting must not raise
+        print(f"[alert] delivery failed ({type(e).__name__}: {e}); the task log above is the alert")
+
+
 # pytest runs without Airflow installed, and the logic above is the part worth testing, so importing this
 # module must not require it.
 try:
@@ -231,6 +289,7 @@ if DAG is not None:                        # pragma: no cover - needs a schedule
         max_active_runs=1,                 # Bronze is append-only; two concurrent runs would land twice
         tags=["mizan", "fabric", "ksa"],
         doc_md=__doc__,
+        default_args={"on_failure_callback": on_failure},
     ) as dag:
         tasks = {step: PythonOperator(task_id=step, python_callable=run_step, op_kwargs={"step": step},
                                       retries=0)   # a step that failed is re-run by hand, after reading why
