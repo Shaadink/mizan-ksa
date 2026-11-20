@@ -651,3 +651,50 @@ a reconciliation fault-injection test (the answer to "your generator and your re
 so SAR 0.00 holds by construction" -- the one criticism that cannot be argued away), pairwise precision/recall
 for the MDM ladder against generator ground truth, and a check of whether HTTP 409 belongs in the retry-forever
 set or should reconcile as already-accepted.
+
+## 2026-11-19 (evening) — Fabric re-run, and the three defects it exposed
+
+The Fabric tenant had not been re-run since 2026-11-14, so its Gold disagreed with local Gold by SAR 506.07
+and its `dbt build --target fabric` stood at 65 tests against the local 91. Re-running it closed both, and
+cost three defects on the way -- all three found by the project's own guards rather than by reading code.
+
+**1. A corrected re-send doubled the ZATCA documents in Silver** (`9b68374`, HONESTY row 26). Six item prices
+had changed locally, so all 25,000 ZATCA requests re-landed as corrections and Bronze -- append-only by design
+-- held two versions of each. `zatca_land` joined `ctl.invoice_outbox` to `brz.zatca_invoices_raw` on
+`request_id`, matched both, and fanned every outbox row into two: `slv.zatca_invoice_documents` reached 50,002
+rows and `invoice_uuid` stopped being unique. dbt's `source_unique` test failed and **refused to publish Gold**.
+Every other Bronze reader already went through `_latest()`; this one did not. Fixed, and pinned by
+`test_a_corrected_zatca_resend_does_not_double_the_silver_documents`, verified to fail without the fix. Why no
+test caught it first: the existing replay test re-runs the *same bytes*, so Bronze dedup drops everything.
+Idempotency on identical input was proven; idempotency on corrected input was not, and those are different
+claims. Fabric then reached **91/91**, full parity with local, gross SAR 22,391,236.23, both variances 0.00.
+
+**2. The signed ZATCA chain never received the price correction** (`9381dde`, HONESTY row 29, **still open**).
+CI caught the live DAX results disagreeing with exported Gold on ZATCA money only -- SAR 30,919,828.86 against
+30,920,225.04 -- while every count, state, ICV and flow matched. That is `run_zatca` behaving correctly: it
+skips every `request_id` already in the outbox, so a signed invoice is never re-priced, and the Fabric figure
+is exactly the local total from before the correction. The gap it exposes is real: correcting a price moved
+Silver, Gold and the bank reconciliation and left the tax ledger on the old amount **with no credit note
+raised**. The model supports corrections as new documents; nothing routes an upstream price change into one.
+Closing it is new behaviour in the clearance engine, so it is the owner's call, not a patch.
+
+**3. The QR guard had drifted from the engine it guards** (`6709904`, HONESTY row 25). The 500-character cap
+test failed about one run in four and had been logged as unexplained. It built the QR fields itself and still
+used raw signature bytes, a DER public key and a DER certificate signature after the engine had moved to
+base64 tag 7, the bare EC point and raw r||s. Measured over 5,000 signatures: the stale shape breaches at
+**1,236 / 5,000 (24.7%)**, always at 504 when the ECDSA signature DER-encodes to 72 bytes; the shipped
+encoding tops out at **496**. Both now go through one `build_invoice_qr`. The ledger keeps the correction that
+"3,000 probes never exceeded 500" was not evidence -- those probes shared the stale shape's assumptions.
+
+**Also fixed: the local Fabric App test runner** (HONESTY row 28), which had been written off as a corrupted
+install. Vite evaluated spec files under `file:///D:/...` while the vitest CLI, started from a shell whose
+working directory read `d:\`, loaded its own modules under `file:///d:/...`; Node loads those as different
+modules, so `@vitest/runner` was loaded twice and every `describe()` reached a runner that was never
+registered. `src/test/setup.ts` now turns that into the instruction. From `D:\` the app suite runs clean.
+
+**State:** 331 Python tests, 183 app tests (1 skipped), ruff clean, dbt 91/91 on DuckDB and on Fabric, and
+**all three CI jobs green** on `6709904` -- the first fully green run since 2026-11-15.
+
+Still owner-only: HONESTY row 29 (credit note on price correction -- a decision, not a task), the eight README
+screenshots, the 2:30 video, a native Arabic read of the headings, the ZATCA SDK sample-invoice repro, measured
+FinOps CU figures, and the AF_MIZAN Airflow job, which remains an unopened experiment.
