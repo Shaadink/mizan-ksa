@@ -199,3 +199,105 @@ def test_ai_case_notes_entitled_then_suppressed_after_erasure(dsr, test_keys):
     log = lk.read("ai", "agent_audit_log").collect()
     assert len(log) == 3 and all(f"return case {rid}" not in str(r.asDict().values()) for r in log)
     cleanup_staging(lk.spark)
+
+
+# ------------------------------------------------------------------ PDPL right of access (Article 4)
+# Erasure was built first because it is the harder right. Access is its sibling, and the DPIA listed it as
+# not implemented. What matters most here is the interaction between the two: a subject who has been erased
+# must come back ERASED, never a record reassembled from the rows erasure left behind.
+
+@pytest.fixture(scope="module")
+def access_subject(lake, gen_dir, test_keys):
+    pos = read_csv(gen_dir / "crm/crm_pos_cp1256.csv", "cp1256")
+    return {"national_id": pos[0]["national_id"], "source_ref": pos[0]["source_customer_id"]}
+
+
+def test_access_returns_the_subject_decrypted_with_their_own_key(lake, test_keys, access_subject):
+    from mizan.privacy.access import subject_access
+    report = subject_access(lake, test_keys, national_id=access_subject["national_id"])
+    assert report["status"] == "DISCLOSED"
+    assert len(report["subject_tokens"]) == 5, "every linked spelling of this person must be included"
+    crm = report["records"]["brz.crm_party_raw"]
+    assert any(r.get("full_name_ar") == GOLDEN_AR for r in crm), "the Arabic name must come back readable"
+    assert all(not str(r.get("full_name_ar", "")).startswith("v1:") for r in crm), "left encrypted"
+
+
+def test_access_discloses_that_tax_documents_are_held_and_why_they_are_withheld(lake, test_keys,
+                                                                                access_subject):
+    """A subject is entitled to know the signed invoices exist, even though they are not handed over."""
+    from mizan.privacy.access import subject_access
+    report = subject_access(lake, test_keys, source_ref=access_subject["source_ref"])
+    assert "audit.zatca_chain_journal" in report["withheld"]
+    assert "statutory obligation" in report["withheld"]["audit.zatca_chain_journal"]
+
+
+def test_an_unknown_identifier_is_answered_not_raised(lake, test_keys):
+    """"We hold nothing about you" is a complete, lawful answer and must not look like a failure."""
+    from mizan.privacy.access import subject_access
+    report = subject_access(lake, test_keys, national_id="1099999999")
+    assert report["status"] == "NOT_FOUND" and report["records"] == {}
+
+
+def test_portability_excludes_our_linkage_decisions_and_the_tax_chain(lake, test_keys, access_subject):
+    """Portability covers what the subject provided. How we decided two records are one person is our
+    processing, not their data -- and it would leak the other spellings we matched."""
+    from mizan.privacy.access import portability_payload, subject_access
+    payload = portability_payload(subject_access(lake, test_keys,
+                                                 national_id=access_subject["national_id"]))
+    assert payload["status"] == "DISCLOSED"
+    assert not any(k.startswith("slv.golden_party") for k in payload["data"])
+    assert "brz.crm_party_raw" in payload["data"]
+    assert any("golden_party" in e for e in payload["excluded"])
+
+
+def test_access_after_erasure_returns_erased_and_rebuilds_nothing(dsr, test_keys, access_subject):
+    """The one that matters. Erasure destroyed the key; access must not reassemble the person from the
+    rows that survived it, or the right of access quietly undoes the right to erasure."""
+    from mizan.privacy.access import subject_access
+    report = subject_access(dsr["lake"], test_keys, national_id=access_subject["national_id"])
+    assert report["status"] == "ERASED"
+    assert report["records"] == {}, "an erased subject must not be reconstructed"
+    assert len(report["erasure"]) == 5 and all(t["legal_hold_class"] == "TAX" for t in report["erasure"])
+    body = json.dumps(report, ensure_ascii=False)
+    assert GOLDEN_AR not in body, "no personal data may appear anywhere in an ERASED report"
+
+
+def test_every_table_holding_a_subject_token_is_disclosed_or_withheld(lake):
+    """A new table that holds personal data must reach the access report deliberately. Without this, the
+    day somebody adds one the system quietly starts under-disclosing -- the failure mode a right of access
+    cannot tolerate, and the one nobody notices because the report still looks complete."""
+    from mizan.privacy.access import SOURCES, WITHHELD
+    known = set(SOURCES) | set(WITHHELD)
+    candidates = [("brz", "crm_party_raw"), ("brz", "commerce_events_raw"), ("brz", "payment_events_raw"),
+                  ("brz", "spl_address_raw"), ("slv", "golden_party_scd2"),
+                  ("slv", "zatca_invoice_documents"), ("slv", "payment_lifecycle")]
+    missing = [f"{schema}.{table}" for schema, table in candidates
+               if lake.exists(schema, table)
+               and "subject_token_id" in lake.read(schema, table).columns
+               and f"{schema}.{table}" not in known]
+    assert not missing, f"these hold a subject token and are not in the access report: {missing}"
+
+
+def test_the_access_map_matches_the_real_schemas(lake):
+    """The first version of this map claimed payment_events_raw held a subject token. It does not --
+    payments reach a person only through an order -- and the only reason that was caught is that a test
+    ran it against the real lake. Keep doing that."""
+    from mizan.privacy.access import SOURCES
+    for name, spec in SOURCES.items():
+        schema, table = name.split(".", 1)
+        if not lake.exists(schema, table):
+            continue
+        columns = set(lake.read(schema, table).columns)
+        assert spec["via"] in columns, f"{name} is reached by {spec['via']}, which it does not have"
+        # The encrypted map is {stored column -> the plain name it was bound to}. The contracts are
+        # shared between tables, so a listed column may legitimately be absent; at least one must be
+        # present, or the entry claims to decrypt something that is not there.
+        if spec["encrypted"]:
+            present = columns & set(spec["encrypted"])
+            assert present, f"{name} has none of its declared encrypted columns"
+            for stored in present:
+                plain, token_column = spec["encrypted"][stored]
+                assert stored.endswith("_enc"), f"{name}.{stored} is not an encrypted column"
+                assert plain not in columns, f"{name} holds both {stored} and its plaintext {plain}"
+                assert token_column in columns, (
+                    f"{name}.{stored} names {token_column} as its key, and the table has no such column")

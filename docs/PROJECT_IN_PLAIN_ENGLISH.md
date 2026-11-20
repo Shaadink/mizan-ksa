@@ -528,24 +528,32 @@ CSID, production CSID, per-device onboarding for each EGS unit, certificate rene
 rate limits and failure behaviour. The two unresolved SDK findings stop being documentation and start being
 blockers at that point.
 
-**3. There is no operational layer.** Production is not "the code runs". It is a 3am alert that reaches a
-human, a runbook for "the bank file did not arrive", an agreed deadline for the close, a tested 30-day
-backfill, a DR test that has actually been run, and somebody on call. None of that exists — and the starter
-pool sleeps, so today it cannot run unattended at all.
+**3. The operational layer exists now, except the part that is a person.** As of 2026-11-20 there are
+alerts that name the step and link to a runbook, ten runbooks for the failures that actually happen, a
+stated close deadline of 06:00 Riyadh that is measured, and a tested re-run procedure that fingerprints
+Gold before and after. **What is still missing is a human:** nobody is on call, there is no paging rotation
+or escalation, and no DR drill has been run against the Fabric tenant. The starter pool also sleeps, so it
+cannot yet run unattended. Say it that way - "I built the operational tooling; I have not staffed it" is
+accurate and sounds like somebody who knows the difference.
 
-**4. Security needs hardening before any real tenant.** The Ask MIZAN Function cannot verify the caller's
-identity; an Origin header deters casual abuse and is trivially forged. Production needs Entra auth on every
-endpoint, managed identity, Key Vault with rotation, network isolation and an access audit log. **Be precise
+**4. Security needs switching on before any real tenant.** The Ask MIZAN Function *can* verify its caller
+as of 2026-11-20 - a full Entra token check against the tenant's published keys, with sixteen tests attacking
+it - and ships with the check disabled, because the app cannot yet obtain a token it would accept (ADR-013:
+Fabric and the Function sit in different directories). Until it is switched on, an Origin header is the only
+check, and an Origin header is set by browsers and forged trivially by anything else. Production also needs
+managed identity everywhere, Key Vault with rotation, network isolation and an access audit log. **Be precise
 about the blast radius, though** (HONESTY row 15): no Fabric token, no Gold row and no personal data passes
 through that Function, and rate limits plus a USD 5 budget cap bound the loss to Azure credit. It is a gap to
-close, not a data breach waiting to happen — and knowing the difference is itself the senior answer.
+close, not a data breach waiting to happen - and knowing the difference is itself the senior answer.
 
 **5. Scale is a benchmark, not a load.** 121 merchants x 20 days, and one controlled 20-million-row join. A
 real chain is 500+ merchants and years of accumulating history, with incremental loads, late corrections and
 concurrent dashboard users. Different problem.
 
-**6. Compliance is self-asserted.** The NDMO classification uses rules I wrote. No DPIA, no review by a Saudi
-data protection lawyer, no external audit. For a regulated system, self-assessment is a starting point.
+**6. Compliance is self-asserted.** The NDMO classification uses rules I wrote. There is now a DPIA with
+nine ranked residual risks, four of six subject rights implemented including access and erasure, and a
+breach procedure - but **no review by a Saudi data protection lawyer and no external audit**. For a
+regulated system a thorough self-assessment is still a self-assessment.
 
 **7. Bus factor of one.** No second engineer has read this code. Regulated finance needs two or three people
 who genuinely understand the system.

@@ -248,6 +248,73 @@ physical region. See `HONESTY.md`.
 
 ---
 
+## Answering a right of access request
+
+**Not an alert.** A person has asked what you hold about them, under PDPL.
+
+**Do this:**
+
+1. **Authenticate the requester first.** Everything below hands over personal data. An access request is a
+   recognised way to steal someone's identity data, and the only defence is being sure who is asking.
+2. Run the summary. It prints what is held and nothing sensitive:
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\subject_access.py --national-id <id>
+   ```
+3. Read the status:
+   - **`NOT_FOUND`** — nothing is held. That is a complete answer; send it.
+   - **`ERASED`** — this person was erased. The report carries the DSR id and the date. Tell them their data
+     was destroyed and that signed tax invoices are retained under a statutory obligation with no link to
+     their identity. **Do not** attempt to reconstruct anything from surviving rows; the tool will not, and
+     neither should you.
+   - **`DISCLOSED`** — proceed.
+4. Produce the file only when you are ready to deliver it:
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\subject_access.py --national-id <id> --out dsar.json
+   ```
+   Add `--portability` for the machine-readable subset the subject provided.
+5. Deliver it through a channel the subject is authenticated on. Not email to an address from the request.
+6. **Destroy the file.** It is a cleartext copy of personal data outside every control that protects it at
+   rest. The script will not delete it for you, deliberately — that is a decision a person makes.
+
+**What is withheld, and say so rather than omitting it:** the signed tax invoices. They are retained under
+ZATCA and tax record-keeping obligations, and the subject is entitled to know they exist.
+
+**Rights not implemented:** restriction and objection. If one is requested, it has to be handled manually and
+recorded. Do not claim the system supports them.
+
+---
+
+## A personal data breach
+
+**Not an alert** — no automated detection exists for this, which is itself worth knowing.
+
+**What counts.** Unauthorised access to, loss of, or disclosure of personal data. In this system the
+realistic routes are: the KEK or HMAC key leaking, a `.env` reaching source control, an access-request file
+sent to the wrong person, or the agent Function being abused while caller verification is off.
+
+**First hour, in order:**
+
+1. **Stop the bleeding.** Revoke the credential, delete the file, disable the endpoint. Containment before
+   investigation.
+2. **Preserve evidence.** Do not re-run anything, do not clear logs. Capture Delta table history before it is
+   vacuumed away.
+3. **Scope it.** Which subjects, which categories, how many, and over what period. `audit.pdpl_dsr_evidence`,
+   the Delta history and the run manifests are where this comes from.
+4. **Ask whether the data was readable.** PII is encrypted per subject. A leak of ciphertext without the KEK
+   is a different incident from a leak of the KEK. Say which, precisely.
+5. **Notify.** PDPL requires notifying SDAIA, and affected subjects where the risk to them is high.
+   **The controller's legal counsel decides the timing and wording — not the engineer.** Escalate within the
+   first hour; do not draft the notification yourself.
+
+**Then:** write what happened, what was affected, what was done, and what changed so it cannot recur. Add a
+runbook section here if the cause was operational.
+
+**What this project does not have:** no breach detection, no notification template, no agreed escalation
+contact, no tabletop exercise has been run. This section is a procedure, not a capability. See
+`docs/compliance/DPIA.md` residual risk 8.
+
+---
+
 ## Re-running and backfilling
 
 **`scripts/backfill.py` is the tested procedure.** It is not a partial-date re-run — this pipeline rebuilds

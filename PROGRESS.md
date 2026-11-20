@@ -812,3 +812,43 @@ decision (Gold materialised as tables, spec rule 3), so that is the owner's call
 Real data, live ZATCA onboarding, a lawyer's review and a second engineer cannot be supplied by code at all.
 
 Tests: 4 new files, 48 new tests.
+
+## 2026-11-20 (night) — right of access, and three bugs found by running it
+
+The DPIA written earlier the same day listed four of six PDPL subject rights as absent. Two are now built:
+`src/mizan/privacy/access.py` and `scripts/subject_access.py` answer a right-of-access or portability
+request, reusing the same subject resolution erasure uses so every linked Arabic spelling is found.
+
+**The case that matters is the interaction with erasure.** An erased subject returns `ERASED` with the
+tombstone and nothing else. Reassembling a shredded person from the rows erasure left behind would quietly
+undo the stronger right in the name of the weaker one; the test asserts their Arabic name appears nowhere in
+the report. Portability deliberately excludes the golden record: how two records were decided to be one
+person is our processing, not the subject's data, and disclosing it would leak the other spellings matched.
+
+Access is treated as the dangerous right it is -- it creates a cleartext copy of personal data outside every
+control that protects it at rest. The tool prints a summary by default and writes a file only when asked;
+`docs/RUNBOOKS.md#answering-a-right-of-access-request` requires authenticating the requester first and
+destroying the file after delivery.
+
+**Three real bugs, all found by running against the real lake, all mine.**
+
+1. The source map claimed `brz.payment_events_raw` holds a subject token. It does not -- payments carry no
+   customer reference and reach a person only through an order. Had it passed, every access request would
+   have silently under-disclosed. The map is now derived from the Bronze contracts rather than assumed.
+2. Bronze writes PII to `<column>_enc` but binds the ciphertext to the **plain** name, so the stored column
+   and the associated data are different strings. Conflating them fails authentication rather than returning
+   wrong plaintext, which is the right way round, but it would have failed on every field.
+3. The golden record encrypts the Arabic and English names under **different source tokens** -- MDM picks
+   the best Arabic name from one member record and the best English name from another, and each stays under
+   the token it came from. One row therefore holds two subjects' ciphertext, and decrypting both with one
+   key authenticates for neither. Keys are now resolved per column, and a column whose key has been shredded
+   is dropped and named rather than returned as ciphertext labelled as somebody's name.
+
+The honest lesson is about order of work, not about the tests: this was written from assumptions about the
+schema instead of from reading what Bronze and MDM actually write, and the tests paid for that in four
+eleven-minute runs. They caught all three, against the real lake, which is the only reason it is not
+shipping as a privacy feature that quietly returns nothing useful.
+
+Also added: `docs/RUNBOOKS.md` sections for answering an access request and for a personal data breach
+(DPIA residual risk 8 -- the procedure now exists; the detection, the template and the escalation contact
+still do not, and the section says so).

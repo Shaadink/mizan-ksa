@@ -163,15 +163,22 @@ real tenant**, and the code to do so exists and is tested.
 
 | Right | Status |
 |---|---|
-| Access | Partial — data is retrievable by subject token, but there is no self-service portal |
+| **Access** | **Implemented and tested** — `scripts/subject_access.py`; an erased subject returns ERASED and is never reassembled from surviving rows |
 | Rectification | Supported — a correction lands as a new Bronze version; Silver takes the latest |
 | **Erasure** | **Implemented and tested**, including the restore case |
 | Restriction | Not implemented |
-| Portability | Not implemented |
+| **Portability** | **Implemented** — the machine-readable subset the subject provided, excluding our record-linkage decisions |
 | Object to processing | Not implemented — processing is legal obligation and legitimate interest, but an objection route should still exist |
 
-Four of six are absent. For a reference architecture that is a reasonable scope; for a live system it is not,
-and nothing here should be read as claiming otherwise.
+Four of six are implemented. Restriction and objection are not, and must be handled manually and recorded;
+there is also no self-service portal, so every request is a person running a script. For a reference
+architecture that is reasonable scope; for a live system it is not, and nothing here should be read as
+claiming otherwise.
+
+**Access is treated as the dangerous right it is.** It produces a cleartext copy of personal data outside
+every control that protects it at rest, so the tool prints a summary by default, writes the full report only
+when explicitly asked, and `docs/RUNBOOKS.md` requires the requester to be authenticated first and the file
+destroyed after delivery.
 
 ---
 
@@ -184,11 +191,11 @@ Ranked by what would actually hurt first in a real deployment.
 | 1 | Data residency declared KSA, capacity runs UAE North | **High** | Open — `HONESTY.md` row 23 |
 | 2 | Agent API has no caller authentication in the shipped configuration | **High** | Code exists and is tested; disabled pending a token the app can obtain |
 | 3 | No legal review, no DPIA sign-off, no external audit | **High** | Open — needs a Saudi data protection practitioner |
-| 4 | Four of six subject rights unimplemented | Medium | Open |
+| 4 | Restriction and objection unimplemented; no self-service portal | Medium | Open |
 | 5 | No automated retention expiry | Medium | Open |
 | 6 | Classification rules are the author's, not a regulator-issued catalogue | Medium | Stated — `HONESTY.md` |
 | 7 | One engineer; nobody else has reviewed the privacy design | Medium | Open — bus factor of one |
-| 8 | No breach notification procedure or timeline | Medium | Open — not drafted |
+| 8 | No breach **detection**; the procedure exists, the capability does not | Medium | Procedure in `docs/RUNBOOKS.md#a-personal-data-breach`; no detection, no template, no escalation contact, no tabletop exercise |
 | 9 | Only synthetic data has ever been processed | Low here, High on go-live | By design |
 
 ---

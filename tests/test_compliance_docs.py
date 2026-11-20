@@ -47,10 +47,15 @@ def test_the_dpia_and_the_function_agree_that_caller_auth_ships_off(dpia):
     assert "It must be switched on before any" in dpia
 
 
-def test_the_dpia_does_not_claim_rights_the_system_does_not_implement(dpia):
-    """Four of six subject rights are absent. Claiming otherwise is the classic DPIA failure."""
-    assert "Not implemented" in dpia
-    assert "Four of six are absent" in dpia
+def test_the_dpia_names_the_subject_rights_that_are_still_missing(dpia):
+    """Access and portability were implemented on 2026-11-20; restriction and objection were not, and
+    there is no self-service portal. Claiming the full set is the classic DPIA failure, so the two that
+    are absent have to stay named."""
+    rights = dpia.split("## 8. Data subject rights", 1)[1].split("## 9.", 1)[0]
+    assert "| Restriction | Not implemented |" in rights
+    assert "Object to processing | Not implemented" in rights
+    assert "no self-service portal" in rights
+    assert "handled manually and recorded" in rights
 
 
 def test_the_dpia_states_that_only_synthetic_data_has_been_processed(dpia):
