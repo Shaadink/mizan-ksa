@@ -742,3 +742,23 @@ capacity panel no longer says "trial" (`Fabric FTL64, UAE North`, `not metered o
 stays in README, HONESTY and BLUEPRINT, where it is the stated reason no cost figure is claimed.
 
 Tests: **341 passed**, ruff clean on `src tests scripts dags`, 183 app tests. CI now lints `dags/` too.
+
+## 2026-11-20 (afternoon) — AF_MIZAN runs the whole pipeline
+
+A triggered run of `mizan_fabric_daily` completed all six jobs in **15 minutes**: bronze_land 7m09s, then
+silver_build, mdm_resolve, zatca_chain, and ai_index with ndmo_catalog in parallel (both started 14:02:22).
+Confirmed from both sides -- Airflow's task list, and the Fabric notebook job instances showing six
+`Completed` runs submitted by the DAG rather than by hand. HONESTY row 30 moves to Fixed.
+
+The first attempt failed in four seconds: `AADSTS7000215: Invalid client secret provided`. The value in
+`.env` was correct and a clipboard round-trip was byte-identical to it, so the wrong value had been stored in
+the Airflow Variable; re-entering it fixed the run. Worth recording because it exercised the error path --
+the log named the step, the app registration and the cause, in one read, which is what the DAG's failure
+handling was written for.
+
+Still true and still stated: the job runs on Fabric's starter pool, which pauses when idle, so the 03:00
+schedule is not dependable until an always-on custom pool is chosen, and that bills capacity continuously.
+
+`docs/linkedin/VIDEO_SHOT_LIST.md` now opens on the orchestrator rather than the data -- the Airflow Graph at
+0:06-0:15, because "it runs itself in the cloud" is the claim most portfolio projects cannot make. It also
+had a stale `PASS=65` where the Fabric target now stands at 91.

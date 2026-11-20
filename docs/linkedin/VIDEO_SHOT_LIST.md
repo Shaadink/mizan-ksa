@@ -6,18 +6,22 @@ no voice-over is needed. Every number on screen comes from the real (synthetic-d
 
 **Before you start:** open these tabs in order
 1. Fabric workspace `mizan-ksa-dev` (item list)
-2. Monitoring hub (Fabric) filtered to the notebook runs of 2026-11-14
-3. GitHub Actions page of the repo (latest green run)
-4. The Fabric App: `mizan-ksa-dev` -> command-center -> Open (check the bottom-left label is green "Live")
+2. **AF_MIZAN -> Monitor DAG -> Graph**, showing `mizan_fabric_daily` with all six tasks green
+3. Monitoring hub (Fabric) filtered to today's notebook runs
+4. GitHub Actions page of the repo (latest green run)
+5. The Fabric App: `mizan-ksa-dev` -> command-center -> Open (check the bottom-left label is green "Live")
 
 ## Part 1. The platform is real (0:00 - 0:30)
+
+Open on the orchestrator, not the data. "It runs itself in the cloud" is the claim most portfolio projects cannot make, so make it in the first fifteen seconds.
 
 | Time | Show / click | Caption |
 |---|---|---|
 | 0:00 - 0:06 | Fabric workspace `mizan-ksa-dev`, slow scroll over LH_MIZAN, WH_MIZAN, EH_MIZAN, ES_MIZAN, the semantic model, the report and the **command-center** app | One Saudi commerce transaction, followed end to end on Microsoft Fabric. |
-| 0:06 - 0:14 | Monitoring hub: the six notebook runs (Bronze, Silver, MDM, ZATCA, AI index, NDMO), all **Succeeded** | PySpark jobs land, encrypt and resolve the data, started by Airflow through the Fabric REST API. |
-| 0:14 - 0:22 | Terminal (or the run log): `dbt build --target fabric` ending **PASS=65 ERROR=0** on WH_MIZAN | dbt builds the Gold layer on the Fabric Warehouse: 65 models and tests green. |
-| 0:22 - 0:30 | GitHub Actions: the latest run with three green jobs (lint + unit, full PySpark suite, Fabric App) | Every push runs the full test suite. |
+| 0:06 - 0:15 | **AF_MIZAN -> Monitor DAG -> Graph**: `mizan_fabric_daily`, six green boxes, the arrows fanning from `zatca_chain` to `ai_index` and `ndmo_catalog`. Hover `bronze_land` so the duration shows | Apache Airflow, running inside Fabric, starts six PySpark jobs over the REST API. Nothing runs on my laptop. |
+| 0:15 - 0:21 | Monitoring hub: the same six notebook runs, all **Succeeded**, started seconds after the DAG tasks | Each box is a real Fabric notebook run: land, encrypt, resolve, sign, index, catalogue. |
+| 0:21 - 0:26 | Terminal (or the run log): `dbt build --target fabric` ending **PASS=91 ERROR=0** on WH_MIZAN | dbt builds the Gold layer on the Fabric Warehouse: 91 models and tests green. |
+| 0:26 - 0:30 | GitHub Actions: the latest run with three green jobs (lint + unit, full PySpark suite, Fabric App) | Every push runs the full test suite. |
 
 ## Part 2. The app tour (0:30 - 1:50)
 
