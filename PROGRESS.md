@@ -698,3 +698,47 @@ registered. `src/test/setup.ts` now turns that into the instruction. From `D:\` 
 Still owner-only: HONESTY row 29 (credit note on price correction -- a decision, not a task), the eight README
 screenshots, the 2:30 video, a native Arabic read of the headings, the ZATCA SDK sample-invoice repro, measured
 FinOps CU figures, and the AF_MIZAN Airflow job, which remains an unopened experiment.
+
+## 2026-11-20 — AF_MIZAN: the schedule moves into Fabric
+
+The nightly schedule lived in Docker on the owner's laptop, so it only existed while the laptop was on.
+Fabric can host Airflow itself (the portal calls it an **Apache Airflow job**, formerly **Data workflows**),
+and `AF_MIZAN` now does.
+
+**Built.** `dags/mizan_fabric_daily.py` runs the six lakehouse jobs -- bronze_land, silver_build, mdm_resolve,
+zatca_chain, then ai_index and ndmo_catalog in parallel -- over the Fabric REST API, at 03:00 Asia/Riyadh,
+one run at a time. It imports **nothing but the standard library and Airflow**, so there is no requirements
+install that can fail inside a worker nobody can debug, and `tests/test_fabric_airflow_dag.py` fails the build
+if an import ever creeps in. It sits in a top-level `dags/` folder because that is where Fabric looks.
+
+It is **not** a port of the Docker DAG. Microsoft states that private networks are not supported for Airflow
+jobs, so Marquez on a laptop is unreachable; the freshness gate, residency gate, dbt build and OpenLineage
+stay in `airflow/dags/mizan_daily.py`. Both files say so at the top rather than leaving a reader to notice
+the gates are missing.
+
+**Deployed, by API rather than by clicking.** `scripts/fabric_airflow.py` creates the item, uploads the DAG,
+and reports status. Run on 2026-11-20: item `f6f1fec2`, DAG 9,630 bytes, environment `Started`, all read back
+to confirm. That settles an open question -- the FTL64 capacity does support Airflow jobs. Git sync is
+deliberately unused: Microsoft documents no REST surface for it, and uploading from the repository keeps the
+deployment to one command without giving Fabric a GitHub credential.
+
+**One documented API does not work** (HONESTY row 31): `environment/updateSettings` answers 401 "does not have
+Write permissions" to the same service principal that had just created the item and uploaded a file through
+the sibling beta API, and its GET answers 500. Both reproduce. The workaround is better anyway -- the DAG
+reads an Airflow Variable first, and Airflow masks any variable named `*secret*`, while that API returns
+stored values in plain text. The client secret was never going to be sent through it.
+
+**Still owner-only, and the honest limit** (HONESTY row 30): six Airflow Variables and one Trigger DAG click.
+Until that happens nothing has actually run in Fabric's Airflow, and the Docker DAG remains the only one that
+has. `docs/FABRIC_AIRFLOW.md` is the walkthrough.
+
+**Also:** `scripts/render_dag_graph.py` draws `docs/artifacts/06_fabric_airflow_dag.svg` from the DAG's own
+`edges()` and the recorded run timings, with a test that re-renders and fails if the committed picture drifts.
+It labels itself "not a screenshot", because `06_airflow_dag.png` is evidence of a run and a diagram is only
+an explanation of a shape. Drawing it caught a stale 16m 19s in the new doc; the real total is 19m 23s.
+
+**Presentation:** the "Synthetic data" caption is gone from the Command Center rail and footer, and the
+capacity panel no longer says "trial" (`Fabric FTL64, UAE North`, `not metered on this capacity`). The word
+stays in README, HONESTY and BLUEPRINT, where it is the stated reason no cost figure is claimed.
+
+Tests: **341 passed**, ruff clean on `src tests scripts dags`, 183 app tests. CI now lints `dags/` too.

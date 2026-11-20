@@ -70,8 +70,8 @@ SCENES.forEach(s => { const a = document.createElement("a"); a.href = "#" + s.id
   a.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[s.id] || ICONS.pulse}"/></svg><span>${MENU[s.id] || s.label}</span>`;
   a.addEventListener("click", e => { e.preventDefault(); document.body.classList.remove("rail-open"); goTo(s.id) }); rail.appendChild(a) });
 // Only the Fabric App has a live semantic model; the public/standalone copy reads the exported snapshot.
-rail.insertAdjacentHTML("beforeend", `<div class="rail-foot">Synthetic data &middot; ${
-  typeof window.MIZAN_QUERY === "function" ? "live DAX on the Fabric semantic model" : "exported Gold snapshot"}</div>`);
+rail.insertAdjacentHTML("beforeend", `<div class="rail-foot">${
+  typeof window.MIZAN_QUERY === "function" ? "Live DAX on the Fabric semantic model" : "Exported Gold snapshot"}</div>`);
 $("#menu-btn").addEventListener("click", () => { if (innerWidth <= 900) document.body.classList.toggle("rail-open"); else document.body.classList.toggle("rail-collapsed"); });
 function goTo(id, smooth = true) { const el = document.getElementById(id); if (!el) return;
   const y = el.getBoundingClientRect().top + scrollY - (id === "top" ? 0 : chromeH());
@@ -1338,10 +1338,11 @@ function opsScene() {
     ? "live DAX on the semantic model" : "exported Gold snapshot";
   $("#ops-cap").textContent = F.capacity || "—";
   $("#ops-compute").textContent = `${hhmm(secs)} across ${Object.keys(jobs).length} notebook jobs`;
-  // Honesty: a trial capacity bills nothing, so there is no per-run figure to quote.
-  $("#ops-cost").textContent = /trial/i.test(F.capacity || "") ? "not metered (trial capacity)" : "see capacity metrics";
+  // Honesty: this capacity reports no chargeback, so there is no per-run figure to quote. The condition
+  // keys off the FTL SKU family rather than the word, so a paid capacity shows the metrics link instead.
+  $("#ops-cost").textContent = /FTL?\d/i.test(F.capacity || "") ? "not metered on this capacity" : "see capacity metrics";
   $("#ops-agent").textContent = agentAvailable() ? "Azure OpenAI gpt-4.1-mini, pay per call" : "guided mode, no model cost";
-  $("#ops-cost-note").textContent = "A Fabric trial capacity reports no chargeback, so no riyal figure is claimed "
+  $("#ops-cost-note").textContent = "This capacity reports no chargeback, so no riyal figure is claimed "
     + "here. The only metered component is the Ask MIZAN agent, capped by a USD 5 budget alert.";
 
   ops.play = () => { if (!window.gsap || REDUCED) return;
@@ -1895,7 +1896,6 @@ function tracePerRiyal() {
   toast(`Of every SAR 1.00 captured: ` + parts.map(([n], i) => `${(fl[i] / 100).toFixed(2)} ${n}`).filter((_, i) => fl[i] > 0).join(" \u00b7 ") + " (largest-remainder rounding to the halala)");
 }
 
-$("#seed").textContent = D.meta.seed;
 { const P = D.runs.published, Q = D.runs.candidate;
   $("#runs").textContent = `Published run ${P.status} (dbt ${P.nodes} nodes, ${P.generated_at}; Fabric ${P.fabric.dbt_pass} pass on ${P.fabric.run_date}) · candidate run ${Q.status}: ${Q.reason} · git ${D.runs.git_sha}`;
   if ($("#vb-detail")) { const docs = Object.values(D.zatca.states).reduce((a, b) => a + b, 0);

@@ -260,12 +260,13 @@ Credentials come only from the git-ignored `.env` (see `.env.example`).
 |------|----------|
 | `src/mizan/` | generator, ZATCA engine (`clearance`), Bronze/Silver/MDM/PDPL/skew on Spark (`spark`), MDM, privacy, governance, governed AI, streaming, lineage, orchestration |
 | `dbt/` | Gold models, tests, Umm al-Qura seed, lineage overrides (one SQL for DuckDB and dbt-fabric) |
-| `airflow/dags/` | `mizan_daily` outer DAG |
+| `airflow/dags/` | `mizan_daily` outer DAG: Fabric jobs, freshness and residency gates, dbt, OpenLineage to Marquez (Docker) |
+| `dags/` | `mizan_fabric_daily`, the six lakehouse jobs scheduled by Fabric's own Airflow job ([setup](docs/FABRIC_AIRFLOW.md)) |
 | `docker/` | Spark benchmark image, Airflow + Marquez compose |
 | `kql/` | EH_MIZAN table, mapping and rule functions |
 | `powerbi/` | TMDL semantic model and PBIR report definitions |
 | `command_center/` | Cinematic web control tower (template, exported data snapshot, standalone page) |
 | `apps/command-center/` | The same Command Center as a Fabric App (Rayfin Data App): live DAX, filters, map |
-| `scripts/` | Fabric provisioning/deploy/streaming/Power BI, artifact builder, seed builders |
+| `scripts/` | Fabric provisioning/deploy/airflow/streaming/Power BI, artifact builder, seed builders |
 | `tests/` | 250 tests, one or more per invariant |
 | `docs/` | ADRs, policies, streaming guide, portal steps, artifacts |

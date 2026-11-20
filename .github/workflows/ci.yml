@@ -24,7 +24,7 @@ jobs:
       - name: Ephemeral dev keys (never committed)
         run: python scripts/init_local_env.py
       - name: Ruff
-        run: python -m ruff check src tests scripts
+        run: python -m ruff check src tests scripts dags
       - name: Unit tests (Spark tests skip without pyspark)
         run: python -m pytest -q -m "not spark"
       - name: dbt parse (DuckDB target)
