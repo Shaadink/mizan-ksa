@@ -115,7 +115,10 @@ def test_tampered_xml_detected(tape_run):
 
 # ---------------------------------------------------------------- chaos 5-8 (remaining)
 
-@pytest.mark.parametrize("status", [408, 409, 429, 500, 502, 503, 504, 302])
+# 303 is in this list on purpose. It is meaningful ONLY from the clearance endpoint; arriving on a
+# simplified (B2C) document it means nothing ZATCA defines, so it must stay UNKNOWN_OUTCOME rather than
+# be read as "go to reporting" by a document that is already there.
+@pytest.mark.parametrize("status", [408, 409, 429, 500, 502, 503, 504, 302, 303])
 def test_chaos5_non_definitive_statuses_never_mint_new_uuid_or_icv(requests, status):
     reqs = [r for r in requests if r["egs_id"] == "EGS-05"][:5]
     client = MockFatoora()
@@ -158,6 +161,233 @@ def test_chaos7_b2b_held_until_cleared_b2c_posted_despite_timeout(requests):
     assert w.submit(u_b2c) == "REPORTED"
     assert w.submit(u_b2b) == "CLEARED"              # resubmitting a final state is a no-op
     assert gl.calls[u_b2b] == 1 and gl.calls[u_b2c] == 1
+
+
+# ---------------------------------------------------------------- price corrected after signing (row 29)
+
+
+def _repriced(req, factor="0.80"):
+    """The same sale with one line's price changed, as an upstream price correction would leave it."""
+    from decimal import Decimal
+    out = json.loads(json.dumps(req))
+    ln = out["lines"][0]
+    net = (Decimal(ln["line_net_sar"]) * Decimal(factor)).quantize(Decimal("0.01"))
+    ln["line_net_sar"] = f"{net:.2f}"
+    ln["unit_price_sar"] = f"{(net / Decimal(ln['qty'])).quantize(Decimal('0.01')):.2f}"
+    ln["line_vat_sar"] = f"{(net * Decimal('0.15')).quantize(Decimal('0.01')):.2f}"
+    # A real upstream correction restates the header totals too, so the fixture does as well. Leaving the
+    # header on the old figure would have made this test pass against a product that never recomputed.
+    tn = sum((Decimal(x["line_net_sar"]) for x in out["lines"]), Decimal("0"))
+    tv = sum((Decimal(x["line_vat_sar"]) for x in out["lines"]), Decimal("0"))
+    out.update({"total_excl_vat_sar": f"{tn:.2f}", "vat_total_sar": f"{tv:.2f}",
+                "total_incl_vat_sar": f"{tn + tv:.2f}"})
+    return out
+
+
+def test_price_correction_nets_the_chain_to_the_corrected_amount(requests):
+    """The whole point of HONESTY row 29. Correcting a price moved Silver, Gold and the bank reconciliation
+    and left the tax ledger on the old figure. The chain must now arrive at the corrected total -- by
+    issuing documents, never by re-pricing a signed one."""
+    from decimal import Decimal
+
+    from mizan.clearance.engine import price_correction_documents
+    signed = next(r for r in requests if r["document_type"] == "INVOICE")
+    corrected = _repriced(signed)
+    pair = price_correction_documents(signed, corrected)
+
+    assert [d["document_type"] for d in pair] == ["CREDIT_NOTE", "INVOICE"]
+    signed_total = Decimal(signed["total_incl_vat_sar"])
+    cancel, replacement = (Decimal(d["total_incl_vat_sar"]) for d in pair)
+    assert cancel == signed_total, "the credit note must reverse the original in full"
+    # original - cancellation + replacement == the corrected amount, exactly, in halalas.
+    assert signed_total - cancel + replacement == Decimal(corrected["total_incl_vat_sar"])
+    assert replacement < signed_total
+
+
+def test_price_correction_never_touches_the_signed_document(requests):
+    """Re-signing a document ZATCA already holds is the one thing a tax chain must not do."""
+    from mizan.clearance.engine import price_correction_documents
+    signed = next(r for r in requests if r["document_type"] == "INVOICE")
+    before = json.dumps(signed, sort_keys=True)
+    pair = price_correction_documents(signed, _repriced(signed))
+    assert json.dumps(signed, sort_keys=True) == before, "the signed request was mutated in place"
+    for d in pair:
+        assert d["invoice_uuid"] != signed["invoice_uuid"]
+        assert d["request_id"] != signed["request_id"]
+        assert d["billing_reference_uuid"] == signed["invoice_uuid"], (
+            "both documents must name the invoice they correct, or an auditor cannot follow it")
+
+
+def test_price_correction_is_deterministic(requests):
+    """CLAUDE.md: a rerun must be byte-identical. Non-deterministic UUIDs here would mint a second pair of
+    ICVs on every run and the chain would grow without anything changing."""
+    from mizan.clearance.engine import price_correction_documents
+    signed = next(r for r in requests if r["document_type"] == "INVOICE")
+    corrected = _repriced(signed)
+    a = price_correction_documents(signed, corrected)
+    b = price_correction_documents(signed, corrected)
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def test_an_unchanged_price_issues_nothing(requests):
+    """The detector runs over every document on every run. If it emitted a pair when nothing had changed it
+    would add two ICVs per invoice per night, for ever."""
+    from mizan.clearance.engine import price_correction_documents
+    signed = next(r for r in requests if r["document_type"] == "INVOICE")
+    assert price_correction_documents(signed, json.loads(json.dumps(signed))) == []
+
+
+def test_a_second_correction_cancels_the_replacement_not_the_original(requests):
+    """Correcting the same invoice twice. The second credit note must reverse the FIRST REPLACEMENT.
+
+    Reversing the original a second time would subtract it twice and the chain would net to an amount
+    nobody ever invoiced. `cancels_uuid` is what makes the difference, and this is the only test that would
+    notice if it stopped being passed.
+    """
+    from decimal import Decimal
+
+    from mizan.clearance.engine import price_correction_documents
+    signed = next(r for r in requests if r["document_type"] == "INVOICE")
+    first_pair = price_correction_documents(signed, _repriced(signed, "0.80"))
+    replacement = first_pair[1]
+
+    second_pair = price_correction_documents(replacement, _repriced(signed, "0.50"), attempt=2,
+                                             cancels_uuid=replacement["invoice_uuid"])
+    cancel2, replacement2 = second_pair
+    assert cancel2["billing_reference_uuid"] == replacement["invoice_uuid"], (
+        "the second cancellation names the original instead of the document it actually reverses")
+    assert Decimal(cancel2["total_incl_vat_sar"]) == Decimal(replacement["total_incl_vat_sar"])
+
+    chain = (Decimal(signed["total_incl_vat_sar"])
+             - Decimal(first_pair[0]["total_incl_vat_sar"]) + Decimal(replacement["total_incl_vat_sar"])
+             - Decimal(cancel2["total_incl_vat_sar"]) + Decimal(replacement2["total_incl_vat_sar"]))
+    assert chain == Decimal(replacement2["total_incl_vat_sar"]), (
+        f"after two corrections the chain nets to {chain}, not the latest stated amount")
+    assert len({d["invoice_uuid"] for d in (*first_pair, *second_pair)}) == 4, "a UUID was reused"
+
+
+def test_a_changed_credit_note_raises_instead_of_guessing(requests):
+    """Cancelling a credit note needs a debit note (ZATCA 383), which this project does not model. Failing
+    closed is the only honest option: a half-handled tax correction is worse than a refusal."""
+    from mizan.clearance.engine import price_correction_documents
+    cn = next(r for r in requests if r["document_type"] == "CREDIT_NOTE")
+    with pytest.raises(ValueError, match="debit note"):
+        price_correction_documents(cn, _repriced(cn))
+
+
+def test_the_correction_pair_signs_into_the_chain_with_its_own_icvs(requests):
+    """End to end: the pair goes through the real engine, gets its own ICVs, and the chain still verifies
+    from genesis with no gaps -- which is what makes this a correction rather than a rewrite."""
+    from decimal import Decimal
+
+    from mizan.clearance.engine import price_correction_documents
+    base = [r for r in requests if r["egs_id"] == "EGS-01" and r["document_type"] == "INVOICE"][:3]
+    signed = base[1]
+    pair = price_correction_documents(signed, _repriced(signed))
+
+    client = MockFatoora()
+    run = process_requests([*base, *pair], client)
+    assert sorted(by_icv(run, "EGS-01")) == [1, 2, 3, 4, 5], "the pair must extend the chain, not replace it"
+    assert verify_chain(run.store.zatca_chain_journal.values()) == []
+
+    rows = {r.request_id: r for r in run.store.invoice_outbox.values()}
+    original = rows[signed["request_id"]]
+    cancel = rows[pair[0]["request_id"]]
+    replacement = rows[pair[1]["request_id"]]
+    assert original.state in ("CLEARED", "REPORTED")
+    net = (Decimal(original.total_incl_vat_sar) - Decimal(cancel.total_incl_vat_sar)
+           + Decimal(replacement.total_incl_vat_sar))
+    assert net == Decimal(pair[1]["total_incl_vat_sar"])
+    assert_one_posting_per_sale(run)
+
+
+# ---------------------------------------------------------------- clearance switched off (HTTP 303)
+
+
+def test_303_resubmits_the_identical_document_to_reporting_instead_of_looping(requests):
+    """ZATCA's Detailed Technical Guideline v2: when clearance is deactivated, a standard document POSTed
+    to the clearance API is answered 303 and must go to the reporting API, where it is Reported.
+
+    Until 2026-11-21 this project treated 303 as UNKNOWN_OUTCOME, which is a live defect rather than a
+    conservative default: the retry goes back to the clearance endpoint, which is still deactivated, which
+    answers 303 again. It never resolves. And because ZATCA switches clearance off tenant-wide, it would
+    happen to every standard invoice at once.
+    """
+    b2b = [r for r in requests if r["invoice_flow"] == "CLEARANCE" and r["egs_id"] == "EGS-01"][:3]
+    client = MockFatoora()
+    client.deactivate_clearance()
+    run = process_requests(b2b, client)
+
+    rows = [run.store.get(run.store.by_request_id[r["request_id"]]) for r in b2b]
+    assert [r.state for r in rows] == ["REPORTED"] * 3, (
+        "a standard document must end REPORTED when clearance is off, not loop on UNKNOWN_OUTCOME")
+    assert all(r.attempts == 1 for r in rows), "the redirect is followed inside one attempt, not retried"
+    # The document is unchanged in every way that matters to the chain.
+    assert [r.invoice_flow for r in rows] == ["CLEARANCE"] * 3, (
+        "the document is still a standard B2B invoice; only the endpoint that accepted it changed")
+    assert sorted(by_icv(run, "EGS-01")) == [1, 2, 3]
+    for r in b2b:
+        assert len(set(sent_hashes(client, r["request_id"]))) == 1, "redirect resent different bytes"
+    assert_one_posting_per_sale(run)
+
+
+def test_303_posts_the_b2b_ledger_entry_once_reporting_accepts_it(requests):
+    """The hold exists because ZATCA might reject a B2B document. Once ZATCA has ACCEPTED it -- by whichever
+    endpoint it told us to use -- the condition the hold was waiting for is met. Holding anyway would strand
+    every B2B sale for as long as ZATCA keeps clearance off, which is a decision ZATCA makes, not us."""
+    b2b = next(r for r in requests if r["invoice_flow"] == "CLEARANCE")
+    store, gl, client = ChainStore(), GlPostingSink(), MockFatoora()
+    client.deactivate_clearance()
+    w = ZatcaWorker(store, client, gl)
+    uuid = w.enqueue(b2b)
+    assert gl.accounting_postings(uuid) == 0, "B2B must still be held at sale"
+    assert w.submit(uuid) == "REPORTED"
+    assert gl.accounting_postings(uuid) == 1
+    assert w.submit(uuid) == "REPORTED" and gl.calls[uuid] == 1, "a settled document re-posts nothing"
+
+
+def test_303_is_recorded_so_an_auditor_can_see_why_a_b2b_doc_was_reported(requests):
+    """A standard invoice in REPORTED state is otherwise inexplicable. The reason has to be in the history,
+    because this is a tax record and 'why is this one different' is the first question anyone asks."""
+    b2b = next(r for r in requests if r["invoice_flow"] == "CLEARANCE")
+    store, gl, client = ChainStore(), GlPostingSink(), MockFatoora()
+    client.deactivate_clearance()
+    w = ZatcaWorker(store, client, gl)
+    row = store.get(w.enqueue(b2b))
+    w.submit(row.invoice_uuid)
+    row = store.get(row.invoice_uuid)
+    redirect = [h for h in row.history if h["event"] == "CLEARANCE_DEACTIVATED"]
+    assert len(redirect) == 1 and redirect[0]["http_status"] == 303
+    assert redirect[0]["resubmitted_to"] == "REPORTING"
+    response = [h for h in row.history if h["event"] == "RESPONSE"][-1]
+    assert response["endpoint"] == "REPORTING" and response["state"] == "REPORTED"
+
+
+def test_a_b2c_document_is_untouched_when_clearance_is_deactivated(requests):
+    """Simplified invoices never went to the clearance endpoint, so switching it off must change nothing
+    about them -- including that they still post at sale."""
+    b2c = next(r for r in requests if r["invoice_flow"] == "REPORTING")
+    store, gl, client = ChainStore(), GlPostingSink(), MockFatoora()
+    client.deactivate_clearance()
+    w = ZatcaWorker(store, client, gl)
+    uuid = w.enqueue(b2c)
+    assert gl.accounting_postings(uuid) == 1
+    assert w.submit(uuid) == "REPORTED"
+    row = store.get(uuid)
+    assert not [h for h in row.history if h["event"] == "CLEARANCE_DEACTIVATED"]
+
+
+def test_303_does_not_consume_a_planted_fault(requests):
+    """A guard on the fixture, not the product. If deactivation ate a scripted outcome, turning clearance
+    off would shift every planted fault onto a different attempt and quietly weaken the other chaos tests."""
+    b2b = [r for r in requests if r["invoice_flow"] == "CLEARANCE" and r["egs_id"] == "EGS-01"][:1]
+    client = MockFatoora()
+    client.deactivate_clearance()
+    client.script(b2b[0]["request_id"], ["HTTP_400"])
+    run = process_requests(b2b, client)
+    row = run.store.get(run.store.by_request_id[b2b[0]["request_id"]])
+    assert row.state == "CONFIRMED_REJECTION", (
+        "the scripted 400 must still be the answer the REPORTING endpoint gives, not be eaten by the 303")
 
 
 def test_chaos8_concurrent_lanes_single_writer_no_gaps(requests):

@@ -321,3 +321,116 @@ def test_a_corrected_zatca_resend_does_not_double_the_silver_documents(lake_run,
         f"Silver doubled on a corrected re-send: {docs.count()} rows, expected {before}. zatca_land must read "
         "Bronze through _latest() -- a join key with two rows per key fans out the whole table.")
     assert docs.select("invoice_uuid").distinct().count() == docs.count(), "invoice_uuid is no longer unique"
+
+
+def test_a_price_corrected_after_signing_reaches_the_tax_chain_as_a_credit_note(lake_run, spark, test_keys,
+                                                                                tmp_path):
+    """HONESTY row 29, closed. Correcting a price upstream moved Silver, Gold and the bank reconciliation and
+    left the signed tax chain on the OLD amount, with no credit note raised -- the exact condition this
+    project exists to detect, happening inside the project.
+
+    Both halves of the old behaviour were right and that was the trap: `run_zatca` skips any request_id
+    already in the outbox, because re-pricing a document ZATCA already holds is the one thing a tax chain
+    must never do. The missing piece was not a patch to the engine, it was the pair of documents nobody was
+    issuing. So this test asserts the chain ARRIVES at the corrected total without the original moving at
+    all.
+    """
+    import json as _json
+    import shutil
+    from decimal import Decimal
+
+    from mizan.spark.bronze import land_invoice_requests
+    from mizan.spark.lake import Lake
+    from mizan.spark.session import TableLocator
+    from mizan.spark.zatca_land import run_zatca
+
+    root = tmp_path / "repriced"
+    shutil.copytree(lake_run["root"], root, dirs_exist_ok=True)
+    lk = Lake(spark, TableLocator("local", root))
+    before = lk.read("slv", "zatca_invoice_documents").count()
+
+    # Three standard invoices get a cheaper first line, exactly as an upstream price fix would leave them.
+    originals = [r.asDict() for r in lk.read("ctl", "invoice_outbox")
+                 .filter("document_type = 'INVOICE'").orderBy("request_id").limit(3).collect()]
+    wanted = {r["request_id"] for r in originals}
+    raw = {r["request_id"]: _json.loads(r["payload_json"])
+           for r in lk.read("brz", "zatca_invoices_raw").collect() if r["request_id"] in wanted}
+
+    lines, expected = [], {}
+    for request_id, payload in sorted(raw.items()):
+        ln = payload["lines"][0]
+        net = (Decimal(ln["line_net_sar"]) * Decimal("0.80")).quantize(Decimal("0.01"))
+        ln.update({"line_net_sar": f"{net:.2f}", "unit_price_sar": f"{net / Decimal(ln['qty']):.2f}",
+                   "line_vat_sar": f"{(net * Decimal('0.15')).quantize(Decimal('0.01')):.2f}"})
+        tn = sum((Decimal(x["line_net_sar"]) for x in payload["lines"]), Decimal("0"))
+        tv = sum((Decimal(x["line_vat_sar"]) for x in payload["lines"]), Decimal("0"))
+        payload.update({"total_excl_vat_sar": f"{tn:.2f}", "vat_total_sar": f"{tv:.2f}",
+                        "total_incl_vat_sar": f"{tn + tv:.2f}"})
+        expected[request_id] = tn + tv
+        lines.append(_json.dumps(payload, sort_keys=True))
+
+    send = tmp_path / "reprice" / "zatca" / "invoice_requests.jsonl"
+    send.parent.mkdir(parents=True, exist_ok=True)
+    send.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assert land_invoice_requests(lk, test_keys, send, send.parent.parent)["landed_rows"] == 3
+
+    run_zatca(lk, None)
+    docs = lk.read("slv", "zatca_invoice_documents")
+    assert docs.count() == before + 6, (
+        f"expected one credit note + one replacement per corrected invoice, got {docs.count() - before}")
+    assert docs.select("invoice_uuid").distinct().count() == docs.count()
+
+    rows = {r["request_id"]: r.asDict() for r in docs.collect()}
+    for original in originals:
+        rid = original["request_id"]
+        cancel, replacement = rows[f"{rid}-PC1CN"], rows[f"{rid}-PC1RI"]
+        assert cancel["document_type"] == "CREDIT_NOTE" and replacement["document_type"] == "INVOICE"
+        # The original is untouched: same uuid, same amount, still in the chain at its own ICV.
+        assert rows[rid]["invoice_uuid"] == original["invoice_uuid"]
+        assert Decimal(str(rows[rid]["total_incl_vat_sar"])) == Decimal(str(original["total_incl_vat_sar"]))
+        # And the three together state the corrected amount, to the halala.
+        net = (Decimal(str(rows[rid]["total_incl_vat_sar"]))
+               - Decimal(str(cancel["total_incl_vat_sar"]))
+               + Decimal(str(replacement["total_incl_vat_sar"])))
+        assert net == expected[rid], f"{rid}: chain nets to {net}, corrected amount is {expected[rid]}"
+        # Derived documents inherit the original's issue date rather than landing NULL and dropping out of
+        # every date-filtered tax report.
+        assert cancel["issue_date_ksa"] is not None and replacement["issue_date_ksa"] is not None
+
+    # Running again must issue NOTHING. A detector that re-fires would add two ICVs per invoice per night.
+    # This is the assertion that caught the first implementation: it asked "has this ever been corrected",
+    # which only answers correctly the first time, instead of "what does the chain state today".
+    run_zatca(lk, None)
+    assert lk.read("slv", "zatca_invoice_documents").count() == before + 6, (
+        "the price-correction detector fired twice for the same correction")
+
+    # A SECOND price change on an already-corrected invoice must cancel the REPLACEMENT, not the original.
+    # Cancelling the original twice would subtract it twice and the chain would net to the wrong figure.
+    rid = originals[0]["request_id"]
+    payload = raw[rid]
+    ln = payload["lines"][0]
+    net = (Decimal(ln["line_net_sar"]) * Decimal("0.50")).quantize(Decimal("0.01"))
+    ln.update({"line_net_sar": f"{net:.2f}", "unit_price_sar": f"{net / Decimal(ln['qty']):.2f}",
+               "line_vat_sar": f"{(net * Decimal('0.15')).quantize(Decimal('0.01')):.2f}"})
+    tn = sum((Decimal(x["line_net_sar"]) for x in payload["lines"]), Decimal("0"))
+    tv = sum((Decimal(x["line_vat_sar"]) for x in payload["lines"]), Decimal("0"))
+    payload.update({"total_excl_vat_sar": f"{tn:.2f}", "vat_total_sar": f"{tv:.2f}",
+                    "total_incl_vat_sar": f"{tn + tv:.2f}"})
+    again = tmp_path / "reprice2" / "zatca" / "invoice_requests.jsonl"
+    again.parent.mkdir(parents=True, exist_ok=True)
+    again.write_text(_json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+    assert land_invoice_requests(lk, test_keys, again, again.parent.parent)["landed_rows"] == 1
+
+    run_zatca(lk, None)
+    docs = lk.read("slv", "zatca_invoice_documents")
+    assert docs.count() == before + 8, "a second correction must add exactly one more pair"
+    rows = {r["request_id"]: r.asDict() for r in docs.collect()}
+    chain = (Decimal(str(rows[rid]["total_incl_vat_sar"]))
+             - Decimal(str(rows[f"{rid}-PC1CN"]["total_incl_vat_sar"]))
+             + Decimal(str(rows[f"{rid}-PC1RI"]["total_incl_vat_sar"]))
+             - Decimal(str(rows[f"{rid}-PC2CN"]["total_incl_vat_sar"]))
+             + Decimal(str(rows[f"{rid}-PC2RI"]["total_incl_vat_sar"])))
+    assert chain == tn + tv, f"after two corrections the chain nets to {chain}, live amount is {tn + tv}"
+    assert (Decimal(str(rows[f"{rid}-PC2CN"]["total_incl_vat_sar"]))
+            == Decimal(str(rows[f"{rid}-PC1RI"]["total_incl_vat_sar"]))), (
+        "the second cancellation must reverse the first replacement, not the original")

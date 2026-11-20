@@ -27,12 +27,28 @@ describe("money is exact", () => {
 // money (the 2026-11-16 price correction for ZATCA BR-KSA-50) leaves Fabric a dataset behind until the
 // pipeline is re-run there. Skip with a reason instead of failing: no code change can reconcile them.
 // Refresh: re-run the pipeline on Fabric, then scripts/record_app_dax.py.
-const sameDataset = live.recon?.gross === snapshot.recon.gross;
+// "Same dataset" has two halves, and only the money half existed until 2026-11-20. A SCHEMA difference is
+// just as disqualifying: when Gold became incremental (ADR-015) Silver gained a `source_ingested_at`
+// column on four tables, so the NDMO catalogue counts four more columns locally than the Fabric semantic
+// model has ever seen. The money matched, so the old gate said "same dataset" and then compared two
+// different lakehouses' governance scorecards -- which is not a finding, it is a category error.
+// Counting the catalogued columns is the cheapest way to ask "is Fabric running the schema we are?".
+const catalogueColumns = (d: MizanData): number =>
+    (d.ndmo?.scorecard ?? [])
+        .filter((r: { family: string }) => r.family === "CLASSIFICATION")
+        .reduce((n: number, r: { den: number }) => n + r.den, 0);
+
+const sameMoney = live.recon?.gross === snapshot.recon.gross;
+const sameSchema = catalogueColumns(live) === catalogueColumns(snapshot);
+const sameDataset = sameMoney && sameSchema;
 if (!sameDataset) {
+    const why = !sameMoney
+        ? `gross ${live.recon?.gross} vs snapshot ${snapshot.recon.gross}`
+        : `catalogued columns ${catalogueColumns(live)} vs snapshot ${catalogueColumns(snapshot)}`;
     console.warn(
-        `[shape.spec] recorded Fabric fixtures are a different dataset than snapshot.json ` +
-        `(fixture gross ${live.recon?.gross} vs snapshot ${snapshot.recon.gross}); live cross-checks ` +
-        `skipped until the Fabric pipeline is re-run and scripts/record_app_dax.py is redone.`,
+        `[shape.spec] recorded Fabric fixtures are a different dataset than snapshot.json (${why}); ` +
+        `live cross-checks skipped until the Fabric pipeline is re-run and scripts/record_app_dax.py ` +
+        `is redone. See HONESTY.md row 36.`,
     );
 }
 

@@ -21,6 +21,10 @@ sources:
             data_tests: [not_null]
           - name: business_date_ksa
             data_tests: [not_null]
+          - name: source_ingested_at
+            description: "Bronze arrival time, carried through unchanged (ADR-015). The incremental Gold
+              watermark. A NULL would be invisible to every `>=` cut-off, so the row would never be built."
+            data_tests: [not_null]
       - name: settlement_lines
         columns:
           - name: payment_event_id
@@ -29,6 +33,10 @@ sources:
             data_tests:
               - accepted_values:
                   arguments: {values: ["PAID_BANK", "IN_TRANSIT", "QUARANTINED"]}
+          - name: source_ingested_at
+            description: "Bronze arrival time, carried through unchanged (ADR-015). The incremental Gold
+              watermark. A NULL would be invisible to every `>=` cut-off, so the row would never be built."
+            data_tests: [not_null]
       - name: erp_gl_journal_lines
         columns:
           - name: gl_account_role
@@ -39,6 +47,10 @@ sources:
             data_tests:
               - accepted_values:
                   arguments: {values: ["S", "H"]}
+          - name: source_ingested_at
+            description: "Bronze arrival time, carried through unchanged (ADR-015). The incremental Gold
+              watermark. A NULL would be invisible to every `>=` cut-off, so the row would never be built."
+            data_tests: [not_null]
       - name: zatca_invoice_documents
         columns:
           - name: invoice_uuid
@@ -53,6 +65,10 @@ sources:
                   arguments:
                     values: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS", "CONFIRMED_REJECTION",
                              "AUTH_HOLD", "UNKNOWN_OUTCOME", "SUBMITTING", "SIGNED"]
+          - name: source_ingested_at
+            description: "Bronze arrival time, carried through unchanged (ADR-015). The incremental Gold
+              watermark. A NULL would be invisible to every `>=` cut-off, so the row would never be built."
+            data_tests: [not_null]
       - name: golden_party_scd2
         columns:
           - name: golden_id

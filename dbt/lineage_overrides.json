@@ -58,6 +58,11 @@
   "unclassified_events": [
    "slv.payment_lifecycle.event_type",
    "slv.payment_lifecycle.amount_sar"
+  ],
+  "last_source_arrival_at": [
+   "slv.erp_gl_journal_lines.source_ingested_at",
+   "slv.payment_lifecycle.source_ingested_at",
+   "slv.settlement_lines.source_ingested_at"
   ]
  },
  "dim_date_saudi": {
@@ -213,6 +218,10 @@
   "quarantined_sar": [
    "slv.settlement_lines.net_settled_sar",
    "slv.settlement_lines.settlement_status"
+  ],
+  "last_source_arrival_at": [
+   "slv.payment_lifecycle.source_ingested_at",
+   "slv.settlement_lines.source_ingested_at"
   ]
  },
  "fact_merchant_dispute_monitor": {
@@ -260,6 +269,11 @@
   ],
   "in_monitoring_programme": [
    "slv.payment_lifecycle.event_type"
+  ]
+ },
+ "fact_zatca_clearance_ledger": {
+  "last_source_arrival_at": [
+   "slv.zatca_invoice_documents.source_ingested_at"
   ]
  }
 }

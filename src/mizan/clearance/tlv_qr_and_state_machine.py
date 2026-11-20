@@ -98,10 +98,28 @@ def recover_after_restart(state: str) -> str:
     return "UNKNOWN_OUTCOME" if state == "SUBMITTING" else state
 
 
-def resolve_submission_attempt(http_status: int | None, invoice_flow: str) -> dict:
+def resolve_submission_attempt(http_status: int | None, invoice_flow: str,
+                               submitted_to: str | None = None) -> dict:
     """I-03: only 200/202/400/401/403 are definitive. Every other code (408, 429,
     5xx, gateway errors, 409, unexpected 3xx) is UNKNOWN_OUTCOME: never a new UUID/ICV.
     Addition: http_status=None means a transport failure (timeout / no response).
+
+    **303 is the one status that is neither definitive nor unknown, and it is not a widening of the frozen
+    set.** ZATCA's Detailed Technical Guideline (v2) says that when clearance is switched off, a standard
+    document POSTed to the clearance API is answered 303 and must be sent to the **reporting** API instead,
+    where it is Reported rather than cleared (no stamp or QR comes back). So a 303 is an *instruction about
+    where to send the document*, not an answer about the document. The frozen rule -- which HTTP statuses
+    constitute a final outcome -- is untouched: after following the redirect the document still ends on one
+    of 200/202/400/401/403, from the other endpoint.
+
+    Treating it as UNKNOWN_OUTCOME, which is what this did until 2026-11-21, is a live defect rather than a
+    conservative choice: the retry resends to the clearance API, which is still deactivated, which answers
+    303 again. It never resolves and no amount of waiting helps. An operator would see attempts climb on
+    every standard invoice in the country at once, because ZATCA deactivates clearance tenant-wide.
+
+    `submitted_to` names the endpoint that actually answered, which is how a redirected document gets the
+    right state: the same 200 means CLEARED from the clearance API and REPORTED from the reporting API.
+    It defaults to the document's own flow, so every existing caller is unaffected.
 
     On 409 specifically, since external review asked. A 409 can mean "you already sent this", which is the
     likely answer when a previous attempt succeeded and the response was lost. Treating it as UNKNOWN_OUTCOME
@@ -114,8 +132,18 @@ def resolve_submission_attempt(http_status: int | None, invoice_flow: str) -> di
     flow = invoice_flow.strip().upper()  # CLEARANCE (B2B) | REPORTING (B2C)
     if flow not in ("CLEARANCE", "REPORTING"):
         raise ValueError(f"Unknown invoice_flow {invoice_flow!r}")
+    endpoint = (submitted_to or flow).strip().upper()
+    if endpoint not in ("CLEARANCE", "REPORTING"):
+        raise ValueError(f"Unknown submitted_to {submitted_to!r}")
+    if http_status == 303 and endpoint == "CLEARANCE" and flow == "CLEARANCE":
+        # Not an outcome. Stay in SUBMITTING -- which is already persisted -- and resend the IDENTICAL
+        # bytes under the IDENTICAL uuid and ICV to the reporting endpoint. Minting a new document here
+        # would be the worst possible response: the chain would gain an ICV for a document ZATCA never
+        # rejected, and the original would still be outstanding.
+        return {"next_state": "SUBMITTING", "retry_same_bytes": True, "resubmit_to": "REPORTING",
+                "gl_action": "HOLD"}
     if http_status == 200:
-        state = "CLEARED" if flow == "CLEARANCE" else "REPORTED"
+        state = "CLEARED" if endpoint == "CLEARANCE" else "REPORTED"
     elif http_status == 202:
         state = "ACCEPTED_WITH_WARNINGS"
     elif http_status == 400:
@@ -126,12 +154,19 @@ def resolve_submission_attempt(http_status: int | None, invoice_flow: str) -> di
         state = "UNKNOWN_OUTCOME"
     return {"next_state": state,
             "retry_same_bytes": state in RETRY_IDENTICAL,
+            "resubmit_to": None,
             "gl_action": gl_action(flow, state)}
 
 
 def gl_action(flow: str, state: str) -> str:
     """GL key = invoice_uuid (idempotent). B2C revenue is posted at the point of sale,
-    never held on a ZATCA timeout. B2B posts only once ZATCA has cleared it."""
+    never held on a ZATCA timeout. B2B posts only once ZATCA has accepted it.
+
+    REPORTED counts as acceptance for a CLEARANCE document, and only reachable one way: ZATCA answered 303
+    because clearance is switched off, and the reporting endpoint then accepted the same document. Holding
+    the ledger in that case would strand every B2B sale in the country for as long as ZATCA keeps clearance
+    off -- the document has been accepted by the tax authority, which is the condition the hold was waiting
+    for. A B2C document is unaffected: its flow is REPORTING, so it still posts at sale."""
     if flow == "REPORTING":
         return "POSTED_AT_SALE"
-    return "POST_ONCE" if state in ("CLEARED", "ACCEPTED_WITH_WARNINGS") else "HOLD"
+    return "POST_ONCE" if state in ("CLEARED", "ACCEPTED_WITH_WARNINGS", "REPORTED") else "HOLD"

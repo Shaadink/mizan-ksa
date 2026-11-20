@@ -69,7 +69,20 @@ def test_story_facts_match_their_sources(data):
     assert rules == {"VELOCITY", "MULE_RING", "REPORTING_SLA"} and len(data["stream"]["alerts"]) == 4
     assert data["pdpl"]["guard_reshredded"] == data["pdpl"]["keys"] == 5
     assert len(data["mdm"]["five"]) == 5 and len({r["golden"] for r in data["mdm"]["five"]}) == 1
-    assert sum(data["ndmo"]["catalog"]["columns"].values()) == 350
+    # The catalogue's tier histogram, its own column_count and the scorecard's per-table denominators are
+    # three figures computed by different code paths over the same lakehouse. They must agree.
+    #
+    # This replaced a hard-coded `== 350`, which broke the moment Silver gained `source_ingested_at` on four
+    # tables (ADR-015) -- a correct, intended change that a typed total reported as a failure. A number
+    # nobody can re-derive is one somebody eventually edits to make the suite green, which is the opposite
+    # of what it was for. The floor still catches a catalogue that silently shrinks.
+    catalog = data["ndmo"]["catalog"]
+    tiers = catalog["columns"]
+    classification = [r for r in data["ndmo"]["scorecard"] if r["family"] == "CLASSIFICATION"]
+    assert sum(tiers.values()) == catalog["column_count"] >= 350
+    assert sum(r["den"] for r in classification) == catalog["column_count"], (
+        "the NDMO scorecard and the column catalogue disagree about how many columns exist")
+    assert set(tiers) == {"PUBLIC", "CONFIDENTIAL", "SECRET", "TOP_SECRET"}
 
 
 def test_no_unmasked_identifiers(data):

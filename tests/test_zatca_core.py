@@ -185,9 +185,36 @@ def test_definitive_status_table(status, flow, state, retry, gl):
     assert (r["next_state"], r["retry_same_bytes"], r["gl_action"]) == (state, retry, gl)
 
 
-@given(st.integers(min_value=100, max_value=599).filter(lambda s: s not in (200, 202, 400, 401, 403)))
+# 303 is excluded because it is not an outcome at all: ZATCA uses it to say "clearance is switched off,
+# send this to the reporting endpoint" (Detailed Technical Guideline v2). It gets its own cases below.
+# This test caught the 303 change the moment it landed, which is exactly what it is for -- the rule it
+# encodes is frozen (CLAUDE.md, spec Section 12) and must not drift by accident.
+@given(st.integers(min_value=100, max_value=599).filter(lambda s: s not in (200, 202, 400, 401, 403, 303)))
 def test_every_other_status_is_unknown_outcome(status):
     assert resolve_submission_attempt(status, "CLEARANCE")["next_state"] == "UNKNOWN_OUTCOME"
+
+
+def test_303_on_clearance_is_a_redirect_and_not_an_outcome():
+    """The document stays in SUBMITTING and is re-sent to the reporting endpoint, identical in every way."""
+    r = resolve_submission_attempt(303, "CLEARANCE")
+    assert r["next_state"] == "SUBMITTING"
+    assert r["resubmit_to"] == "REPORTING"
+    assert r["retry_same_bytes"] is True
+    assert r["gl_action"] == "HOLD", "nothing may post until ZATCA has actually accepted the document"
+
+
+def test_303_on_a_simplified_document_stays_unknown():
+    """A B2C document never went to the clearance endpoint, so a 303 about it means nothing ZATCA defines.
+    Reading it as 'go to reporting' would be acting on a status that cannot have been meant for us."""
+    assert resolve_submission_attempt(303, "REPORTING")["next_state"] == "UNKNOWN_OUTCOME"
+
+
+def test_a_standard_document_accepted_by_reporting_is_reported_and_posts():
+    """After the redirect, the SAME 200 means something different: accepted by reporting, not cleared."""
+    r = resolve_submission_attempt(200, "CLEARANCE", "REPORTING")
+    assert r["next_state"] == "REPORTED"
+    assert r["gl_action"] == "POST_ONCE", (
+        "the B2B hold was waiting for ZATCA to accept the document, and ZATCA has")
 
 
 def test_flow_is_case_folded_and_unknown_flow_fails_closed():

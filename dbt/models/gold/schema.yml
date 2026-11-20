@@ -12,6 +12,10 @@ models:
         data_tests: [not_null]
       - name: business_date_ksa
         data_tests: [not_null]
+      - name: last_source_arrival_at
+        description: "Newest Bronze arrival time that contributed to this row. The incremental cut-off for the
+          next run reads MAX() of this column, so a NULL here would poison the watermark and freeze the model."
+        data_tests: [not_null]
   - name: fact_merchant_dispute_monitor
     description: "Card-scheme dispute (chargeback) ratio per merchant over the dataset window, judged on BOTH a
       ratio and a minimum dispute count. Owner-approved addition 2026-11-19. Thresholds are dbt vars read from
@@ -48,6 +52,10 @@ models:
           - not_null
           - accepted_values:
               arguments: {values: ["MADA", "CARD", "BNPL", "SADAD", "UNMATCHED_BANK_LINE"]}
+      - name: last_source_arrival_at
+        description: "Newest Bronze arrival time that contributed to this row. The incremental cut-off for the
+          next run reads MAX() of this column, so a NULL here would poison the watermark and freeze the model."
+        data_tests: [not_null]
   - name: fact_zatca_clearance_ledger
     data_tests: [no_float_columns]
     columns:
@@ -61,6 +69,10 @@ models:
         data_tests:
           - accepted_values:
               arguments: {values: ["CLEARANCE", "REPORTING"]}
+      - name: last_source_arrival_at
+        description: "Newest Bronze arrival time that contributed to this row. The incremental cut-off for the
+          next run reads MAX() of this column, so a NULL here would poison the watermark and freeze the model."
+        data_tests: [not_null]
   - name: dim_date_saudi
     description: "Gregorian + versioned Umm al-Qura Hijri (official-announcement overrides), Fri+Sat weekend."
     columns:

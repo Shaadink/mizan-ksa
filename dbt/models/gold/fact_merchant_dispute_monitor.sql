@@ -1,3 +1,7 @@
+-- STAYS A FULL TABLE (ADR-015). Not incremental, on purpose.
+-- Every row depends on the whole dataset twice over: the window is MIN/MAX over all payments (so one new
+-- event can change window_days on all 121 merchants), and a merchant's ratio is a count over its entire
+-- history. There is no merchant whose row is safe to leave alone.
 -- ==============================================================================
 -- FILE: dbt/models/gold/fact_merchant_dispute_monitor.sql   (owner-approved addition, 2026-11-19)
 -- Grain: merchant_id, over the whole dataset window. materialized = 'table'

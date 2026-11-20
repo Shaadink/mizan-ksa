@@ -39,6 +39,13 @@ class MockFatoora:
         self.log: list[dict] = []
         self.accepted: dict[str, tuple[str, int]] = {}  # uuid -> (bytes sha256, status)
         self.csid_generation: dict[str, int] = {}
+        # ZATCA can switch clearance off for everyone at once; the clearance endpoint then answers 303 and
+        # standard documents must go to reporting instead. It is a property of the PORTAL, never of one
+        # document, which is why it lives here and not in the per-request script.
+        self.clearance_active: bool = bool(plan.get("clearance_active", True))
+
+    def deactivate_clearance(self) -> None:
+        self.clearance_active = False
 
     def script(self, request_id: str, outcomes: list[str]) -> None:
         self._script[request_id] = list(outcomes)
@@ -65,6 +72,13 @@ class MockFatoora:
 
     def submit(self, *, egs_id: str, request_id: str, invoice_uuid: str, invoice_flow: str, xml_bytes: bytes) -> int:
         sha = hashlib.sha256(xml_bytes).hexdigest()
+        if invoice_flow == "CLEARANCE" and not self.clearance_active:
+            # Deliberately BEFORE the script is consumed. ZATCA has not looked at this document, so this
+            # is not an attempt at an outcome and must not eat a scripted one -- otherwise turning
+            # clearance off would silently shift every planted fault onto a different attempt.
+            self.log.append({"request_id": request_id, "invoice_uuid": invoice_uuid, "egs_id": egs_id,
+                             "bytes_sha256": sha, "outcome": "HTTP_303_CLEARANCE_DEACTIVATED"})
+            return 303
         script = self._script.get(request_id)
         outcome = script.pop(0) if script else self.default
         self.log.append({"request_id": request_id, "invoice_uuid": invoice_uuid, "egs_id": egs_id,

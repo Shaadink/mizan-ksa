@@ -9,7 +9,7 @@ SAR 0.00 — and refuses to call the other 112 balanced, because their bank file
 Every figure on it is exported from Gold, never typed.
 The same thing as a **[Fabric App](https://fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net)** (tenant sign-in) runs on live DAX instead of a snapshot.
 
-| `SAR 0.00` | `25,001` | `91 / 91` | `20,000,000` |
+| `SAR 0.00` | `25,001` | `94 / 94` | `20,000,000` |
 |---|---|---|---|
 | bank **and** GL variance, across 2,121 assessed merchant-days of 2,233 | e-invoices in an unbroken ZATCA hash chain — **0 breaks** | Gold columns traced to source, column by column | rows joined at **62:1 skew** in a **local Spark benchmark** — three plans, one identical SAR checksum |
 
@@ -42,9 +42,11 @@ moment it lands and can be erased under PDPL without touching signed tax evidenc
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
 Actions as the control plane.
 
-**Tests, counted separately because they measure different things:** **Python tests** (`pytest`), **91 dbt
-tests** on the local DuckDB target and **91 on WH_MIZAN** (full parity since the 2026-11-19 re-run), and
-**184 Fabric App tests**. CI runs the full PySpark and dbt suites and the app tests on every push.
+**Tests, counted separately because they measure different things:** **Python tests** (`pytest`), **98 dbt
+tests** on the local DuckDB target, and **184 Fabric App tests (174 pass, 10 skipped)**. WH_MIZAN last
+ran at **91/91** on 2026-11-19, full parity at the time; it has not been re-run since Gold became
+incremental on 2026-11-20, so no Fabric figure is claimed for the current models, and the 10 app tests that
+cross-check live Fabric results against exported Gold skip themselves until it is (HONESTY.md row 36). CI runs the full PySpark and dbt suites and the app tests on every push.
 
 > Every number above is generated, never typed: see the [proof manifest](docs/PROOF_MANIFEST.md), which names the
 > proof run behind each claim and its SHA-256. Scope and limits are stated in [HONESTY.md](HONESTY.md). This is a
@@ -88,6 +90,14 @@ correction is a new document with a new ICV.
 `gld.fact_merchant_settlement_recon` builds a key spine across captures, settlement and GL, so no orphan can drop out
 of a join. The demo flag seeds an orphan bank line and a 0.01 float bug, and the dbt circuit breaker fails on exactly
 those two MID-days. The main build stays green.
+
+It rebuilds **incrementally** (ADR-015): only the merchant-days touched by data that arrived since the last run, found
+by arrival time rather than business date — because in card payments the bank file for Tuesday lands on Thursday and a
+chargeback can land 45 days late, so a "rebuild the last N days" window would silently stop reconciling exactly the
+cases this model exists to catch. A touched day is deleted and re-derived in full, never appended to, and every test
+in `tests/test_gold_incremental.py` builds both ways and demands the results match. The hard case is a bank line that
+arrives *before* its payment: when the payment finally lands, that line stops being quarantined, but its own arrival
+time never moves — so both reconciliation models carry a leg for it.
 
 ### 3. PDPL erasure with legal hold and Restore Guard (I-07, I-08)
 ![PDPL shred and restore](docs/artifacts/03_pdpl_shred_restore.png)
@@ -136,7 +146,7 @@ trigger but is not yet unattended -- see HONESTY.md row 30.
 |---|---|
 | ![Airflow](docs/artifacts/06_airflow_dag.png) | ![Marquez](docs/artifacts/07_marquez_lineage.png) |
 
-Every Gold column has lineage (91/91), and the build fails otherwise. Each run manifest carries `run_id`, `git_sha` and
+Every Gold column has lineage (94/94), and the build fails otherwise. Each run manifest carries `run_id`, `git_sha` and
 Delta snapshot versions. The residency gate fails the build if a SECRET column targets an open zone.
 
 ### 7. Disaster recovery you can check, not just claim
@@ -202,7 +212,7 @@ Workspace `mizan-ksa-dev`, Fabric trial capacity (UAE North). Evidence: [docs/ar
 |---|---|
 | Notebook jobs (Bronze, Silver, MDM, ZATCA, AI index, NDMO catalog) via REST + service principal | all Completed |
 | Source-to-Bronze hash reconciliation | every file sha256 matches; duplicate bank resend = ALL_DUPLICATE |
-| `dbt build` on WH_MIZAN (dbt-fabric, Gold as tables, reads `LH_MIZAN.slv.*`) | **91/91 PASS** - full parity with the local target |
+| `dbt build` on WH_MIZAN (dbt-fabric, Gold as tables, reads `LH_MIZAN.slv.*`) | **91/91 PASS** on 2026-11-19 - full parity with the local target *at that time*. Not re-run since Gold became incremental on 2026-11-20; the local target is now 98/98 (HONESTY.md row 36) |
 | `gld.fact_merchant_settlement_recon` | 2,233 MID-days, SAR 22,391,236.23 captured, bank + GL variance 0.00 - identical to local Gold |
 | ZATCA chain | 25,001 documents, 0 chain violations, 1 worker restart recovered |
 | MDM | 3,985 records into 2,552 golden profiles, 1 steward conflict |
@@ -229,7 +239,7 @@ WH_MIZAN  gld: fact_merchant_settlement_recon | fact_zatca_clearance_ledger | di
 Direct Lake Control Tower (CFO Settlement | Tax ZATCA Health | CDO Data Trust) | governed AI | EH_MIZAN KQL risk stream
 ```
 
-Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-014); the 14 invariants are in
+Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-016); the 14 invariants are in
 [invariants.md](invariants.md).
 
 ### Operating it, and how far it is from production

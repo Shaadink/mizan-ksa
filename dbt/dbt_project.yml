@@ -22,7 +22,11 @@ vars:
 models:
   mizan_ksa:
     gold:
-      +materialized: table   # Gold as tables so Direct Lake never falls back to DirectQuery (spec 5 / rule 3)
+      # Gold as tables so Direct Lake never falls back to DirectQuery (spec 5 / rule 3). This stays the
+      # DEFAULT, and the three incremental facts (ADR-015) override it in their own files. An incremental
+      # model is still a physical table -- dbt creates it once and then deletes and inserts rows in it --
+      # so nothing here becomes a view and the Direct Lake rule is untouched. Only the refresh changes.
+      +materialized: table
       +schema: gld
 
 data_tests:

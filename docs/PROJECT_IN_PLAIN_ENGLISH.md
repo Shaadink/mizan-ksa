@@ -135,6 +135,26 @@ what to do when you do not know whether it arrived is the actual job.
 - **SAR 30,920,225.04** of invoiced value
 - QR codes land at **496 characters** against the 500 limit — four to spare, measured over 5,000 signatures
 
+**Two defects found on 2026-11-21, both worth telling:**
+
+**"Clearance is switched off" was an infinite loop.** ZATCA can turn clearance off for the whole country at
+once; it then answers `303` and you must send the same document to the *reporting* endpoint instead. We
+treated 303 as "unknown", whose correct response is to retry — to the endpoint that is still switched off,
+which answers 303 again. Forever. It would have hit every business invoice in the country simultaneously.
+A reviewer raised it; I checked ZATCA's own technical guideline before changing anything, because the
+five-final-responses rule is frozen. It turned out not to be a change to that rule at all: a 303 says
+*where to send the document*, not *what happened to it*. Same UUID, same signed bytes, different endpoint.
+
+**A corrected price never reached the tax ledger.** If someone fixed an item's price after the invoice was
+signed, the sales figures moved, the bank reconciliation moved, and the tax chain kept the old amount —
+SAR 396.18 adrift. The interesting part is that **nothing was misbehaving**: the engine refuses to re-price
+a signed invoice, which is exactly right, because re-signing a document the tax authority already holds is
+the one unforgivable act in this whole domain. The missing piece was never a fix to the engine. It was a
+pair of documents nobody was issuing: a credit note cancelling the original, and a replacement invoice at
+the corrected price. The chain now *arrives at* the right number by adding documents, never by editing one.
+
+That is the shape of the expensive bugs. Every component doing its job, and the system still wrong.
+
 **For Saudi employers:** this is the single most relevant thing in the project. Every company in the Kingdom
 has had to do ZATCA Phase 2. Most did it badly, and most cannot explain what happens on a timeout.
 
@@ -184,7 +204,66 @@ merchant-day level, not line level. That limitation is in `HONESTY.md`.
 
 ---
 
-### 5. Matching Arabic customer names (MDM)
+### 5. Only rebuilding the days that changed
+
+**What it is.** Not re-doing all the work every night.
+
+**The real problem.** Until 2026-11-20 the system added up *every* sale ever made, every night, just to tell
+you today's figures. That is an accountant re-counting the whole year's receipts each evening. Correct, and
+unusable once the pile gets big. Fine at 25,000 invoices; hopeless at 25 million.
+
+**Why the obvious fix is wrong here.** Everyone's first answer is "only rebuild the last few days". In card
+payments that is a quiet disaster, because late data is the normal case, not the exception:
+
+- A sale on **Tuesday**; the bank's settlement file for it lands **Wednesday or Thursday**.
+- A customer disputes a charge — the chargeback can arrive **45 days** after the sale it claws back.
+- A bank re-sends a file weeks later because the first one was wrong.
+
+A "last 7 days" window would silently stop reconciling exactly the cases this system exists to catch. Not
+crash — *silently*. The numbers would keep looking fine.
+
+**What I built instead.** Every row records **when it arrived**, not just what day it is about. Each night
+the question is: what landed since last time, and which business days do those rows belong to? Rebuild those
+days. However late a row is, its day gets rebuilt. There is no window to fall off the end of.
+
+And a day is rebuilt **whole** — deleted and re-derived — never added to. A reconciliation is a sum across
+three sides: what the shop sold, what the bank paid, what the ledger booked. Half a sum is not a smaller
+sum, it is a wrong one.
+
+Three of the seven Gold tables work this way. The other four cannot, and each one's file now says why in its
+first paragraph — for example, the customer table shows only *current* records, so when a record stops being
+current the right answer is that it **disappears**, and an incremental build can update rows it is handed
+but cannot delete rows it is not. Left alone, retired records would pile up looking current forever.
+
+**The bug that nearly shipped with it.** This is the part worth telling.
+
+A bank payment can arrive **before** the sale it belongs to. With no sale to match, it is quarantined as
+unexplained money. Later the sale turns up and the same bank line is perfectly fine.
+
+But **the bank line's arrival stamp never moved** — it is still the old file's. So "what arrived since last
+time?" would never point at that day again, and it would sit there flagged as a problem forever, with
+nothing raising a hand. Not a crash. Not a failing test. Just a number quietly wrong.
+
+The fix is a fourth rule: *any settlement day whose missing payment just arrived also counts as changed.*
+There is a test that delivers data in the wrong order on purpose to prove it.
+
+**How it is tested.** Every test builds the tables **twice** — once incrementally, once from scratch — and
+demands the two match exactly. The first run of an incremental model is just a full build, so a test that
+runs it once proves nothing at all. Two of my own test fixtures were caught being wrong *by the project's
+own circuit breaker* while I was writing them: I had forgotten a ledger line both times.
+
+**What it proves.** On the real data: a full rebuild passes **98 of 98** checks, a second incremental run
+passes **98 of 98** in 2.2 seconds, and all **10 Gold tables come back byte-identical**. Every money figure
+is unchanged.
+
+**The honest bit:** I am claiming **no speed-up**. The whole of Gold already rebuilt in 18.2 seconds at this
+data volume, so there is nothing to boast about. This is the design that survives growth, not a benchmark —
+and it has not yet run on Fabric, only locally. If anyone asks "how much faster?", the answer is "I do not
+know, because I have not run it at a size where it matters."
+
+---
+
+### 6. Matching Arabic customer names (MDM)
 
 **What it is.** Working out that five records are the same person.
 
@@ -217,7 +296,7 @@ person. **15 rows** were quarantined as genuinely unrecoverable CP1256 corruptio
 
 ---
 
-### 6. Privacy — PDPL and the right to be forgotten
+### 7. Privacy — PDPL and the right to be forgotten
 
 **What it is.** Saudi Arabia's Personal Data Protection Law. Among other things, a person can demand that you
 erase their data.
@@ -248,7 +327,7 @@ erasure conflict is unusual.
 
 ---
 
-### 7. Data classification (NDMO)
+### 8. Data classification (NDMO)
 
 **What it is.** Saudi Arabia's National Data Management Office requires data to be classified —
 PUBLIC, CONFIDENTIAL, SECRET, TOP SECRET — and handled accordingly.
@@ -261,16 +340,16 @@ automatically, plus a **gate that fails the build** if a SECRET column ends up s
 
 **What it proves.** The classification cannot drift from the data, because it is recomputed from the data.
 
-**The numbers:** **350 columns** across **27 tables** — 1 PUBLIC, 17 CONFIDENTIAL, 6 SECRET, 3 TOP SECRET.
+**The numbers:** **354 columns** across **27 tables** — 1 PUBLIC, 17 CONFIDENTIAL, 6 SECRET, 3 TOP SECRET.
 
 **Honest limit:** these are my rules, chosen for this dataset, not a regulator-issued catalogue. That is
 stated in `HONESTY.md`.
 
 ---
 
-### 8. The circuit breaker (dbt)
+### 9. The circuit breaker (dbt)
 
-**What it is.** dbt builds the Gold tables and runs **91 tests** every time. If a test fails, the build stops
+**What it is.** dbt builds the Gold tables and runs **98 tests** every time. If a test fails, the build stops
 and Gold is not published.
 
 **Real-world analogy.** The electrical trip switch in your house. It does not repair the fault — it stops the
@@ -287,11 +366,12 @@ back to a source column.
 ZATCA table to double to 50,002 rows. The uniqueness test failed, the build stopped, and **Gold was never
 published**. I found out from a test, not from a dashboard being wrong.
 
-**The number:** **91 tests, all passing**, on both the local engine and the Fabric warehouse.
+**The number:** **98 tests, all passing** on the local engine. The Fabric warehouse last ran 91/91 on
+2026-11-19 and has not been re-run since Gold became incremental, so it is not claimed as current.
 
 ---
 
-### 9. Orchestration (Apache Airflow)
+### 10. Orchestration (Apache Airflow)
 
 **What it is.** The scheduler. It decides what runs, in what order, and what to do when something fails.
 
@@ -321,7 +401,7 @@ capacity that a trial does not justify.
 
 ---
 
-### 10. Lineage (OpenLineage and Marquez)
+### 11. Lineage (OpenLineage and Marquez)
 
 **What it is.** A record of where every number came from, column by column.
 
@@ -335,7 +415,7 @@ any column cannot be traced**. Each run also records the code version and the ex
 
 **What it proves.** Not "we have lineage" but "the build will not go green without it".
 
-**The number:** **91 of 91 Gold columns traced**.
+**The number:** **94 of 94 Gold columns traced**.
 
 **Honest limit:** Marquez, the viewer that draws the graph, runs locally in Docker. Fabric's Airflow cannot
 reach it, because Fabric does not support private networking for Airflow jobs. The *lineage* is computed and
@@ -343,7 +423,7 @@ gated regardless; Marquez only draws it.
 
 ---
 
-### 11. Handling a huge, lopsided dataset (Spark skew)
+### 12. Handling a huge, lopsided dataset (Spark skew)
 
 **What it is.** Making 20 million rows process efficiently when one merchant has most of them.
 
@@ -367,7 +447,7 @@ durations and the checksum are. That caveat is on the page.
 
 ---
 
-### 12. Real-time fraud detection (Eventstream)
+### 13. Real-time fraud detection (Eventstream)
 
 **What it is.** Watching events as they happen rather than waiting for tonight's batch.
 
@@ -384,7 +464,7 @@ rules producing the same answers in Fabric as in the local reference.
 
 ---
 
-### 13. The Command Center
+### 14. The Command Center
 
 **What it is.** A web page that shows all of the above, running as an app inside Fabric.
 
@@ -401,9 +481,10 @@ tested whether anyone says so or not.
 
 ---
 
-### 14. Testing and the honesty ledger
+### 15. Testing and the honesty ledger
 
-**What it is.** **345 automated tests** on the data side, **183** on the app side, running on every push.
+**What it is.** **411 automated tests** on the data side and **184** on the app side (174 passing; 10 skip
+themselves until the Fabric pipeline is re-run), running on every push.
 
 **And `HONESTY.md`** — a document listing everything this project does *not* do, everything that is
 approximate, and everything that broke.
@@ -411,12 +492,12 @@ approximate, and everything that broke.
 **Why that document exists.** Portfolio projects overclaim. A reviewer's instinct is to go looking for what
 you are hiding. If you hand them the list yourself, they stop looking and start trusting.
 
-**It currently has 32 numbered entries**, including three found in the last two days. That is not weakness —
+**It currently has 36 numbered entries**, including three found in the last two days. That is not weakness —
 every entry is something I measured rather than assumed.
 
 ---
 
-## The three stories worth telling
+## The five stories worth telling
 
 These are better than any feature. Lead with them.
 
@@ -436,6 +517,41 @@ The QR-code limit test failed intermittently. The easy answer is "flaky, ignore 
 It was not flaky. The *test* was building the QR code the old way, while the engine had moved on — so it was
 measuring an encoding no invoice used any more, which breached the 500-character limit 24.7% of the time. One
 rule written down twice, and the copies drifted. Now both go through one function.
+
+### "Everything was working correctly and the answer was still wrong"
+
+Someone corrects an item's price after the invoice has already been signed and sent to the tax authority.
+The sales figures update. The bank reconciliation updates. The tax ledger keeps the old amount.
+
+Now look for the component at fault. The pricing is right. The reconciliation is right. And the invoice
+engine is right too — it **refuses** to re-price a document the tax authority already holds, because
+re-signing a cleared tax document is the one unforgivable act in this domain. Every part is behaving
+exactly as designed.
+
+**The missing piece was not code at all. It was a pair of documents nobody was issuing** — a credit note
+cancelling the original, and a replacement at the corrected price. The chain has to *arrive at* the right
+number by adding documents, because it is never allowed to edit one.
+
+**The interesting half:** this is the condition the entire project exists to detect — a tax ledger
+disagreeing with the books — happening inside the project itself, worth SAR 396.18. And it was found by my
+own CI comparing two things that should have matched, not by anyone reading the code. If you are ever asked
+for an example of a bug that no amount of code review would have caught, this is it.
+
+### "The bug that would never have raised its hand"
+
+I made the pipeline rebuild only the days that changed. The obvious rule is: rebuild anything whose data
+just arrived.
+
+**That rule is incomplete, and the gap is silent.** A bank payment can arrive *before* the sale it belongs
+to — with no sale to match, it is quarantined as unexplained money. Later the sale turns up and the same
+bank line is perfectly fine. But the bank line's arrival stamp never moved, because it belongs to the old
+file. So "what arrived since last time?" would never look at that day again, and it would sit there flagged
+as a problem forever.
+
+**The interesting half:** nothing would have failed. No crash, no red test, no alert. Just a number quietly
+wrong, found months later by a merchant asking why their money was being held. The only way to catch it was
+to write a test that delivers data in the *wrong order* on purpose — which is not something you do unless
+you have already decided that "it passed" and "it is correct" are different claims.
 
 ### "The first Fabric run failed in four seconds and that was the useful part"
 
@@ -459,6 +575,7 @@ Protect your credibility. Volunteering limits is what makes the rest believable.
 | "ZATCA certified" | "Built to the Phase 2 specification and validated against ZATCA's own SDK, with two findings I could not resolve, documented" |
 | "Full data lineage in Fabric" | "Column lineage computed and gated in the build; Marquez is a local viewer" |
 | Nothing about Arabic review | "The Arabic has not been reviewed by a native speaker of Saudi financial Arabic" |
+| "It scales to millions of rows" | "Gold rebuilds incrementally so it *can* grow; I have not run it at a volume where that matters, so I am not claiming a speed-up" |
 
 ---
 
@@ -478,14 +595,15 @@ Keep this open while filming.
 | Invoiced value | SAR 30,920,225.04 |
 | QR length vs the 500 limit | 496 |
 | Golden customer records | 2,552 from 3,967 (precision 1.0000, recall 0.9625) |
-| Columns classified | 350 across 27 tables |
-| Gold columns traced | 91 of 91 |
-| dbt tests | 91 passing, locally and on Fabric |
+| Columns classified | 354 across 27 tables |
+| Gold columns traced | 94 of 94 |
+| dbt tests | 98 passing locally; Fabric last ran 91/91 on 2026-11-19 and has not been re-run since |
 | Stream events | 91,513 |
 | Skew benchmark | 20,000,000 rows |
-| Tests | 345 Python + 183 app |
+| Tests | 411 Python + 184 app (174 pass, 10 skip until Fabric is re-run) |
 | Airflow in Fabric | 6 jobs, 15 minutes |
-| Documented limitations | 32 |
+| Documented limitations | 36 |
+| Gold tables rebuilt incrementally | 3 of 7; a re-run takes 2.2 s and changes nothing |
 
 ---
 
@@ -547,8 +665,11 @@ through that Function, and rate limits plus a USD 5 budget cap bound the loss to
 close, not a data breach waiting to happen - and knowing the difference is itself the senior answer.
 
 **5. Scale is a benchmark, not a load.** 121 merchants x 20 days, and one controlled 20-million-row join. A
-real chain is 500+ merchants and years of accumulating history, with incremental loads, late corrections and
-concurrent dashboard users. Different problem.
+real chain is 500+ merchants and years of accumulating history, with concurrent dashboard users. As of
+2026-11-20 Gold *does* rebuild incrementally — only the days that changed, found by arrival time so late
+data is never missed — which removes the structural reason it could not grow. **That is not the same as
+having grown.** The incremental path has only ever run on 25,000 invoices, where the full rebuild already
+took 18.2 seconds, so there is no measured saving to quote and I do not quote one.
 
 **6. Compliance is self-asserted.** The NDMO classification uses rules I wrote. There is now a DPIA with
 nine ranked residual risks, four of six subject rights implemented including access and erasure, and a
@@ -603,7 +724,13 @@ like.
 > table. My own data tests caught it and refused to publish. The reason no test had caught it earlier: I had
 > been re-running identical data, which proves a weaker claim than I thought it did.
 >
-> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 32 things it does not do.
+> A later one I liked even more. I made Gold rebuild only the days that changed. A bank payment can arrive
+> *before* the sale it belongs to; when the sale finally turns up, that payment stops being a problem — but
+> its arrival timestamp never moved, so a naive "what's new?" rule would never revisit that day. Nothing
+> would have failed. The number would just have been quietly wrong. Caught only by a test that delivers
+> data out of order on purpose.
+>
+> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 36 things it does not do.
 >
 > Built on Microsoft Fabric with Airflow, dbt, PySpark and OpenLineage.
 >

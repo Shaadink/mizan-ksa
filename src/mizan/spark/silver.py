@@ -3,6 +3,12 @@
 Money rule (CLAUDE.md, ADR-007): event amounts stay POSITIVE with event_type / debit_credit carrying direction.
 The one derived measure, settlement_lines.net_settled_sar, is the bank's signed net position (CR +, DR -),
 which is what the Gold circuit breaker sums.
+
+`source_ingested_at` (ADR-015) is Bronze's `_ingested_at`, carried through untouched. It is the watermark the
+incremental Gold models read, and the reason it comes from Bronze rather than from here is that Silver is
+rebuilt in full on every run: a timestamp minted during a Silver build would move for every row on every run
+and the watermark would select the entire table, every time. Bronze is append-only, so a row's arrival time
+is a fact about the data, not about the last time the pipeline ran.
 """
 
 from __future__ import annotations
@@ -46,7 +52,10 @@ def build_payment_lifecycle(lake: Lake):
         F.col("amount_sar").cast(MONEY).alias("amount_sar"),
         ts.alias("event_ts"),
         F.to_date(ts).alias("business_date_ksa"),          # session TZ = Asia/Riyadh
-        F.col("_batch_id").alias("source_batch_id"))
+        F.col("_batch_id").alias("source_batch_id"),
+        # The incremental watermark. See the module docstring: this is Bronze's arrival time, carried
+        # through unchanged, NOT the time this Silver row was rebuilt.
+        F.col("_ingested_at").alias("source_ingested_at"))
     lake.write(out, "slv", "payment_lifecycle", "overwrite", overwrite_schema=True, constraints={
         "amount_positive": "amount_sar > 0",
         "event_type_enum": "event_type IN ('CAPTURE', 'REFUND', 'CHARGEBACK')"})
@@ -77,7 +86,8 @@ def build_settlement_lines(lake: Lake, data_dir: Path):
         F.col("mdr_fee").cast(MONEY).alias("acquirer_mdr_fee_sar"),
         F.col("vat_on_fee").cast(MONEY).alias("acquirer_vat_sar"),
         F.when(F.col("dr_cr") == "CR", net).otherwise(-net).cast(MONEY).alias("net_settled_sar"),
-        mapping[F.col("txn_type")].alias("bank_event_type"), "_source_file")
+        mapping[F.col("txn_type")].alias("bank_event_type"), "_source_file",
+        F.col("_ingested_at").alias("source_ingested_at"))
     j = b.join(pay.select("payment_event_id", "merchant_id", "event_type", "amount_sar"), "payment_event_id", "left")
     break_type = (F.when(F.col("event_type").isNull(), "ORPHAN_BANK_LINE")
                   .when(F.col("merchant_id") != F.col("bank_merchant_id"), "MERCHANT_MISMATCH")
@@ -89,7 +99,7 @@ def build_settlement_lines(lake: Lake, data_dir: Path):
         "settlement_for_date_ksa", F.coalesce("event_type", "bank_event_type").alias("event_type"),
         "gross_amount_sar", "acquirer_mdr_fee_sar", "acquirer_vat_sar", "net_settled_sar",
         F.when(F.col("break_type").isNull(), "PAID_BANK").otherwise("QUARANTINED").alias("settlement_status"),
-        F.lit(False).alias("is_estimate"), "break_type")
+        F.lit(False).alias("is_estimate"), "break_type", "source_ingested_at")
 
     # IN_TRANSIT expectation rows: payment events whose bank file has not arrived (estimated fee)
     pending = pay.join(bank.select("payment_event_id"), "payment_event_id", "left_anti") \
@@ -109,7 +119,12 @@ def build_settlement_lines(lake: Lake, data_dir: Path):
         F.col("amount_sar").alias("gross_amount_sar"), F.col("fee").alias("acquirer_mdr_fee_sar"),
         F.col("vat").alias("acquirer_vat_sar"), est_net.cast(MONEY).alias("net_settled_sar"),
         F.lit("IN_TRANSIT").alias("settlement_status"), F.lit(True).alias("is_estimate"),
-        F.when(F.col("mdr_rate").isNull(), "NO_FEE_SCHEDULE").alias("break_type"))
+        F.when(F.col("mdr_rate").isNull(), "NO_FEE_SCHEDULE").alias("break_type"),
+        # An expectation row exists because a PAYMENT arrived and its bank line has not. So its watermark is
+        # the payment's own arrival -- which is also what makes the row disappear correctly: when the bank
+        # file lands, the PAID_BANK row that replaces it carries the FILE's later arrival time, so the
+        # incremental build sees that day as changed and rebuilds the whole day rather than appending to it.
+        "source_ingested_at")
 
     lines = bank_lines.unionByName(transit).cache()
     lake.write(lines.drop("break_type"), "slv", "settlement_lines", "overwrite", overwrite_schema=True,
@@ -148,7 +163,7 @@ def build_erp_gl_journal_lines(lake: Lake, data_dir: Path):
         F.col("RBUKRS").alias("company_code"), F.col("RLDNR").alias("ledger"), F.col("GJAHR").alias("fiscal_year"),
         F.col("BELNR").alias("document_number"), F.col("DOCLN").alias("line_item"),
         F.col("PRCTR").alias("profit_center"), F.col("_is_correction").alias("is_correction"),
-        F.col("_batch_id").alias("source_batch_id"))
+        F.col("_batch_id").alias("source_batch_id"), F.col("_ingested_at").alias("source_ingested_at"))
     lake.write(out, "slv", "erp_gl_journal_lines", "overwrite", overwrite_schema=True, constraints={
         "amount_positive": "amount_sar > 0", "drcr_enum": "debit_credit IN ('S', 'H')",
         "role_enum": "gl_account_role IN (" + ", ".join(f"'{r}'" for r in GL_ROLES) + ")"})

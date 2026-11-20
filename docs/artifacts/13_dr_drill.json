@@ -1,10 +1,10 @@
 {
- "drilled_at": "2026-11-18T13:10:54Z",
- "depth": "source",
+ "drilled_at": "2026-11-20T21:21:46Z",
+ "depth": "gold",
  "rto_seconds": {
-  "source_and_lake": 586.6,
-  "gold": 18.2,
-  "total": 604.7
+  "source_and_lake": 0.0,
+  "gold": 7.7,
+  "total": 7.7
  },
  "tables": {
   "dim_date_saudi": {
@@ -16,6 +16,11 @@
    "rows": 2552,
    "columns": 12,
    "sha256": "39bd3c63e920cbbdd97b4c6c1ee4986c71c5eaee7d897152dbf74c5c1a6a3937"
+  },
+  "fact_merchant_dispute_monitor": {
+   "rows": 121,
+   "columns": 15,
+   "sha256": "804617fe5017ff16b2e40d24875c28b4706361270b402b6c942e7d1066d2e838"
   },
   "fact_merchant_settlement_recon": {
    "rows": 2233,
@@ -40,7 +45,7 @@
   "mart_ndmo_scorecard": {
    "rows": 33,
    "columns": 9,
-   "sha256": "4dae58c875a658a8fc20717179e4a5bdeb6cd45c82f187ef4936410b972087a6"
+   "sha256": "b864e46f81f8b0d02c4a66dda8630cb37c28a6f3547e61c332f62ec7144703c6"
   },
   "merchant_store_reference": {
    "rows": 121,
@@ -53,7 +58,7 @@
    "sha256": "3070214fa92f8287e5669497bbebb7c11a5cab4a3b313a68a36b45fd6425e8c5"
   }
  },
- "rows_total": 35668,
+ "rows_total": 35789,
  "identical_to_live": true,
  "identical_to_baseline": true,
  "drift": [],

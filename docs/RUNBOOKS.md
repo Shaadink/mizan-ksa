@@ -317,9 +317,41 @@ contact, no tabletop exercise has been run. This section is a procedure, not a c
 
 ## Re-running and backfilling
 
-**`scripts/backfill.py` is the tested procedure.** It is not a partial-date re-run — this pipeline rebuilds
-Silver and Gold from the whole of Bronze every time, which is slower but means there is no "which days do I
-re-run?" question to get wrong.
+**`scripts/backfill.py` is the tested procedure.** It is not a partial-date re-run: Bronze is append-only
+and **Silver is rebuilt from the whole of Bronze every time**, so there is no "which days do I re-run?"
+question to get wrong at that level.
+
+**Gold is different since 2026-11-20 (ADR-015).** Three facts —
+`fact_merchant_settlement_recon`, `fact_payment_method_daily` and `fact_zatca_clearance_ledger` — are
+incremental: they rebuild only the merchant-days (or documents) touched by data that arrived since the last
+run. The other four Gold models still rebuild in full.
+
+This is safe for late data of every kind, including a bank file that arrives weeks after the day it
+settles, because the trigger is the row's **arrival** time and not its business date. It is **not** safe
+for two things, and both need a deliberate full refresh:
+
+### When you must run `dbt build --full-refresh`
+
+| What changed | Why the incremental run will not notice |
+|---|---|
+| Reference data: `acquirer_fee_schedule.csv`, `gl_account_roles.csv`, the dispute thresholds in `dbt_project.yml` | Nothing arrived in Bronze, so no watermark moved. Gold keeps the figures it already computed with the old rates |
+| A Gold model's own SQL | dbt does not know the logic changed |
+| A Gold table's column list (you added or removed a column) | The build will **fail** rather than guess — `on_schema_change = 'fail'`. That failure *is* the instruction to full-refresh |
+
+```powershell
+.\.venv\Scripts\python.exe -m dbt.cli.main build --project-dir dbt --profiles-dir dbt --full-refresh
+```
+
+A full refresh here costs seconds on the current data volume. Run it when in doubt — the failure mode of
+running it unnecessarily is a slower build, and the failure mode of not running it is a wrong number that
+nothing flags.
+
+### How to tell whether a day is stale
+
+Every row in the three incremental models carries `last_source_arrival_at`: the newest Bronze arrival that
+contributed to it. If a day looks wrong, compare that column against what is actually in Silver for that
+day. If Silver holds a row that arrived *after* the Gold row's watermark, the incremental logic missed it
+and that is a bug worth reporting, not a full-refresh-and-forget.
 
 What it does:
 

@@ -90,7 +90,17 @@ class OutboxRow:
 class ChainStore:
     """Durable control-plane state. Every write stores a copy, so no worker holds live references."""
 
-    def __init__(self):
+    def __init__(self, head_store: object | None = None):
+        """`head_store`, if given, owns the per-EGS chain head in a transactional store instead of in this
+        process's memory. It needs two methods and nothing else, which is what keeps this module free of
+        Spark (ADR-008):
+
+            read(egs_id) -> (last_icv, last_invoice_hash)     # (0, GENESIS_PIH) when the chain is new
+            compare_and_set(egs_id, expected_icv, new_icv, new_hash) -> bool   # False = the race was lost
+
+        `mizan.spark.chain_head.DeltaChainHead` is the implementation that runs over ctl.egs_chain_state.
+        """
+        self.head_store = head_store
         self.egs_chain_state: dict[str, dict] = {}
         self.invoice_outbox: dict[str, OutboxRow] = {}
         self.zatca_chain_journal: dict[tuple[str, int], dict] = {}
@@ -103,13 +113,33 @@ class ChainStore:
             return self._locks[egs_id]
 
     def chain_head(self, egs_id: str) -> tuple[int, str]:
+        if self.head_store is not None:
+            return self.head_store.read(egs_id)
         s = self.egs_chain_state.get(egs_id)
         return (s["last_icv"], s["last_invoice_hash"]) if s else (0, GENESIS_PIH)
 
     def commit_signed(self, row: OutboxRow) -> None:
-        """Atomic under the EGS lock: outbox row + legal-hold journal row + chain head advance."""
+        """Atomic under the EGS lock: outbox row + legal-hold journal row + chain head advance.
+
+        Two levels of protection, and the difference matters (HONESTY row 18):
+
+        * The `threading.Lock` and the check below stop two THREADS in one process forking a chain.
+        * `head_store`, when one is injected, moves the compare-and-set into a real transactional store, so
+          two PROCESSES cannot either. Without it the CAS is correct logic over a Python dict, which two
+          processes do not share -- they would both read `last_icv = n`, both mint `n+1`, and the chain
+          would fork into two documents claiming the same ICV. A submitted ICV cannot be withdrawn, so that
+          fork is unrecoverable, which is why it is the failure this guards hardest against.
+
+        What the CAS does NOT make atomic is the head advance together with the journal write. If the
+        process dies between them the head has moved and no journal row exists: an ICV *gap*. That is the
+        right way round -- a gap is detectable by `verify_chain` from genesis and recoverable, whereas a
+        fork is neither.
+        """
         last_icv, last_hash = self.chain_head(row.egs_id)
         if row.icv != last_icv + 1 or row.pih != last_hash:
+            raise RuntimeError(f"chain head moved under {row.egs_id}: single-writer violated")
+        if self.head_store is not None and not self.head_store.compare_and_set(
+                row.egs_id, last_icv, row.icv, row.invoice_hash):
             raise RuntimeError(f"chain head moved under {row.egs_id}: single-writer violated")
         self.invoice_outbox[row.invoice_uuid] = copy.deepcopy(row)
         self.by_request_id[row.request_id] = row.invoice_uuid
@@ -198,17 +228,36 @@ class ZatcaWorker:
         row.history.append({"event": "SUBMITTING", "attempt": row.attempts,
                             "bytes_sha256": hashlib.sha256(row.signed_xml).hexdigest()})
         self.store.put(row)  # persisted BEFORE the network call
+        endpoint = row.invoice_flow
         try:
             status = self.client.submit(egs_id=row.egs_id, request_id=row.request_id,
-                                        invoice_uuid=row.invoice_uuid, invoice_flow=row.invoice_flow,
+                                        invoice_uuid=row.invoice_uuid, invoice_flow=endpoint,
                                         xml_bytes=row.signed_xml)
         except TransportFailure:
             status = None
         # WorkerCrash propagates: the row stays SUBMITTING in the store, exactly as a dead process leaves it
-        res = resolve_submission_attempt(status, row.invoice_flow)
+        res = resolve_submission_attempt(status, row.invoice_flow, endpoint)
+
+        if res.get("resubmit_to"):
+            # ZATCA has switched clearance off (303). Follow the redirect inside this same attempt, with
+            # the SAME uuid, ICV, hash and signed bytes -- only the endpoint changes. The row is already
+            # SUBMITTING in the store, so the "persist before any HTTP call" rule still holds for the
+            # second call without a second write: a crash here still recovers to UNKNOWN_OUTCOME.
+            endpoint = res["resubmit_to"]
+            row.history.append({"event": "CLEARANCE_DEACTIVATED", "attempt": row.attempts,
+                                "http_status": status, "resubmitted_to": endpoint,
+                                "bytes_sha256": hashlib.sha256(row.signed_xml).hexdigest()})
+            try:
+                status = self.client.submit(egs_id=row.egs_id, request_id=row.request_id,
+                                            invoice_uuid=row.invoice_uuid, invoice_flow=endpoint,
+                                            xml_bytes=row.signed_xml)
+            except TransportFailure:
+                status = None
+            res = resolve_submission_attempt(status, row.invoice_flow, endpoint)
+
         row.state = res["next_state"]
         row.history.append({"event": "RESPONSE", "attempt": row.attempts, "http_status": status,
-                            "state": row.state})
+                            "endpoint": endpoint, "state": row.state})
         if res["gl_action"] == "POST_ONCE" and not self.gl.has(row.gl_key):
             self.gl.post(row.gl_key, row.total_incl_vat_sar, "POST_ONCE_CLEARED")
         self.store.put(row)
@@ -226,6 +275,78 @@ class ZatcaWorker:
                 self.store.put(row)
                 recovered.append(u)
         return recovered
+
+
+PRICE_CORRECTION_NS = uuidlib.UUID("3b7a1c92-5f04-4de8-9a6b-2c81f0d4e7a3")
+
+
+def _totals(req: dict) -> dict:
+    net = sum((Decimal(ln["line_net_sar"]) for ln in req["lines"]), Decimal("0"))
+    vat = sum((Decimal(ln["line_vat_sar"]) for ln in req["lines"]), Decimal("0"))
+    return {"total_excl_vat_sar": fmt_sar(net), "vat_total_sar": fmt_sar(vat),
+            "total_incl_vat_sar": fmt_sar(net + vat)}
+
+
+def price_correction_documents(signed: dict, corrected: dict, *, attempt: int = 1,
+                               issued_at: str | None = None, cancels_uuid: str | None = None) -> list[dict]:
+    """A priced line changed AFTER the invoice was signed. Return the pair of documents ZATCA requires.
+
+    **The gap this closes** (HONESTY row 29). Correcting an item price upstream moves Silver, Gold and the
+    bank reconciliation, and left the signed tax chain showing the old amount -- because `run_zatca`
+    correctly refuses to re-price a document that has been signed and sent. Both halves of that are right:
+    re-signing a cleared tax document is the one thing a ZATCA chain must never do, and leaving the tax
+    ledger disagreeing with the books is the exact condition this whole project exists to detect. The
+    missing piece was never a patch to the engine; it was the document pair nobody was issuing.
+
+    **Cancel and reissue, not a difference note.** Two shapes are defensible: a credit note for the
+    difference, or a credit note cancelling the original in full plus a replacement invoice. This returns
+    the second, because a difference note has no honest line items -- "minus 4.00 SAR of nothing" is not a
+    description of goods, and ZATCA validates lines. Cancelling in full mirrors the original's real lines,
+    and the replacement states the real corrected ones. The arithmetic is identical either way: the chain
+    nets to the corrected amount.
+
+    Both documents are NEW: new request id, new UUID, their own ICV, signed in their own right. Neither
+    touches the original, which stays in the chain exactly as it was sent, which is the whole point.
+
+    **Fails closed on anything but an INVOICE.** Cancelling a credit note requires a debit note (ZATCA type
+    383), which this project does not model, so a changed credit note raises rather than guessing. Stated in
+    HONESTY rather than silently half-handled.
+
+    `issued_at` is the correction's own issue timestamp. It defaults to the corrected request's, which keeps
+    reruns byte-identical (CLAUDE.md determinism); in production it must be the date the correction is
+    actually issued, not the date of the original sale.
+    """
+    if signed["document_type"] != "INVOICE":
+        raise ValueError(
+            f"price correction for document_type {signed['document_type']!r} is not implemented: cancelling "
+            "a credit note needs a debit note (ZATCA 383), which this project does not model")
+    if _totals(signed)["total_incl_vat_sar"] == _totals(corrected)["total_incl_vat_sar"]:
+        return []
+
+    # The document being reversed. Normally that is `signed` itself, but when an invoice is corrected a
+    # SECOND time the thing to cancel is the previous replacement, not the original -- cancelling the
+    # original twice would subtract it twice and the chain would net to the wrong figure.
+    original_uuid = cancels_uuid or signed["invoice_uuid"]
+    stamp = issued_at or corrected["issue_ts_utc"]
+
+    cancel = copy.deepcopy(signed)
+    cancel.update({
+        "request_id": f"{signed['request_id']}-PC{attempt}CN",
+        "invoice_uuid": str(uuidlib.uuid5(PRICE_CORRECTION_NS, f"{original_uuid}/cancel/{attempt}")),
+        "document_type": "CREDIT_NOTE",
+        "billing_reference_uuid": original_uuid,   # what ZATCA reads to know which document this reverses
+        "issue_ts_utc": stamp,
+        **_totals(signed)})
+
+    replacement = copy.deepcopy(corrected)
+    replacement.update({
+        "request_id": f"{signed['request_id']}-PC{attempt}RI",
+        "invoice_uuid": str(uuidlib.uuid5(PRICE_CORRECTION_NS, f"{original_uuid}/replace/{attempt}")),
+        "document_type": "INVOICE",
+        "billing_reference_uuid": original_uuid,
+        "issue_ts_utc": stamp,
+        **_totals(corrected)})
+    return [cancel, replacement]
 
 
 def correction_request(req: dict, attempt: int = 1) -> dict:

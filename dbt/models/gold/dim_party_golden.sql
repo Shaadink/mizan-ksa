@@ -1,3 +1,9 @@
+-- STAYS A FULL TABLE (ADR-015). Not incremental, on purpose, and this one is a trap.
+-- The model selects only the CURRENT, ACTIVE version of each golden profile. When a profile is superseded or
+-- retired, the correct result is that its row DISAPPEARS. An incremental build keyed on golden_id would
+-- happily update the rows it was handed and leave every retired profile sitting in Gold looking current --
+-- the model would grow monotonically and quietly stop being a statement about the present. Deleting rows you
+-- were not handed needs a full-outer comparison, which is a full scan, which is a full rebuild.
 -- One row per ACTIVE golden party profile (current SCD2 version). No PII: names stay encrypted in Silver;
 -- Gold carries the golden key, the anchor TYPE (never the value), membership size and the current SPL region.
 WITH g AS (

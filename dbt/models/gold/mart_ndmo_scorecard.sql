@@ -1,3 +1,7 @@
+-- STAYS A FULL TABLE (ADR-015). Not incremental, on purpose.
+-- Every metric is a numerator and a denominator over an entire table. One new payment event changes the
+-- COMPLETENESS denominator, so the score moves even though no "key" changed. A scorecard of ratios over
+-- whole tables has nothing to be incremental about.
 -- NDMO scorecard (Module 6): the six data-quality dimensions on the key financial tables, plus the
 -- over-classification share of every Lakehouse table (columns above their own tier only because a SECRET column
 -- shares the table). One row per (metric_family, dimension, subject_table). Scores are DECIMAL, never FLOAT.

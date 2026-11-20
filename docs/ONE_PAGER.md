@@ -12,7 +12,7 @@ Source: **https://github.com/Shaadink/mizan-ksa**
 
 ## Four numbers, none of them typed by hand
 
-| `SAR 0.00` | `25,001` | `91 / 91` | `20,000,000` |
+| `SAR 0.00` | `25,001` | `94 / 94` | `20,000,000` |
 |---|---|---|---|
 | bank **and** GL variance across 2,121 assessed merchant-days of 2,233 | e-invoices in an unbroken ZATCA Phase-2 hash chain, **0 breaks** | Gold columns traced to source, column by column | rows joined at **62:1 skew** in a **local Spark benchmark** — three plans, one identical SAR checksum |
 
@@ -46,11 +46,13 @@ This is the part that distinguishes it from an architecture document.
 - **`docs/PROOF_MANIFEST.md`** — 13 claims, each with the proof file behind it and that file's SHA-256.
 - **`HONESTY.md`** — what the project does *not* do, where evidence is stale, and two defects found in ZATCA's own
   validator (a float VAT comparison, and a QR rule made unsatisfiable by two other rules).
-- **302 Python tests and 184 app tests**, and dbt **91/91**, run in CI on every push, including the full PySpark and dbt suites.
+- **411 Python tests and 184 app tests** (174 pass; 10 live-Fabric cross-checks skip themselves until the
+  Fabric pipeline is re-run), and dbt **98/98** on the local target, run in CI on every push, including the
+  full PySpark and dbt suites.
 - **Disaster recovery drill** — source and lake rebuilt from scratch in 9.8 min, Gold in 18.2 s (RTO 604.7 s).
-  All 9 tables, 35,668 rows, fingerprinted by SHA-256 and **identical to the live warehouse**.
+  All 10 tables, 35,789 rows, fingerprinted by SHA-256 and **identical to the live warehouse**.
 - **Determinism** — the generator is fixed-seed and must produce byte-identical output on a rerun.
-- **ADR-001…014** — the decisions, with the reasoning and what was rejected.
+- **ADR-001…016** — the decisions, with the reasoning and what was rejected.
 - Planted defects trip a **circuit breaker**: when variance is not 0.00 the dbt build fails and nothing publishes.
   The system does not email you about bad numbers; it refuses to release them.
 

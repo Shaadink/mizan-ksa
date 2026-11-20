@@ -52,6 +52,24 @@ REPORT = REPO / "docs" / "artifacts" / "13_dr_drill.json"
 # Built by dbt from Silver. Seeds are inputs, not outputs, so they are not part of the claim.
 SEEDS = {"umm_al_qura_calendar", "hijri_announcement_overrides", "merchant_store_reference"}
 
+# dbt's own scratch tables, which are not Gold and must never be part of the claim.
+# This surfaced the moment Gold became incremental (ADR-015): `--full-refresh` leaves a `__dbt_backup`
+# behind and a plain incremental run does not, so the drill reported three tables that "did not come back"
+# while every real Gold table was byte-identical. That is a false alarm about dbt's housekeeping, and a
+# drill that reports one is worse than no drill -- the next real drift gets waved away as "the backup thing
+# again".
+DBT_SCRATCH = ("__dbt_backup", "__dbt_tmp", "__dbt_new")
+
+# Operational bookkeeping, excluded from the claim BY NAME (ADR-015).
+# The drill's question is "did the same DATA come back". `last_source_arrival_at` is the incremental
+# watermark: it records WHEN a row landed in Bronze, which is a wall clock reading and legitimately differs
+# between two builds of identical data. Including it would make `--from source` fail on every single run
+# for a reason that has nothing to do with correctness, and a check that cries wolf is a check people
+# switch off. Note what is NOT excused: the column count and every business value still have to match.
+# test_dr_drill.py::test_only_the_watermark_is_excused pins the list at exactly this one name, so a future
+# column cannot be quietly added to it.
+EXCLUDED_COLUMNS = ("last_source_arrival_at",)
+
 
 def _canon(v) -> str:
     """One value, rendered so the same data always renders the same way.
@@ -76,13 +94,18 @@ def fingerprint(duck: Path) -> dict[str, dict]:
     con = duckdb.connect(duck.as_posix(), read_only=True)
     try:
         tables = [t for t, in con.execute(
-            "SELECT table_name FROM duckdb_tables() WHERE schema_name = 'gld' ORDER BY 1").fetchall()]
+            "SELECT table_name FROM duckdb_tables() WHERE schema_name = 'gld' ORDER BY 1").fetchall()
+            if not t.endswith(DBT_SCRATCH)]
         out = {}
         for t in tables:
             cols = [c for c, in con.execute(
                 "SELECT column_name FROM duckdb_columns() WHERE schema_name = 'gld' "
-                "AND table_name = ? ORDER BY column_index", [t]).fetchall()]
-            rows = con.execute(f'SELECT * FROM gld."{t}"').fetchall()      # noqa: S608 (name from catalog)
+                "AND table_name = ? ORDER BY column_index", [t]).fetchall()
+                if c not in EXCLUDED_COLUMNS]
+            # Named columns rather than SELECT *, so the excluded watermark never reaches the hash. Both the
+            # table and the column names come from DuckDB's own catalog, not from input.
+            projection = ", ".join(f'"{c}"' for c in cols)
+            rows = con.execute(f'SELECT {projection} FROM gld."{t}"').fetchall()   # noqa: S608 (from catalog)
             lines = sorted("\x1f".join(_canon(v) for v in row) for row in rows)
             h = hashlib.sha256()
             h.update(("\x1e".join(cols) + "\x1d").encode("utf-8"))         # schema is part of the identity

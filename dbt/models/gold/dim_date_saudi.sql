@@ -1,3 +1,8 @@
+-- STAYS A FULL TABLE (ADR-015). Not incremental, on purpose.
+-- An official moon-sighting announcement moves the START of a Hijri month, and every day after it is then
+-- re-numbered -- the month before the override grows or shrinks by the same days. One new seed row rewrites
+-- a stretch of the calendar in both directions. There is no "changed key" to find: the thing that changed is
+-- a boundary, not a row. It is three years of dates and it rebuilds in under a second.
 -- Gregorian + versioned Umm al-Qura Hijri calendar with official-announcement overrides; Saudi weekend Fri + Sat.
 -- An override moves the START of a Hijri month; every day is then re-numbered from the effective month starts,
 -- so the month before an override shrinks or grows by the same days. is_override_adjusted flags changed days.

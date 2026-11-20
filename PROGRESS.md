@@ -852,3 +852,125 @@ shipping as a privacy feature that quietly returns nothing useful.
 Also added: `docs/RUNBOOKS.md` sections for answering an access request and for a personal data breach
 (DPIA residual risk 8 -- the procedure now exists; the detection, the template and the escalation contact
 still do not, and the section says so).
+
+## 2026-11-20 (late) — incremental Gold, and the watermark bug that nearly shipped with it
+
+The owner approved the one gap an external review named that code could close: Gold was rebuilt in full on
+every run. Three facts are now incremental (ADR-015) -- the settlement reconciliation, the payment-method
+split and the ZATCA clearance ledger. The other four stay full tables, and each one's SQL file now opens
+with the reason, so a later reader "finishing the job" has to argue with it rather than discover it.
+
+**The frozen rule is intact.** `CLAUDE.md` freezes "Gold materialized as tables" to stop Power BI's Direct
+Lake falling back to the slower DirectQuery. An incremental dbt model *is* a physical table -- dbt creates
+it once and then deletes and inserts rows in it -- so nothing became a view and Direct Lake cannot tell the
+difference. Only the refresh changed. That is why this was a yes the owner could give without weakening
+anything, and it is the first thing to say if anyone asks.
+
+**The watermark comes from Bronze, not from Silver.** Silver gains one column, `source_ingested_at`, which
+is Bronze's `_ingested_at` passed through untouched. Silver is rebuilt in full on every run, so a timestamp
+minted during a Silver build would move for every row every time and the watermark would select the whole
+table -- an incremental model that is a full rebuild wearing a costume. Bronze is append-only, so arrival
+time is a fact about the data rather than about the last time the pipeline ran.
+
+**A key is rebuilt whole, never appended to.** A reconciliation is a sum over three legs; a day half-built
+from a late bank file balances to nothing. The incremental run finds which days were touched, deletes them,
+and re-derives them from all of Silver.
+
+**The bug this nearly shipped with.** The obvious "what changed" set -- anything whose own arrival time
+moved -- is incomplete, and the gap is silent. A bank line that arrives before its payment event is
+quarantined as an orphan. When the payment finally lands, that same line becomes PAID_BANK and money moves
+between `quarantined_sar` and `bank_paid_sar` -- but the line's own arrival time never moves, because it is
+the bank file's and that file is old. The day would have kept the quarantined figure permanently with
+nothing raising a hand. Both reconciliation models now carry a fourth leg: any settlement day whose
+matching payment arrived since the cut-off is also changed.
+
+**Why the cut-off is `>=` and not `>`.** Bronze stamps a whole landing batch with one timestamp, so an
+exclusive cut-off would skip forever any row sharing its timestamp with the recorded maximum. With `>=` the
+last batch is simply processed again, and since a rebuild re-derives whole keys, twice is the same as once.
+The cost of `>=` is a little repeated work; the cost of `>` is silent data loss.
+
+**Every test builds the models twice and diffs against a full refresh** (`tests/test_gold_incremental.py`,
+11 tests). The first run of an incremental model is just a full build, so a test that runs it once proves
+nothing. Two of the fixtures were caught being wrong by the project's own halala circuit breaker mid-build
+-- both times a missing GL line -- which is the check doing exactly its job.
+
+Also changed: `fact_payment_method_daily`'s incremental key is deliberately coarser than its grain
+(merchant-day, not merchant-day-scheme), so an `UNMATCHED_BANK_LINE` row that should cease to exist is
+deleted rather than left behind; `scripts/dr_drill.py` excludes the one wall-clock watermark column from
+its fingerprint, by name, pinned by a test; `docs/RUNBOOKS.md` says when a `--full-refresh` is mandatory
+(reference-data and model changes, neither of which moves a watermark).
+
+**Not claimed:** any speed-up. The whole of Gold already rebuilt in 18.2 s on this data volume, so there is
+nothing to quote -- the saving is the reason to do it at a scale this project has never run at. It has also
+not yet run on Fabric; `delete+insert` on WH_MIZAN is verified by reading dbt-fabric 1.9.10's macros, not
+by executing them. HONESTY.md row 36.
+
+**Two things the change flushed out downstream, both worth more than the feature.**
+
+1. *The DR drill was about to start lying.* `--full-refresh` leaves a `__dbt_backup` table behind and a
+   plain incremental run does not, so the drill reported three tables that "did not come back" while every
+   real Gold table was byte-identical. A check that cries wolf is one people learn to wave away, so the
+   fingerprint now skips dbt's own scratch tables -- and only those, by suffix, with the reason in the file.
+2. *A "same dataset?" gate that only checked money.* `shape.spec.ts` compares the published app's live
+   Fabric DAX results against exported Gold, and skips when the two describe different datasets. Adding one
+   column to four Silver tables left Fabric on a different schema while the money still matched, so the gate
+   said "same dataset" and then compared two different lakehouses' governance scorecards. It now counts
+   catalogued columns too. The honest cost: **10 app tests skip themselves (174 pass, was 183)** until the
+   Fabric pipeline is re-run. They are dormant, not green.
+
+Also replaced a hard-coded `== 350` column total in `tests/test_command_center.py` with a cross-check
+between three independently computed figures. A number nobody can re-derive is one somebody eventually
+edits to make the suite green.
+
+**Verified on the real lake, not just fixtures:** full rebuild **98/98** dbt tests (was 91), a second
+incremental run **98/98** in 2.2 s, and all **10 Gold tables byte-identical** afterwards. Every money figure
+unchanged: gross captures SAR 22,391,236.23, bank and GL variance 0.00. Gold columns traced 91 -> 94.
+
+## 2026-11-21 — the three P0 correctness defects three reviewers converged on
+
+Three external reviews landed on the same short list. The owner handed over the decisions and went to bed,
+so these were taken rather than asked about. All three are genuine correctness defects, not polish.
+
+**1. HTTP 303 was an infinite loop (HONESTY row 37).** A reviewer claimed 303 meant "clearance is off, use
+the Reporting API". That is a frozen-rule change, so it was checked against ZATCA's own Detailed Technical
+Guideline v2 before anything was touched -- and it is right. The engine resolved 303 to `UNKNOWN_OUTCOME`,
+whose correct response is to retry identical bytes, to the clearance endpoint, which is still deactivated,
+which answers 303 again. It never resolves. ZATCA deactivates clearance tenant-wide, so it would happen to
+every standard invoice at once while attempt counts climbed.
+
+**It does not widen the frozen definitive-status set**, and that is the whole reason it could be fixed
+without asking: a 303 is an instruction about *where to send the document*, not an answer about it. After
+following the redirect the document still ends on one of 200/202/400/401/403 -- from the other endpoint.
+The redirect is followed inside the same attempt with the same UUID, ICV, hash and signed bytes; the row is
+already persisted SUBMITTING, so a crash mid-redirect still recovers to UNKNOWN_OUTCOME. A B2B document
+accepted this way posts its ledger entry, because the hold was waiting for ZATCA to accept it and ZATCA
+has. A 303 on a simplified (B2C) document means nothing ZATCA defines and stays UNKNOWN_OUTCOME.
+
+**2. A price correction never reached the tax chain (HONESTY row 29, ADR-016).** The defect three reviewers
+ranked highest, and the one with the most interesting shape: **no component was misbehaving**. `run_zatca`
+skips any request already in the outbox, correctly, because re-pricing a signed tax document is the one
+thing a ZATCA chain must never do. The missing piece was never a patch to the engine -- it was a pair of
+documents nobody was issuing.
+
+Now `price_correction_documents()` issues what ZATCA requires: a credit note cancelling the original in
+full, plus a replacement invoice. Cancel-and-reissue beat a difference note on one argument -- a difference
+note has no honest line items, and ZATCA validates line items. Detection lives in `zatca_land` and works
+because Bronze is append-only and therefore holds both the version that was signed and the version that is
+now true. The signed one is identified by matching the outbox total, never by "the oldest row".
+
+**3. The chain head moved into a transactional store (HONESTY row 18).** The compare-and-set was correct
+logic over a Python dict, which two processes do not share: both read `last_icv = n`, both mint `n+1`, and
+the chain forks into two documents claiming the same ICV, which cannot be withdrawn.
+`src/mizan/spark/chain_head.py` runs the same CAS over `ctl.egs_chain_state` as a Delta table, injected
+into `ChainStore` so the clearance engine stays free of Spark (ADR-008). The winner is decided by reading
+the head back and checking it carries **its own invoice hash** -- not by asking Delta how many rows the
+UPDATE touched, because that count must be read from table history after the write, by which time another
+writer may have committed again.
+
+**A bug of my own, found by running it against the real lake rather than by reading it.** The
+price-correction detector picked the "current" Bronze version with `max(versions, key=issue_ts_utc)`. A
+price correction does not change when the sale happened, so both versions carry the *same* timestamp, the
+maximum was arbitrary, and it silently selected the superseded payload, found the totals equal and issued
+nothing. The lake test caught it -- the unit tests could not, because they hand the function two payloads
+directly. It now goes through `_latest()`, which orders by landing order, like every other Bronze reader in
+the module. This is the second time this exact module has been caught not using `_latest()`.
