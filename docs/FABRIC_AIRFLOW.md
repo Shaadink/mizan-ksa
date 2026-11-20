@@ -104,6 +104,17 @@ and the failure message Fabric reported, so the log says what broke rather than 
 
 After that the schedule takes over: **03:00 Asia/Riyadh, every day**, with no back-filling of missed nights.
 
+## The starter pool pauses, so the nightly schedule is not yet real
+
+Fabric puts a banner above the editor: *"You're using a starter pool, which pauses when idle. For
+uninterrupted DAG runs on schedule, switch to an always-on custom pool."* That is the default, and it means
+**Run DAG by hand works, but a 03:00 run may not fire** -- the pool has to be awake for the scheduler to act.
+
+An always-on custom pool fixes it and bills capacity units continuously, which on this capacity is not
+something to switch on and forget. So the honest statement today is: the schedule is written into the DAG and
+the DAG is deployed, and until the pool is always-on, the nightly trigger is not something to rely on. Run it
+by hand, or switch the pool when the pipeline is worth keeping warm.
+
 ## Common failures, and what they actually mean
 
 | What you see | What it means |

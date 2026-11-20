@@ -16,9 +16,12 @@ That second constraint is why this file imports nothing but the standard library
 no requirements.txt to install and no wheel to build, so the only way this DAG can fail to start is a syntax
 error -- which `tests/test_fabric_airflow_dag.py` catches before it is ever pushed.
 
-Deployment is Git sync from the public repository, so the DAG that runs in Fabric is the file reviewers read.
-Fabric syncs the repo to /opt/airflow/git/<repo>/ and reads DAGs from a `dags` folder, which is why this one
-sits at the repository root rather than beside its Docker sibling. Setup: docs/FABRIC_AIRFLOW.md.
+Deployment is `scripts/fabric_airflow.py push`, which uploads this exact file to AF_MIZAN over the Fabric
+REST API, so the DAG that runs in Fabric is the file reviewers read. Git sync was the first plan and was
+dropped: Microsoft documents no REST surface for configuring it, and an upload from the repository keeps the
+whole deployment to one command without giving Fabric a GitHub credential. Fabric reads DAGs from a `dags`
+folder either way, which is why this one sits at the repository root rather than beside its Docker sibling.
+Setup: docs/FABRIC_AIRFLOW.md.
 
 Credentials come from Airflow Variables, never from this file:
   mizan_tenant_id  mizan_client_id  mizan_client_secret  mizan_workspace_id  mizan_lakehouse_id
