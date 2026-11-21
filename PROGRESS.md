@@ -1020,3 +1020,49 @@ irreversible consequence, and a visible effect on a demo: not something to trigg
 incremental models were instead **compiled against the real Fabric adapter** (valid T-SQL, `DATETIME2(6)`,
 incremental branch resolving), which moves the claim from "read the macros" to "compiles on Fabric" without
 claiming it has run there.
+
+### Closing the night: a regression I introduced, and the final state
+
+**The price-correction detector was cheap to be wrong about.** It runs on every `run_zatca`, and as first
+written it pulled every Bronze ZATCA payload **and** all 25,001 outbox documents into the driver before it
+could establish that nothing had been resent -- which is the answer on almost every night. ADR-008 already
+names driver memory, not CPU, as what binds first in this pipeline, so that is a real regression on the
+Fabric lake where it runs at scale, not a micro-optimisation. Only a request Bronze holds more than one
+version of can have been corrected; that count now runs in Spark, and on a quiet night nothing is collected
+at all.
+
+**Guarded by a tripwire, not a timer.** A performance regression here fails no test: the numbers stay right
+and the run simply gets heavier, silently, for months. So the test hands the detector a lake that *refuses
+to produce the outbox*, and fails with a sentence if it is touched before a resend has been established.
+Moving that read back to the call site "for clarity" would now break the build instead of the budget.
+
+**One transient worth recording.** The run meant to confirm this errored at fixture setup -- 24 errors, the
+JVM dying with a bare `py4j` message and no trace, the same thing seen once earlier in the session. The
+re-run was clean (25 passed). Recorded because "it passed on retry" is only worth saying when the retry
+actually happened, and because a second sighting makes it a pattern worth knowing about rather than a
+one-off.
+
+**Final state, 2026-11-21:**
+
+| | |
+|---|---|
+| Commits | 5, all pushed |
+| Python tests | 438 |
+| dbt | 99/99 local |
+| App tests | 184 (174 pass, 10 skip until Fabric is re-run) |
+| HONESTY entries | 37 |
+| ADRs | 16 |
+| ruff | clean |
+
+**Six bugs of mine in one night, every one found by running code rather than reading it:** a stale Bronze
+version picked by a timestamp two versions share; an idempotency guard asking "has this ever been corrected"
+instead of "what does the chain state today"; a Delta table created lazily inside the race it was meant to
+survive; a test fixture that changed line amounts without restating header totals; a test that passed
+against the developer's own working credentials because the monkeypatch hit the wrong module; and a nightly
+full collect to discover nothing had changed. Each needed the thing run -- against the real lake, twice,
+concurrently, or with the negative case genuinely negative.
+
+**Still owner-only:** the Fabric re-run (deliberately deferred -- see the entry above), the `bronze_land`
+Airflow Variable (the service principal secret was verified valid on 2026-11-21, so it is a Variable), the
+video and the eight screenshots, a native Arabic read of the headings, the ZATCA SDK sample-invoice repro,
+and measured FinOps CU figures.

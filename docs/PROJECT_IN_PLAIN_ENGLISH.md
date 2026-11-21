@@ -153,6 +153,20 @@ the one unforgivable act in this whole domain. The missing piece was never a fix
 pair of documents nobody was issuing: a credit note cancelling the original, and a replacement invoice at
 the corrected price. The chain now *arrives at* the right number by adding documents, never by editing one.
 
+**And a third, about two computers at once.** Each invoice takes the next number in the chain — 500, 501,
+502. The system already refused to write if the number had moved underneath it. But that check was being
+kept *in one computer's memory*, and two computers do not share memory. Both would read "the last one was
+500", both would claim 501, and the chain forks into two invoices wearing the same number. **You cannot
+un-send an invoice**, so that split can never be repaired — by you, or by ZATCA.
+
+Fixed by moving the check into the shared database, where the storage itself decides who got there first.
+The winner is the one whose own invoice is sitting in the slot afterwards.
+
+There is a smaller, better outcome hiding in that one: the test I wrote for it **failed against my own
+code**. I had the database table being created on first use, so when two writers raced to start a brand-new
+chain, both tried to create it and the loser crashed instead of politely losing. That is the test doing
+precisely its job on the day it was written.
+
 That is the shape of the expensive bugs. Every component doing its job, and the system still wrong.
 
 **For Saudi employers:** this is the single most relevant thing in the project. Every company in the Kingdom
@@ -256,9 +270,19 @@ demands the two match exactly. The first run of an incremental model is just a f
 runs it once proves nothing at all. Two of my own test fixtures were caught being wrong *by the project's
 own circuit breaker* while I was writing them: I had forgotten a ledger line both times.
 
-**What it proves.** On the real data: a full rebuild passes **98 of 98** checks, a second incremental run
-passes **98 of 98** in 2.2 seconds, and all **10 Gold tables come back byte-identical**. Every money figure
+**What it proves.** On the real data: a full rebuild passes **99 of 99** checks, a second incremental run
+passes **99 of 99** in 2.2 seconds, and all **10 Gold tables come back byte-identical**. Every money figure
 is unchanged.
+
+**One more thing it cost me, worth telling.** The check that spots a corrected price runs on every nightly
+run. As I first wrote it, it loaded all 25,000 invoices into memory *before* it could work out that nothing
+had changed — which is the answer almost every night. That is not a wrong number, it is a nightly waste, and
+on a real Fabric lake memory is the thing that runs out first. Now it asks a much cheaper question first —
+*has anything been sent twice?* — and on a quiet night it reads nothing at all.
+
+It is guarded by an unusual test. A slowdown breaks no test: the numbers stay right, the run just gets
+heavier, and nobody notices for months. So instead of timing it, the test hands the code a database that
+**refuses to open that table**, and fails if it is touched before there is a reason to.
 
 **The honest bit:** I am claiming **no speed-up**. The whole of Gold already rebuilt in 18.2 seconds at this
 data volume, so there is nothing to boast about. This is the design that survives growth, not a benchmark —
