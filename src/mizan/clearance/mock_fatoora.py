@@ -43,6 +43,8 @@ class MockFatoora:
         # standard documents must go to reporting instead. It is a property of the PORTAL, never of one
         # document, which is why it lives here and not in the per-request script.
         self.clearance_active: bool = bool(plan.get("clearance_active", True))
+        # Per-request rejection text, so a test can make the portal say why it refused.
+        self.reasons: dict[str, str] = dict(plan.get("reasons", {}))
 
     def deactivate_clearance(self) -> None:
         self.clearance_active = False
@@ -78,7 +80,7 @@ class MockFatoora:
             # clearance off would silently shift every planted fault onto a different attempt.
             self.log.append({"request_id": request_id, "invoice_uuid": invoice_uuid, "egs_id": egs_id,
                              "bytes_sha256": sha, "outcome": "HTTP_303_CLEARANCE_DEACTIVATED"})
-            return 303
+            return 303, "CLEARANCE_DEACTIVATED_USE_REPORTING"
         script = self._script.get(request_id)
         outcome = script.pop(0) if script else self.default
         self.log.append({"request_id": request_id, "invoice_uuid": invoice_uuid, "egs_id": egs_id,
@@ -90,10 +92,14 @@ class MockFatoora:
         if not outcome.startswith("HTTP_"):
             raise ValueError(f"unknown scripted outcome {outcome!r}")
         status = int(outcome.removeprefix("HTTP_"))
+        reason = None
         if status == 200:
             if invoice_uuid in self.accepted and self.accepted[invoice_uuid][0] == sha:
-                return self.accepted[invoice_uuid][1]
-            status, _reason = self.validate(xml_bytes)
+                return self.accepted[invoice_uuid][1], "IDEMPOTENT_RESEND"
+            status, reason = self.validate(xml_bytes)
         if status in (200, 202):
             self.accepted[invoice_uuid] = (sha, status)
-        return status
+        # (status, reason): a real portal says WHY it rejected, and throwing that away leaves an operator
+        # holding a permanent CONFIRMED_REJECTION with nothing to act on. The reason was already computed
+        # here and discarded until 2026-11-21.
+        return status, reason or self.reasons.get(request_id)

@@ -369,6 +369,47 @@ fingerprint moves and you did not change source data, that is a finding, not noi
 
 ---
 
+## The first Fabric re-run after the price-correction detector
+
+**Read this before triggering it. It is the one action in this project that cannot be undone.**
+
+`zatca_land` now detects an invoice whose price changed after it was signed and issues a credit note plus a
+replacement invoice (ADR-016). Fabric's Bronze holds **both** versions of every request from the 2026-11-16
+price correction, so the first run there will fire that detector against real, already-signed documents.
+
+That is the correct fix for a tax chain that currently disagrees with the books. It is also **append-only**:
+the documents it writes take their own ICVs and can never be withdrawn. And it will move the figures that
+`README.md`, the Command Center and `docs/linkedin/VIDEO_SHOT_LIST.md` all quote.
+
+### Do these first, in order
+
+1. **Record the video and the eight screenshots.** Not a tidiness point: the document counts and invoiced
+   value on screen change after this runs, and the capacity expires 2027-01-13, so a re-shoot may not be
+   possible. This is the only step that is genuinely time-boxed.
+2. **Preserve the before evidence.** Copy `docs/artifacts/10_fabric_run_evidence.json` and the current
+   `command_center/data.json` to a dated filename and commit them. "The figures changed" is only a finding
+   if the previous figures still exist to compare against.
+3. **Predict the change before causing it.** Count the invoices whose live Bronze total differs from what
+   the outbox says was signed. That number times two is how many documents the run should add. Write it
+   down **first** -- a prediction made afterwards is not a prediction.
+4. **Run it**, then check the three things that must NOT have moved: every original document keeps its own
+   `invoice_uuid`, `icv` and `total_incl_vat_sar`; `verify_chain` reports no gaps on any of the five EGS
+   chains; bank and GL variance stay 0.00.
+5. **Reconcile against the prediction.** If the count does not match step 3, stop and find out why before
+   publishing any figure from the run.
+
+### If it goes wrong
+
+There is no undo, and that is the point -- a tax chain that could be rolled back would not be a tax chain.
+What you can do is stop, leave the documents in place, and work out what they say. They are valid signed
+documents either way; the question is only whether the correction they describe was the right one, which is
+HONESTY row 38 and a question for a Saudi VAT specialist, not for a re-run.
+
+A cleaner alternative, if the point is to prove the code rather than to fix the tenant's figures: do it in a
+**fresh workspace or against a new EGS chain**, where nothing already-signed is at stake.
+
+---
+
 ## What this project does not have
 
 Stated plainly, because a runbook that implies more than exists is a liability:

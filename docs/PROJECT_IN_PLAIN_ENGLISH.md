@@ -511,7 +511,7 @@ tested whether anyone says so or not.
 
 ### 15. Testing and the honesty ledger
 
-**What it is.** **438 automated tests** on the data side and **184** on the app side (174 passing; 10 skip
+**What it is.** **442 automated tests** on the data side and **184** on the app side (174 passing; 10 skip
 themselves until the Fabric pipeline is re-run), running on every push.
 
 **And `HONESTY.md`** — a document listing everything this project does *not* do, everything that is
@@ -520,7 +520,7 @@ approximate, and everything that broke.
 **Why that document exists.** Portfolio projects overclaim. A reviewer's instinct is to go looking for what
 you are hiding. If you hand them the list yourself, they stop looking and start trusting.
 
-**It currently has 37 numbered entries**, including three found in the last two days. That is not weakness —
+**It currently has 39 numbered entries**, including three found in the last two days. That is not weakness —
 every entry is something I measured rather than assumed.
 
 ---
@@ -628,9 +628,9 @@ Keep this open while filming.
 | dbt tests | 99 passing locally; Fabric last ran 91/91 on 2026-11-19 and has not been re-run since |
 | Stream events | 91,513 |
 | Skew benchmark | 20,000,000 rows |
-| Tests | 438 Python + 184 app (174 pass, 10 skip until Fabric is re-run) |
+| Tests | 442 Python + 184 app (174 pass, 10 skip until Fabric is re-run) |
 | Airflow in Fabric | 6 jobs, 15 minutes |
-| Documented limitations | 37 |
+| Documented limitations | 39 (23 deliberate scope decisions, 11 fixed, 5 open) |
 | Gold tables rebuilt incrementally | 3 of 7; a re-run takes 2.2 s and changes nothing |
 
 ---
@@ -760,7 +760,7 @@ like.
 > would have failed. The number would just have been quietly wrong. Caught only by a test that delivers
 > data out of order on purpose.
 >
-> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 37 things it does not do.
+> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 39 things it does not do.
 >
 > Built on Microsoft Fabric with Airflow, dbt, PySpark and OpenLineage.
 >

@@ -163,6 +163,72 @@ def test_chaos7_b2b_held_until_cleared_b2c_posted_despite_timeout(requests):
     assert gl.calls[u_b2b] == 1 and gl.calls[u_b2c] == 1
 
 
+# ---------------------------------------------------------------- the portal's stated reason (row 39)
+
+
+def test_a_rejection_records_what_zatca_actually_objected_to(requests):
+    """A CONFIRMED_REJECTION is permanent and the only fix is a NEW document. "ZATCA said no" without
+    saying what it objected to leaves whoever builds that replacement guessing.
+
+    The reason was being computed by the portal and discarded in the same function until 2026-11-21.
+    """
+    reqs = [r for r in requests if r["egs_id"] == "EGS-05"][:3]
+    client = MockFatoora({"reasons": {reqs[1]["request_id"]: "BR-KSA-11: VAT category code invalid"}})
+    client.script(reqs[1]["request_id"], ["HTTP_400"])
+    run = process_requests(reqs, client)
+
+    row = run.store.get(run.store.by_request_id[reqs[1]["request_id"]])
+    assert row.state == "CONFIRMED_REJECTION"
+    response = [h for h in row.history if h["event"] == "RESPONSE"][-1]
+    assert response["reason"] == "BR-KSA-11: VAT category code invalid"
+
+
+def test_a_400_saying_clearance_is_off_is_still_a_rejection_but_the_words_are_kept(requests):
+    """The case an external reviewer raised on 2026-11-21, and the deliberate decision not to act on it.
+
+    A community report describes ZATCA answering **400** with a body indicating clearance is deactivated,
+    rather than the documented 303. Routing on that would mean parsing error text and turning a rejection
+    into a reported invoice -- and getting it wrong in that direction publishes a document ZATCA refused.
+    The definitive-status set is frozen (CLAUDE.md, spec Section 12) and 400 stays CONFIRMED_REJECTION.
+
+    What changed instead is that the portal's words are no longer thrown away, so a human can see the case
+    and decide. The fix for a wrong rejection is a new document either way, which is a decision, not a
+    retry. HONESTY row 39.
+    """
+    b2b = [r for r in requests if r["invoice_flow"] == "CLEARANCE" and r["egs_id"] == "EGS-01"][:1]
+    rid = b2b[0]["request_id"]
+    client = MockFatoora({"reasons": {rid: "Clearance is deactivated, please use the Reporting API"}})
+    client.script(rid, ["HTTP_400"])
+    run = process_requests(b2b, client)
+
+    row = run.store.get(run.store.by_request_id[rid])
+    assert row.state == "CONFIRMED_REJECTION", (
+        "a 400 was routed to reporting on the strength of its message text; that is not in ZATCA's "
+        "documented response table and publishing a refused document is the worse failure")
+    assert "Reporting API" in [h for h in row.history if h["event"] == "RESPONSE"][-1]["reason"]
+    # The rejected document stays in the chain at its own ICV and a NEW document carries the correction --
+    # which posts under the ORIGINAL's gl_key, so the sale is still booked exactly once. (An earlier draft
+    # of this test asserted zero postings and was wrong about the engine's documented behaviour, not about
+    # the engine.)
+    assert row.invoice_uuid in run.corrections, "a rejection must be corrected by a new document"
+    assert_one_posting_per_sale(run)
+
+
+def test_a_client_that_returns_a_bare_status_still_works(requests):
+    """The client contract gained a reason without becoming a breaking change: the Fabric DAG and the mock
+    are separate implementations of it, and one of them was not updated on purpose to prove this."""
+    class BareStatusClient(MockFatoora):
+        def submit(self, **kw):
+            status, _reason = super().submit(**kw)
+            return status                      # the pre-2026-11-21 shape
+
+    reqs = [r for r in requests if r["egs_id"] == "EGS-05"][:2]
+    run = process_requests(reqs, BareStatusClient())
+    row = run.store.get(run.store.by_request_id[reqs[0]["request_id"]])
+    assert row.state == "REPORTED"
+    assert [h for h in row.history if h["event"] == "RESPONSE"][-1]["reason"] is None
+
+
 # ---------------------------------------------------------------- price corrected after signing (row 29)
 
 

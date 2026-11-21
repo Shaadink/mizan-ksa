@@ -1042,17 +1042,12 @@ re-run was clean (25 passed). Recorded because "it passed on retry" is only wort
 actually happened, and because a second sighting makes it a pattern worth knowing about rather than a
 one-off.
 
-**Final state, 2026-11-21:**
+**State at that point, 2026-11-21 ~04:00:** 5 commits, 438 Python tests, dbt 99/99 local, 184 app tests
+(174 pass, 10 skip until Fabric is re-run), 37 HONESTY entries, 16 ADRs, ruff clean.
 
-| | |
-|---|---|
-| Commits | 5, all pushed |
-| Python tests | 438 |
-| dbt | 99/99 local |
-| App tests | 184 (174 pass, 10 skip until Fabric is re-run) |
-| HONESTY entries | 37 |
-| ADRs | 16 |
-| ruff | clean |
+*(Superseded by the dated snapshot at the end of this file. A table headed "Final state" that keeps being
+true for three more hours of work is how stale numbers get published -- the later review was right to ask
+for the counts to be reconciled before anything is published, and this one had already drifted.)*
 
 **Six bugs of mine in one night, every one found by running code rather than reading it:** a stale Bronze
 version picked by a timestamp two versions share; an idempotency guard asking "has this ever been corrected"
@@ -1106,3 +1101,109 @@ chain before treating the Delta CAS as production-safe. Fair, and it is not buil
 threads against a real transaction log, which proves the storage layer serialises conflicting head
 advances, and does not prove two OS processes on Fabric do. HONESTY row 18 already says exactly that. It
 stays said rather than quietly upgraded.
+
+### 2026-11-21 (later still) — a fourth review: three claims verified, one real gap found
+
+This review was more careful than the others: it flagged its own weakest claims and said plainly that three
+agreeing reviews are not three independent audits, because none of them ran the code. Correct. So its
+factual questions were answered from the repository rather than argued about.
+
+**Three claims checked, all already handled:**
+
+* *"Is 303 actually fixed, or still outstanding? Do not assume either description is right."* Fixed, with
+  7 passing tests. Exactly the right instinct and the answer is in the test names.
+* *"Are the 25,001 invoices one global chain or per-EGS?"* Per-EGS, and verified as such:
+  `chain_verifier.py` groups by `egs_id` and restarts `expected_icv, prev_hash = 1, GENESIS_PIH` for each
+  one. Five chains, which README already said.
+* *"VACUUM RETAIN 0 HOURS should not run as an ordinary nightly task."* It does not. It runs only inside
+  `execute_dsr`, which is an erasure request -- already the controlled purge the review asked for. Neither
+  DAG touches it.
+
+**One real gap, and it was the review's own premise that exposed it.** The reviewer wanted the HTTP 400
+body inspected for a 'clearance deactivated' message. Looking at that, the actual defect was upstream:
+**a rejection recorded the status and never the reason**. `MockFatoora` computed one for every refusal and
+`submit()` discarded it on the next line. A `CONFIRMED_REJECTION` is permanent and the only fix is a new
+document, so whoever builds the replacement was being handed "ZATCA refused this" and nothing else.
+
+Fixed: the client contract now returns `(status, reason)`, backwards compatible -- a client returning a
+bare status still works, and a test proves it by deliberately leaving one unchanged -- and the reason is
+kept verbatim in the outbox history.
+
+**What was deliberately NOT done, which is the same answer in a different direction.** The 400 is not
+auto-routed to Reporting. That report is a developer-community one, not ZATCA's documented response table;
+routing on it means parsing error text, and being wrong in that direction publishes a document the
+authority refused. 400 stays CONFIRMED_REJECTION (frozen). The portal's words are simply no longer thrown
+away, so a human can see the case and decide -- the fix for a wrong rejection is a new document either
+way, which is a decision, not a retry. A test asserts the 400 is NOT auto-routed. HONESTY row 39.
+
+**Also not done, on purpose:** resetting ICV to 1 on CSID renewal. The review itself says to get official
+confirmation first and not to reset a counter because a certificate file changed. Agreed -- and a wrong
+reset would fork a live tax chain unrecoverably. The current behaviour (renew the CSID, resend identical
+bytes, ICV untouched) stands until that is confirmed.
+
+### 2026-11-21 — the Fabric trial expiry, settled from the capacity itself
+
+The latest review's first practical question: when does the trial actually end? Answered from the tenant
+rather than from memory. The capacity's own name carries its activation timestamp:
+
+    Trial-20261114T162752Z-W0--iQ8eOkqhz8nzEIt4Pg   FTL64   UAE North   Active
+
+Activated **2026-11-14 16:27:52 UTC**; a Fabric trial runs 60 days; so it expires **2027-01-13**. That
+cross-checks exactly against the portal reading "53 days left" on 2026-11-21 -- two independent sources,
+which is the only reason to state it as a fact rather than an estimate.
+
+**What this actually constrains.** The FTL64 capacity is in the college tenant and can also be disabled by
+the college at any time, so 2027-01-13 is a ceiling and not a promise. Everything that depends on it:
+`AF_MIZAN`, WH_MIZAN, the semantic model, the Fabric App at
+`fond-gulf-57cbbd6a65-uaenorth.webapp.fabricapps.net`, and the 10 dormant app tests that need a Fabric
+re-run. What does **not** depend on it: the public snapshot site, the repository, the local pipeline and
+every number in the documents, all of which rebuild from `scripts/fabric_*.py` on any tenant.
+
+The practical reading: the video and the eight screenshots are the time-boxed items, because they are the
+only artefacts that cannot be regenerated after the capacity goes away.
+
+**A second deadline, earlier and separate:** the Azure credit behind Ask MIZAN's agent expires
+**2026-12-14**. After that the agent falls back to its 16 recorded, number-verified runs, which is why
+those were recorded in the first place.
+
+### 2026-11-21 — reconciled snapshot
+
+The latest review asked for the counts to be reconciled before anything is published. Every figure here was
+counted at 2026-11-21, not carried forward: the HONESTY statuses are parsed from the file, the ADRs are a
+directory listing, and the test number is from a run that finished rather than from arithmetic on the last
+one.
+
+| | |
+|---|---|
+| Python tests | **442** passed |
+| dbt | 99/99 on the local target |
+| App tests | 184 (174 pass, 10 skip until Fabric is re-run) |
+| HONESTY entries | **39** -- 11 Fixed, 23 Stated, 5 Open |
+| Open items | row 13, row 23, row 24, row 32, row 38 |
+| ADRs | 16 |
+| Commits on main | 78 |
+| ruff | clean |
+
+**Read the HONESTY split properly.** 23 of 39 are *Stated* -- deliberate scope decisions
+with a reason, like synthetic data -- not debt. 5 are genuinely open, and each names its fix.
+Reporting "39 limitations" as if they were all defects would be as misleading as reporting none.
+
+**No readiness percentage is given, and that is deliberate.** Two reviews offered one (92% of the code,
+35-40% of production). Neither counted anything to produce it. This project's own rule is that every figure
+is derived and never typed, and a percentage of "production readiness" has no denominator anybody could
+check. What is countable, and what actually decides the question: of the six production gaps all reviewers
+converged on, **five and a half cannot be closed by writing code** -- real data, live ZATCA onboarding,
+in-Kingdom capacity, an acquirer's real settlement format, a legal review, a second engineer. The only one
+with code left in it is security configuration, and that is blocked on tenant topology rather than effort.
+
+The honest single number is the one that has not moved: **zero real transactions processed.**
+
+**Two dates that are not negotiable:** the Fabric trial expires 2027-01-13 and the Azure credit behind the
+agent expires 2026-12-14. The video and the eight screenshots are the only artefacts that cannot be
+regenerated afterwards, which makes them the time-boxed work.
+
+**Sequencing corrected.** An earlier note here said to film before touching Fabric, to stop the documents
+going stale. That was the wrong way round: every document regenerates from `build_command_center.py` in
+minutes, so the real rule is simply **film last**. Do the Fabric re-run and the first real `dbt_build_gold`
+first, regenerate the documents from the result, then record -- that way the video shows the strongest true
+state of the project and nothing disagrees with it.

@@ -230,11 +230,11 @@ class ZatcaWorker:
         self.store.put(row)  # persisted BEFORE the network call
         endpoint = row.invoice_flow
         try:
-            status = self.client.submit(egs_id=row.egs_id, request_id=row.request_id,
-                                        invoice_uuid=row.invoice_uuid, invoice_flow=endpoint,
-                                        xml_bytes=row.signed_xml)
+            status, reason = _answer(self.client.submit(
+                egs_id=row.egs_id, request_id=row.request_id, invoice_uuid=row.invoice_uuid,
+                invoice_flow=endpoint, xml_bytes=row.signed_xml))
         except TransportFailure:
-            status = None
+            status, reason = None, "TRANSPORT_FAILURE"
         # WorkerCrash propagates: the row stays SUBMITTING in the store, exactly as a dead process leaves it
         res = resolve_submission_attempt(status, row.invoice_flow, endpoint)
 
@@ -248,16 +248,21 @@ class ZatcaWorker:
                                 "http_status": status, "resubmitted_to": endpoint,
                                 "bytes_sha256": hashlib.sha256(row.signed_xml).hexdigest()})
             try:
-                status = self.client.submit(egs_id=row.egs_id, request_id=row.request_id,
-                                            invoice_uuid=row.invoice_uuid, invoice_flow=endpoint,
-                                            xml_bytes=row.signed_xml)
+                status, reason = _answer(self.client.submit(
+                    egs_id=row.egs_id, request_id=row.request_id, invoice_uuid=row.invoice_uuid,
+                    invoice_flow=endpoint, xml_bytes=row.signed_xml))
             except TransportFailure:
-                status = None
+                status, reason = None, "TRANSPORT_FAILURE"
             res = resolve_submission_attempt(status, row.invoice_flow, endpoint)
 
         row.state = res["next_state"]
+        # The portal's own words, kept verbatim. A CONFIRMED_REJECTION is permanent and a correction is a
+        # NEW document, so "ZATCA said no" without saying what it objected to leaves an operator unable to
+        # build the replacement. It also means a 400 whose body says clearance is deactivated is VISIBLE to
+        # a human rather than something the code has to guess at by sniffing message text -- see
+        # docs/RUNBOOKS.md and HONESTY row 39.
         row.history.append({"event": "RESPONSE", "attempt": row.attempts, "http_status": status,
-                            "endpoint": endpoint, "state": row.state})
+                            "endpoint": endpoint, "state": row.state, "reason": reason})
         if res["gl_action"] == "POST_ONCE" and not self.gl.has(row.gl_key):
             self.gl.post(row.gl_key, row.total_incl_vat_sar, "POST_ONCE_CLEARED")
         self.store.put(row)
@@ -275,6 +280,18 @@ class ZatcaWorker:
                 self.store.put(row)
                 recovered.append(u)
         return recovered
+
+
+def _answer(result) -> tuple[int | None, str | None]:
+    """Normalise a portal response to (status, reason).
+
+    A client may return a bare status, as every caller did before 2026-11-21, or `(status, reason)`. Both
+    are accepted so that adding the reason did not become a breaking change to the client contract -- the
+    Fabric DAG and the mock are separate implementations of it.
+    """
+    if isinstance(result, tuple):
+        return result[0], result[1]
+    return result, None
 
 
 PRICE_CORRECTION_NS = uuidlib.UUID("3b7a1c92-5f04-4de8-9a6b-2c81f0d4e7a3")

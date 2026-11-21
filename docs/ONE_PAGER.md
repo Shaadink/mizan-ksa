@@ -46,7 +46,7 @@ This is the part that distinguishes it from an architecture document.
 - **`docs/PROOF_MANIFEST.md`** — 13 claims, each with the proof file behind it and that file's SHA-256.
 - **`HONESTY.md`** — what the project does *not* do, where evidence is stale, and two defects found in ZATCA's own
   validator (a float VAT comparison, and a QR rule made unsatisfiable by two other rules).
-- **438 Python tests and 184 app tests** (174 pass; 10 live-Fabric cross-checks skip themselves until the
+- **442 Python tests and 184 app tests** (174 pass; 10 live-Fabric cross-checks skip themselves until the
   Fabric pipeline is re-run), and dbt **99/99** on the local target, run in CI on every push, including the
   full PySpark and dbt suites.
 - **Disaster recovery drill** — source and lake rebuilt from scratch in 9.8 min, Gold in 18.2 s (RTO 604.7 s).
