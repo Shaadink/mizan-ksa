@@ -974,3 +974,49 @@ maximum was arbitrary, and it silently selected the superseded payload, found th
 nothing. The lake test caught it -- the unit tests could not, because they hand the function two payloads
 directly. It now goes through `_latest()`, which orders by landing order, like every other Bronze reader in
 the module. This is the second time this exact module has been caught not using `_latest()`.
+
+### Also on 2026-11-21: the blind spot five reviewers named, and a credential diagnostic
+
+**Line-level reconciliation (HONESTY row 19, closed).** The one criticism of "variance SAR 0.00" that
+could not be argued away: the same author wrote the generator and the reconciler, and specifically, two
+errors that offset inside the same merchant-day cancel. Detection recall for offsetting pairs was 0.
+
+The row named its own fix, so it got built. `assert_every_settled_line_matches_its_payment.sql` joins each
+payment to the single bank line that settled it -- one bank line per payment event is a stated contract --
+and fails where the amount settled differs from the amount captured. Nothing is summed, so the two errors
+cannot hide behind each other. Recall is now 1.000.
+
+**The merchant-day half has not changed and cannot.** No sum over a day can see two errors that cancel
+inside it; asserting otherwise would be asserting against arithmetic. The harness test now states both
+halves rather than only the flattering one.
+
+It is also genuinely independent rather than a restatement: Silver decides `settlement_status` by comparing
+these same two amounts at *build* time, and this runs at Gold build time against whatever the tables now
+hold -- so a payment amount changed after Silver was built keeps its PAID_BANK status, and this is the
+thing that notices.
+
+**`fabric_client.sp_token_status()`.** Two Airflow failures are indistinguishable from the task list: a
+missing Variable and an expired client secret both kill `bronze_land` in under a second, before any Fabric
+call. Only the task log separates them, and reading it means resuming a paused pool. Misdiagnosing costs
+more in the one direction -- regenerating a secret that was fine means re-entering it everywhere -- so this
+answers the credential half in one command and never prints the secret. Run on 2026-11-21: **OK**, so the
+failing AF_MIZAN run was a Variable.
+
+**Five bugs of mine tonight, none findable by reading the code.** Listed because the pattern is the point:
+a stale Bronze version picked by a timestamp that two versions share; an idempotency guard asking "has this
+ever been corrected" instead of "what does the chain state today"; a Delta table created lazily inside the
+race it was meant to survive; a test fixture that changed line amounts without restating header totals; and
+a test that passed against the developer's own working credentials because the monkeypatch hit the wrong
+module. Each needed the thing run -- against the real lake, twice, or concurrently -- rather than read.
+
+**State:** 438 Python tests, dbt 99/99 locally, ruff clean, 37 HONESTY entries, 16 ADRs, CI green.
+
+**Deliberately NOT done, and why it is the owner's call.** Re-running the pipeline on Fabric would now fire
+the price-correction detector against a Bronze that holds both versions of every request from the
+2026-11-16 correction. That is the correct fix for a tax chain that currently disagrees with the books --
+and it appends credit notes to an append-only legal chain and shifts the document counts and invoiced value
+that the README, Command Center and video shot list all quote, hours before filming. One command, one
+irreversible consequence, and a visible effect on a demo: not something to trigger unattended. The
+incremental models were instead **compiled against the real Fabric adapter** (valid T-SQL, `DATETIME2(6)`,
+incremental branch resolving), which moves the claim from "read the macros" to "compiles on Fabric" without
+claiming it has run there.
