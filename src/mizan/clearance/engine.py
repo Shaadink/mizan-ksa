@@ -298,12 +298,24 @@ def price_correction_documents(signed: dict, corrected: dict, *, attempt: int = 
     ledger disagreeing with the books is the exact condition this whole project exists to detect. The
     missing piece was never a patch to the engine; it was the document pair nobody was issuing.
 
-    **Cancel and reissue, not a difference note.** Two shapes are defensible: a credit note for the
-    difference, or a credit note cancelling the original in full plus a replacement invoice. This returns
-    the second, because a difference note has no honest line items -- "minus 4.00 SAR of nothing" is not a
-    description of goods, and ZATCA validates lines. Cancelling in full mirrors the original's real lines,
-    and the replacement states the real corrected ones. The arithmetic is identical either way: the chain
-    nets to the corrected amount.
+    **Cancel and reissue. One valid treatment, NOT the universal one -- read this before extending it.**
+    This returns a credit note cancelling the original in full plus a replacement invoice at the corrected
+    amount. ZATCA illustrates that shape for a replacement (a credit note followed by a new invoice), and
+    the arithmetic is right in every case: the chain nets to the corrected total.
+
+    **What it is not.** An earlier version of this docstring argued that a difference note "has no honest
+    line items". That was simply wrong, and checkable: ZATCA's own guidance uses a **debit note (type 383)
+    for an undercharge** -- its business-promotions guideline works through a hotel that charged less than
+    the agreed price and corrects it with a debit note for the additional amount due, leaving the original
+    invoice in place. A difference note's lines describe the correction, which is a perfectly honest thing
+    to describe. The claim was an engineering preference dressed up as a compliance fact.
+
+    So: the document this issues is arithmetically correct and defensible for a cancellation or
+    replacement. **Whether it is the correct document TYPE for a given business event -- an undercharge, an
+    overcharge, a correction of erroneous invoice information, a genuine cancellation -- is a Saudi VAT
+    classification question, not an engineering one, and no specialist has reviewed it.** HONESTY row 38.
+    Extending this to emit 383 for undercharges is the named fix; it needs that review first, because
+    guessing a tax document type is exactly the kind of confident wrongness this project exists to avoid.
 
     Both documents are NEW: new request id, new UUID, their own ICV, signed in their own right. Neither
     touches the original, which stays in the chain exactly as it was sent, which is the whole point.

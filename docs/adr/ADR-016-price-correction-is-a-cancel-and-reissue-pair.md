@@ -30,21 +30,40 @@ badly, and the system is wrong anyway.
 
 ## Decision
 
-### 1. Cancel in full, then reissue. Not a difference note.
+### 1. Cancel in full, then reissue — one valid treatment, not the universal one
 
 Two shapes are defensible when an invoice's price changes after it has been sent:
 
-| | Credit note for the difference | **Cancel in full + replacement invoice** |
+| | Difference note | **Cancel in full + replacement invoice** |
 |---|---|---|
 | Documents | 1 | 2 |
 | Chain arithmetic | `100 − 4 = 96` | `100 − 100 + 96 = 96` |
-| Line items | none that are honest | the real original lines, then the real corrected lines |
+| ZATCA type | 381 credit (overcharge) / **383 debit (undercharge)** | 381 credit + a new invoice |
 
-Both reach the same total. **The line items decide it.** A difference note has to describe goods worth
-SAR 4.00 that nobody sold; "minus four riyals of nothing" is not a description of an item, and ZATCA
-validates line items — the project's own SDK run found nine defects in exactly that area. Cancelling in
-full mirrors the original's real lines; the replacement states the real corrected ones. Every line on every
-document corresponds to something that exists.
+Both reach the same total. This ADR implements the second, and ZATCA does illustrate that shape — a credit
+note followed by a new invoice — for a replacement.
+
+> **Correction, 2026-11-21, same day this ADR was written.** The original version of this section argued
+> that the difference note was *wrong* because "a difference note has no honest line items — minus four
+> riyals of nothing is not a description of an item." **That was false, and checkable.** ZATCA's own
+> guidance uses a **debit note (type 383) for an undercharge**: its business-promotions guideline works
+> through a hotel that charged less than the agreed price and corrects it with a debit note for the
+> additional amount due, leaving the original invoice in place. A difference note's lines describe the
+> correction, which is an honest thing to describe.
+>
+> An external reviewer caught it, and the claim was verified against ZATCA's guidance before this was
+> rewritten — the same check that confirmed the HTTP 303 fix. The argument was an engineering preference
+> presented as a compliance fact, which is the exact failure mode `HONESTY.md` exists to prevent. It is
+> left visible rather than quietly edited out.
+
+**What stands:** the pair this emits is arithmetically correct in every case, never touches the signed
+document, and is a legitimate treatment for a cancellation or replacement.
+
+**What does not:** that it is the right treatment for *every* price correction. Choosing between an
+undercharge (383), an overcharge (381), a correction of erroneous invoice information, and a genuine
+cancellation-and-replacement is a **Saudi VAT classification decision**. No specialist has reviewed this.
+Emitting 383 for undercharges is the named fix and it needs that review first — guessing a tax document
+type is precisely the confident wrongness this project exists to avoid. `HONESTY.md` row 38.
 
 ### 2. Both documents are new. The original never moves.
 

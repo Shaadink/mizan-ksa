@@ -10,6 +10,12 @@
 -- event is a stated contract (slv.settlement_lines, `unique` on payment_event_id), so the amount the bank
 -- settled must equal the amount the till captured, line by line, with no summing anywhere.
 --
+-- **That contract is this project's, not every acquirer's -- check before reusing this rule.** Real
+-- settlement files split a single capture across batches, net several captures into one line, or settle
+-- partially; against a file like that this test would fail on correct data, which is worse than not having
+-- it. The fix there is a matching leg that groups the bank side by payment_event_id before comparing, and
+-- it needs the actual file format in hand to write. Raised by external review on 2026-11-21, HONESTY row 19.
+--
 -- QUARANTINED lines are excluded because a mismatch is precisely why they are quarantined: that finding is
 -- already recorded in quarantine.settlement_breaks and re-reporting it here would turn a working control
 -- into a permanently red test.

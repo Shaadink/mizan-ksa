@@ -1066,3 +1066,43 @@ concurrently, or with the negative case genuinely negative.
 Airflow Variable (the service principal secret was verified valid on 2026-11-21, so it is a Variable), the
 video and the eight screenshots, a native Arabic read of the headings, the ZATCA SDK sample-invoice repro,
 and measured FinOps CU figures.
+
+### 2026-11-21 (later) — a reviewer caught me stating a preference as a compliance fact
+
+Three more reviews landed. Two findings were right and are acted on; one framing change is taken.
+
+**ADR-016's reasoning was wrong, and checkably so.** It argued that a difference note was the wrong shape
+for a price correction because "a difference note has no honest line items -- minus SAR 4.00 of nothing is
+not a description of goods". **ZATCA's own guidance says otherwise**: a **debit note (type 383)** is the
+documented treatment for an undercharge, and the business-promotions guideline works through a hotel that
+charged less than the agreed price and fixes it with a debit note for the additional amount due, leaving
+the original invoice in place. A difference note's lines describe the correction, which is honest.
+
+Verified against ZATCA's guidance before rewriting anything -- the same check that confirmed the 303 fix
+earlier the same day, and the reason that one survived contact with the spec while this one did not.
+
+**What stands and what does not.** The pair the code emits is arithmetically correct in every case, never
+touches the signed document, and is a treatment ZATCA does illustrate for a replacement. What does not
+stand is that it is right for *every* price correction. Undercharge (383), overcharge (381), correction of
+erroneous invoice information, genuine cancellation-and-replacement -- that is a **Saudi VAT
+classification decision and no specialist has reviewed it**. HONESTY row 38, Open, with the fix named.
+
+The wrong argument is left visible in ADR-016 under a correction note rather than quietly edited out,
+because an ADR that silently rewrites its reasoning is worth less than one that shows it was wrong.
+
+**The line-level reconciliation assumes a contract that is this project's, not every acquirer's.** One
+bank line per payment event holds here by construction. Real settlement files split a capture across
+batches, net several captures into one line, or settle partially -- against those this test would fail on
+*correct* data, which is worse than not having it. Now stated in the test itself with the fix named
+(group the bank side by payment_event_id before comparing; needs the real file format in hand).
+
+**One framing change taken.** "The data engineering is production-grade" becomes "production-*oriented*
+engineering controls... not production-*proven* against real enterprise integrations", and the production
+estimate moves from "about a year" to the 12-18 months the roadmap already said. The first was a claim the
+rest of the document does not support.
+
+**What was NOT changed, and why.** A reviewer asked for two independent Fabric workers racing the same EGS
+chain before treating the Delta CAS as production-safe. Fair, and it is not built: the current tests race
+threads against a real transaction log, which proves the storage layer serialises conflicting head
+advances, and does not prove two OS processes on Fabric do. HONESTY row 18 already says exactly that. It
+stays said rather than quietly upgraded.

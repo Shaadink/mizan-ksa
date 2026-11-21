@@ -643,10 +643,12 @@ running system. That gap is the interview.
 
 ### Say this
 
-> "No. The *data engineering* is production-grade — the ZATCA state machine, the reconciliation model and the
-> erasure design would survive review. What is missing is everything around the code: real data, live ZATCA
-> onboarding, security hardening on the agent API, and an operational layer. Pilot-ready in about five months
-> with a willing client; production in about a year with a small team."
+> "No. It has production-*oriented* engineering controls — durable invoice state, concurrency protection,
+> financial validation at two independent levels, recovery testing — and it has not been production-*proven*
+> against real enterprise integrations. Those are different claims and I would not blur them. What is
+> missing is everything around the code: real data, live ZATCA onboarding, security hardening on the agent
+> API, and a staffed operational layer. Pilot-ready in about five months with a willing client; production
+> in twelve to eighteen months with a small team."
 
 ### What is already production-grade, and why
 
