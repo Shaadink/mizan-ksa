@@ -102,3 +102,69 @@ def test_run_event_shape():
     assert e["inputs"][0]["namespace"] == OL.NAMESPACE_LH
     with pytest.raises(ValueError):
         OL.run_event("RUNNING", "j", "r")
+
+
+# ---------------------------------------------------------------- credential diagnostic
+
+
+def test_sp_token_status_never_prints_the_secret(monkeypatch):
+    """The whole value of this helper is that it can be run and pasted. If it ever echoed the secret it
+    would turn a diagnostic into a leak, and the obvious implementation -- printing the Entra error body --
+    is one refactor away from doing exactly that."""
+    from mizan.orchestration import fabric_client
+
+    secret = "s3cr3t-value-that-must-never-appear"
+    # `sp_token_status` imports load_dotenv from crypto INSIDE the call, so patching it on
+    # fabric_client does nothing and the real .env loads -- which made this test pass against the
+    # developer's own working credentials instead of the state it meant to set up.
+    from mizan.privacy import crypto
+    monkeypatch.setattr(crypto, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setenv("FABRIC_TENANT_ID", "tenant")
+    monkeypatch.setenv("FABRIC_CLIENT_ID", "client")
+    monkeypatch.setenv("FABRIC_CLIENT_SECRET", secret)
+
+    def refuse(*_a, **_k):
+        raise PermissionError("token request failed (401): AADSTS7000215 bad secret for app 'client'")
+
+    monkeypatch.setattr(fabric_client, "sp_token", refuse)
+    out = fabric_client.sp_token_status()
+    assert secret not in out
+    assert out.startswith("FAILED:") and "AADSTS7000215" in out
+
+
+def test_sp_token_status_says_cannot_check_rather_than_ok_when_unconfigured(monkeypatch):
+    """A missing credential must never read as a passing check. 'I could not tell' and 'it is fine' are
+    different answers, and conflating them is how somebody regenerates a secret that was never the problem."""
+    from mizan.orchestration import fabric_client
+
+    # `sp_token_status` imports load_dotenv from crypto INSIDE the call, so patching it on
+    # fabric_client does nothing and the real .env loads -- which made this test pass against the
+    # developer's own working credentials instead of the state it meant to set up.
+    from mizan.privacy import crypto
+    monkeypatch.setattr(crypto, "load_dotenv", lambda *a, **k: None)
+    for key in ("FABRIC_TENANT_ID", "FABRIC_CLIENT_ID", "FABRIC_CLIENT_SECRET"):
+        monkeypatch.delenv(key, raising=False)
+    out = fabric_client.sp_token_status()
+    assert out.startswith("CANNOT CHECK:") and "FABRIC_CLIENT_SECRET" in out
+
+
+def test_sp_token_status_distinguishes_a_network_failure_from_a_bad_credential(monkeypatch):
+    """Entra being unreachable says nothing about the secret. Reporting it as FAILED would send somebody
+    to regenerate a credential because their wifi dropped."""
+    from mizan.orchestration import fabric_client
+
+    # `sp_token_status` imports load_dotenv from crypto INSIDE the call, so patching it on
+    # fabric_client does nothing and the real .env loads -- which made this test pass against the
+    # developer's own working credentials instead of the state it meant to set up.
+    from mizan.privacy import crypto
+    monkeypatch.setattr(crypto, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setenv("FABRIC_TENANT_ID", "tenant")
+    monkeypatch.setenv("FABRIC_CLIENT_ID", "client")
+    monkeypatch.setenv("FABRIC_CLIENT_SECRET", "x")
+
+    def unreachable(*_a, **_k):
+        raise OSError("getaddrinfo failed")
+
+    monkeypatch.setattr(fabric_client, "sp_token", unreachable)
+    out = fabric_client.sp_token_status()
+    assert out.startswith("CANNOT CHECK:") and "says nothing about the credential" in out

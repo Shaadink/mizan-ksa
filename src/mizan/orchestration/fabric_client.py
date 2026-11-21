@@ -51,6 +51,40 @@ def sp_token(tenant: str, client_id: str, secret: str, scope: str = "https://api
     return body["access_token"]
 
 
+def sp_token_status() -> str:
+    """Is the service-principal credential in `.env` still good? One line, and never the secret itself.
+
+    This exists because two Airflow failures look identical from the task list -- a missing Variable and an
+    expired client secret both kill `bronze_land` in under a second, before any Fabric call, so every
+    downstream task reads `upstream_failed` and the Fabric job history shows nothing at all. Only the task
+    log tells them apart, and reading it means resuming a paused pool first.
+
+    Misdiagnosing this is the expensive direction: regenerating an app registration secret that was fine
+    means re-entering it in every place that holds it. So the question "is the credential itself still
+    good" is worth being able to answer in one command, from the machine, before touching anything.
+
+    Returns a human sentence rather than raising, because it is a diagnostic and a failure IS the answer.
+    """
+    from mizan.privacy.crypto import load_dotenv
+    load_dotenv()
+    missing = [k for k in ("FABRIC_TENANT_ID", "FABRIC_CLIENT_ID", "FABRIC_CLIENT_SECRET")
+               if not os.environ.get(k)]
+    if missing:
+        return f"CANNOT CHECK: {', '.join(missing)} not set in .env"
+    try:
+        token = sp_token(os.environ["FABRIC_TENANT_ID"], os.environ["FABRIC_CLIENT_ID"],
+                         os.environ["FABRIC_CLIENT_SECRET"])
+    except PermissionError as e:
+        # The description names the app registration and the reason; it never contains the secret.
+        return (f"FAILED: the credential in .env is rejected by Entra -- {e}. Regenerate the client secret "
+                "and update BOTH .env and the Airflow Variable mizan_client_secret.")
+    except OSError as e:
+        return f"CANNOT CHECK: could not reach Entra ({e}). This says nothing about the credential."
+    return (f"OK: Entra issued a token ({len(token)} chars) for the service principal in .env. "
+            "The app registration is fine, so an Airflow failure before any Fabric call is a Variable "
+            "problem -- a wrong value, a misspelled name, or one that never saved.")
+
+
 @dataclass
 class JobRun:
     job: str

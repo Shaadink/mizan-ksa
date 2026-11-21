@@ -20,7 +20,7 @@ Open on the orchestrator, not the data. "It runs itself in the cloud" is the cla
 | 0:00 - 0:06 | Fabric workspace `mizan-ksa-dev`, slow scroll over LH_MIZAN, WH_MIZAN, EH_MIZAN, ES_MIZAN, the semantic model, the report and the **command-center** app | One Saudi commerce transaction, followed end to end on Microsoft Fabric. |
 | 0:06 - 0:15 | **AF_MIZAN -> Monitor DAG -> Graph**: `mizan_fabric_daily`, six green boxes, the arrows fanning from `zatca_chain` to `ai_index` and `ndmo_catalog`. Hover `bronze_land` so the duration shows | Apache Airflow, running inside Fabric, starts six PySpark jobs over the REST API. Nothing runs on my laptop. |
 | 0:15 - 0:21 | Monitoring hub: the same six notebook runs, all **Succeeded**, started seconds after the DAG tasks | Each box is a real Fabric notebook run: land, encrypt, resolve, sign, index, catalogue. |
-| 0:21 - 0:26 | Terminal: `dbt build` ending **PASS=98 ERROR=0** | dbt builds and tests the Gold layer: 98 models and tests green. | 
+| 0:21 - 0:26 | Terminal: `dbt build` ending **PASS=99 ERROR=0** | dbt builds and tests the Gold layer: 99 models and tests green. | 
 | | **Film the LOCAL build.** The Fabric target last ran 91/91 on 2026-11-19 and has not been re-run since Gold became incremental, so a `--target fabric` shot would show a stale number. If you want the Fabric shot, re-run it first. |  |
 | 0:26 - 0:30 | GitHub Actions: the latest run with three green jobs (lint + unit, full PySpark suite, Fabric App) | Every push runs the full test suite. |
 

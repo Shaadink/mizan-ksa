@@ -353,7 +353,7 @@ stated in `HONESTY.md`.
 
 ### 9. The circuit breaker (dbt)
 
-**What it is.** dbt builds the Gold tables and runs **98 tests** every time. If a test fails, the build stops
+**What it is.** dbt builds the Gold tables and runs **99 tests** every time. If a test fails, the build stops
 and Gold is not published.
 
 **Real-world analogy.** The electrical trip switch in your house. It does not repair the fault — it stops the
@@ -370,7 +370,7 @@ back to a source column.
 ZATCA table to double to 50,002 rows. The uniqueness test failed, the build stopped, and **Gold was never
 published**. I found out from a test, not from a dashboard being wrong.
 
-**The number:** **98 tests, all passing** on the local engine. The Fabric warehouse last ran 91/91 on
+**The number:** **99 tests, all passing** on the local engine. The Fabric warehouse last ran 91/91 on
 2026-11-19 and has not been re-run since Gold became incremental, so it is not claimed as current.
 
 ---
@@ -487,7 +487,7 @@ tested whether anyone says so or not.
 
 ### 15. Testing and the honesty ledger
 
-**What it is.** **411 automated tests** on the data side and **184** on the app side (174 passing; 10 skip
+**What it is.** **438 automated tests** on the data side and **184** on the app side (174 passing; 10 skip
 themselves until the Fabric pipeline is re-run), running on every push.
 
 **And `HONESTY.md`** — a document listing everything this project does *not* do, everything that is
@@ -496,7 +496,7 @@ approximate, and everything that broke.
 **Why that document exists.** Portfolio projects overclaim. A reviewer's instinct is to go looking for what
 you are hiding. If you hand them the list yourself, they stop looking and start trusting.
 
-**It currently has 36 numbered entries**, including three found in the last two days. That is not weakness —
+**It currently has 37 numbered entries**, including three found in the last two days. That is not weakness —
 every entry is something I measured rather than assumed.
 
 ---
@@ -601,12 +601,12 @@ Keep this open while filming.
 | Golden customer records | 2,552 from 3,967 (precision 1.0000, recall 0.9625) |
 | Columns classified | 354 across 27 tables |
 | Gold columns traced | 94 of 94 |
-| dbt tests | 98 passing locally; Fabric last ran 91/91 on 2026-11-19 and has not been re-run since |
+| dbt tests | 99 passing locally; Fabric last ran 91/91 on 2026-11-19 and has not been re-run since |
 | Stream events | 91,513 |
 | Skew benchmark | 20,000,000 rows |
-| Tests | 411 Python + 184 app (174 pass, 10 skip until Fabric is re-run) |
+| Tests | 438 Python + 184 app (174 pass, 10 skip until Fabric is re-run) |
 | Airflow in Fabric | 6 jobs, 15 minutes |
-| Documented limitations | 36 |
+| Documented limitations | 37 |
 | Gold tables rebuilt incrementally | 3 of 7; a re-run takes 2.2 s and changes nothing |
 
 ---
@@ -734,7 +734,7 @@ like.
 > would have failed. The number would just have been quietly wrong. Caught only by a test that delivers
 > data out of order on purpose.
 >
-> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 36 things it does not do.
+> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 37 things it does not do.
 >
 > Built on Microsoft Fabric with Airflow, dbt, PySpark and OpenLineage.
 >

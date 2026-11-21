@@ -146,6 +146,25 @@ by hand, or switch the pool when the pipeline is worth keeping warm.
 | `bronze_land: Fabric reported Failed` | The notebook itself failed. The message is Fabric's own; the notebook log in `LH_MIZAN/Files/_logs/` has the detail. |
 | DAG does not appear at all | Git sync has not completed, or the file is not under a top-level `dags/` folder. |
 
+### Telling the two credential failures apart in one command
+
+`missing Airflow Variable` and `AADSTS7000215` look alike from the task list -- both kill `bronze_land` in
+under a second, before any Fabric call, so every downstream task reads `upstream_failed` and nothing in the
+Fabric job history shows a run at all. The log line is the only place they differ, and the pool has to be
+resumed to read it.
+
+Before resuming anything, ask whether the credential itself is still good — that is the expensive failure
+to misdiagnose, because regenerating a secret that was fine means re-entering it everywhere:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import mizan.orchestration.fabric_client as f; print(f.sp_token_status())"
+```
+
+It requests a token with the credentials in `.env` and prints only the outcome, never the secret. If it
+says OK, the app registration is fine and the fault is an **Airflow Variable** — a wrong value, a typo in
+a name, or one that never saved. Checked on 2026-11-21: OK, so the failing run that day was a Variable.
+
+
 ## How this is tested
 
 The DAG cannot be run from this machine — it needs Fabric's scheduler, Fabric's workers and a live capacity.
