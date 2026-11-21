@@ -199,7 +199,11 @@ missing, just not arrived.
 **The honest bit:** I was told, correctly, that if my generator and my reconciler share the same rules then
 zero is guaranteed by construction and proves nothing. So I wrote a test that **damages the data in 50
 different ways** and checks the reconciler notices all 50. It does. And it found one blind spot I then wrote
-down: two offsetting errors on the same merchant-day cancel out and are invisible, because the model works at
+down: two offsetting errors on the same merchant-day cancel out inside the daily sum. No sum over a day can see
+that, so on 2026-11-21 the build gained a second, line-by-line check that compares each single payment to the
+single bank line that settled it -- where nothing is added up and the two errors cannot hide behind each other.
+The daily figure still nets to zero, because arithmetic; the line check catches it. The old limitation, kept
+here because it is the honest history: the model works at
 merchant-day level, not line level. That limitation is in `HONESTY.md`.
 
 ---

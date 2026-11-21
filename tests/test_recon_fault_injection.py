@@ -55,7 +55,8 @@ def legs() -> dict:
 
     con = duckdb.connect()
     pay = con.execute(f"""
-        SELECT merchant_id, business_date_ksa, event_type, CAST(amount_sar AS VARCHAR) AS amount_sar
+        SELECT merchant_id, business_date_ksa, event_type, CAST(amount_sar AS VARCHAR) AS amount_sar,
+               payment_event_id
         FROM {delta_rel(LAKE / 'payment_lifecycle')}
         WHERE merchant_id IN (SELECT DISTINCT merchant_id
                               FROM {delta_rel(LAKE / 'payment_lifecycle')} ORDER BY merchant_id LIMIT 6)
@@ -64,7 +65,8 @@ def legs() -> dict:
         SELECT merchant_id, settlement_for_date_ksa, settlement_status,
                CAST(net_settled_sar AS VARCHAR)      AS net_settled_sar,
                CAST(acquirer_mdr_fee_sar AS VARCHAR) AS mdr,
-               CAST(acquirer_vat_sar AS VARCHAR)     AS vat
+               CAST(acquirer_vat_sar AS VARCHAR)     AS vat,
+               payment_event_id, CAST(gross_amount_sar AS VARCHAR) AS gross_amount_sar
         FROM {delta_rel(LAKE / 'settlement_lines')}
         WHERE merchant_id IN (SELECT DISTINCT merchant_id
                               FROM {delta_rel(LAKE / 'payment_lifecycle')} ORDER BY merchant_id LIMIT 6)
@@ -81,11 +83,25 @@ def legs() -> dict:
     if not (pay and settle and gl):
         pytest.skip("lake slice is empty")
     return {
-        "captures": [{"mid": r[0], "day": str(r[1]), "event_type": r[2], "amount": Decimal(r[3])} for r in pay],
+        "captures": [{"mid": r[0], "day": str(r[1]), "event_type": r[2], "amount": Decimal(r[3]),
+                      "event_id": r[4]} for r in pay],
         "settlements": [{"mid": r[0], "day": str(r[1]), "status": r[2], "net": Decimal(r[3]),
-                         "fees": Decimal(r[4]) + Decimal(r[5])} for r in settle],
+                         "fees": Decimal(r[4]) + Decimal(r[5]), "event_id": r[6],
+                         "gross": Decimal(r[7])} for r in settle],
         "gl": [{"mid": r[0], "day": str(r[1]), "dc": r[2], "amount": Decimal(r[3])} for r in gl],
     }
+
+
+def line_level_breaks(legs: dict) -> set[str]:
+    """dbt/tests/assert_every_settled_line_matches_its_payment.sql in Decimal.
+
+    One bank line per payment event is a stated contract, so the amount the bank settled must equal the
+    amount the till captured, line by line, with nothing summed. That is why this sees what the merchant-day
+    model arithmetically cannot.
+    """
+    settled = {r["event_id"]: r for r in legs["settlements"] if r["status"] != "QUARANTINED"}
+    return {p["event_id"] for p in legs["captures"]
+            if p["event_id"] in settled and p["amount"] != settled[p["event_id"]]["gross"]}
 
 
 # ----------------------------------------------------------------------------- reference recon
@@ -209,12 +225,17 @@ def test_detection_recall_is_total_for_single_sided_faults(legs):
     print(f"\ndetection recall 1.000 over {total} single-sided perturbations:\n{report}")
 
 
-def test_offsetting_same_day_errors_are_invisible_at_daily_grain(legs):
-    """The blind spot, asserted so it cannot be lost.
+def test_offsetting_same_day_errors_net_to_zero_at_daily_grain_and_are_caught_line_by_line(legs):
+    """The blind spot, and the leg that closes it.
 
-    +5.00 on one capture and -5.00 on another, same merchant, same day. The GROUP BY nets them to zero and the
-    day still reads SAR 0.00. Catching this needs line-level matching (payment_event_id to settlement line),
-    which this model does not do. Documented in HONESTY.md rather than implied away.
+    +5.00 on one capture and -5.00 on another, same merchant, same day. The GROUP BY nets them to zero and
+    the merchant-day row still reads SAR 0.00. **That half has not changed and cannot** -- no sum over a day
+    can see two errors that cancel inside it, and asserting otherwise would be asserting against arithmetic.
+
+    What changed on 2026-11-21 is that the build no longer relies on that sum alone. A line-level leg joins
+    payment_event_id to its settlement line, where nothing is summed and the two errors cannot hide behind
+    each other. Five reviewers raised this as the one criticism of "variance 0.00" that could not be argued
+    away; this is the answer, and the test states both halves rather than only the flattering one.
     """
     rng = random.Random(SEED)
     damaged = _copy(legs)
@@ -223,13 +244,18 @@ def test_offsetting_same_day_errors_are_invisible_at_daily_grain(legs):
     same_day = [r for r in pool if (r["mid"], r["day"]) == (first["mid"], first["day"]) and r is not first]
     if not same_day:
         pytest.skip("no merchant-day in the slice carries two captures")
+    second = rng.choice(same_day)
+
+    assert not line_level_breaks(damaged), "the slice was already broken before anything was damaged"
 
     first["amount"] += Decimal("5.00")
-    rng.choice(same_day)["amount"] -= Decimal("5.00")
+    second["amount"] -= Decimal("5.00")
 
     assert (first["mid"], first["day"]) not in breaks(recon(damaged)), (
-        "offsetting same-day errors were detected -- if the model gained line-level matching, delete this test "
-        "and the HONESTY row that depends on it, because the limitation no longer holds")
+        "the merchant-day sum reported an offsetting pair, which it arithmetically cannot do -- the harness "
+        "has stopped mirroring the model")
+    assert line_level_breaks(damaged) == {first["event_id"], second["event_id"]}, (
+        "the line-level leg missed an offsetting pair, which is the entire reason it exists")
 
 
 def test_a_single_sided_five_riyal_error_on_the_same_day_is_caught(legs):

@@ -105,9 +105,12 @@ reference state is **SAR 0.00 on both**, so any non-zero figure is real.
      Fees come from the bank's file at the bank's grain, always.
 4. **Do not adjust Gold.** Fix the model or quarantine the source row, then re-run.
 
-**One known blind spot, documented:** two offsetting errors on the same merchant-day cancel out and are
-invisible, because the model reconciles at merchant-day grain. If you ever suspect this, line-level matching
-is the fix, and it is not implemented.
+**The offsetting-pair case, and which check catches it.** Two errors that cancel on the same merchant-day
+are invisible to `fact_merchant_settlement_recon` — no sum over a day can see them, so the day reads
+SAR 0.00 and always will. Since 2026-11-21 that is not the only check:
+`assert_every_settled_line_matches_its_payment` compares each payment to the single bank line that settled
+it, line by line, with nothing summed. **If the daily variance is 0.00 but that test is failing, this is what you are looking at** — the
+failing rows name the exact `payment_event_id`s, so go straight to them rather than to the day.
 
 ---
 
