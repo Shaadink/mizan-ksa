@@ -59,7 +59,7 @@ def _outbox_index(lake: Lake) -> dict[str, dict]:
                               "total": str(r["total_incl_vat_sar"])} for r in rows}
 
 
-def _price_corrections(lake: Lake, outbox: dict[str, dict], store) -> list[dict]:
+def _price_corrections(lake: Lake, store) -> list[dict]:
     """Documents whose price changed AFTER they were signed, as a credit note + replacement pair.
 
     The invariant, which is what makes this idempotent and what makes repeat corrections work:
@@ -86,12 +86,28 @@ def _price_corrections(lake: Lake, outbox: dict[str, dict], store) -> list[dict]
     # found the totals equal, and issued nothing. _latest() orders by _ingested_at / _source_file /
     # _batch_id, which is landing order, which is the only thing that actually distinguishes them. Every
     # other Bronze reader in this module already goes through it; this one has to as well.
+    raw = lake.read("brz", "zatca_invoices_raw")
+
+    # Only a request Bronze holds MORE THAN ONE version of can have been corrected, and on a normal night
+    # there are none. Narrowing to those first keeps this step's driver memory at zero on the common path
+    # instead of pulling 25,000 JSON payloads into the driver every run to discover nothing changed --
+    # ADR-008 already names driver memory, not CPU, as what binds first here. The count runs in Spark; only
+    # the few resent requests are ever collected.
+    resent = [r["request_id"] for r in
+              raw.groupBy("request_id").count().filter(F.col("count") > 1).select("request_id").collect()]
+    if not resent:
+        return []
+    # Read the outbox only once there is something that could need it. Taken eagerly, this collected all
+    # 25,001 chain documents every night to answer a question that is almost always "nothing changed".
+    outbox = _outbox_index(lake)
+
+    scoped = raw.filter(F.col("request_id").isin(*resent)).select("request_id", "payload_json")
     current_by_request = {
         r["request_id"]: json.loads(r["payload_json"])
-        for r in _latest(lake.read("brz", "zatca_invoices_raw"), ["request_id"])
+        for r in _latest(raw.filter(F.col("request_id").isin(*resent)), ["request_id"])
         .select("request_id", "payload_json").collect()}
     by_request: dict[str, list[dict]] = {}
-    for r in lake.read("brz", "zatca_invoices_raw").select("request_id", "payload_json").collect():
+    for r in scoped.collect():
         by_request.setdefault(r["request_id"], []).append(json.loads(r["payload_json"]))
 
     out: list[dict] = []
@@ -132,7 +148,7 @@ def run_zatca(lake: Lake, plan_path: Path | None) -> dict:
                   key=lambda q: q["request_id"])
     # HONESTY row 29: a price corrected after signing must reach the tax chain as DOCUMENTS, because the
     # signed one can never be re-priced. Appended after the new requests so the pair gets the later ICVs.
-    corrections = _price_corrections(lake, _outbox_index(lake), store)
+    corrections = _price_corrections(lake, store)
     run = process_requests([*reqs, *corrections], MockFatoora(plan), store=store)
     new = [r for r in run.store.invoice_outbox.values()]
     if new:

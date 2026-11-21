@@ -434,3 +434,46 @@ def test_a_price_corrected_after_signing_reaches_the_tax_chain_as_a_credit_note(
     assert (Decimal(str(rows[f"{rid}-PC2CN"]["total_incl_vat_sar"]))
             == Decimal(str(rows[f"{rid}-PC1RI"]["total_incl_vat_sar"]))), (
         "the second cancellation must reverse the first replacement, not the original")
+
+
+def test_the_price_correction_detector_reads_nothing_when_no_request_was_resent(lake_run, spark):
+    """On a normal night nothing has been corrected, and the detector must cost nothing to find that out.
+
+    This guards a performance property, which is the kind that regresses silently: putting the outbox read
+    back at the call site "for clarity" would make every nightly run collect all 25,001 chain documents --
+    and all 25,000 Bronze payloads -- into the driver to discover that nothing changed. No test would fail;
+    the run would just get slower and heavier, on the one resource ADR-008 names as binding first here.
+
+    A tripwire rather than a timer: the lake refuses to hand over ctl.invoice_outbox at all, so the test
+    fails if the detector so much as looks at it before establishing that something was resent.
+    """
+    from mizan.clearance.engine import ChainStore
+    from mizan.spark import zatca_land
+    from mizan.spark.lake import Lake
+    from mizan.spark.session import TableLocator
+
+    class Tripwire:
+        """The real lake, except that touching the outbox is an error."""
+
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+        def _check(self, schema, table):
+            if (schema, table) == ("ctl", "invoice_outbox"):
+                raise AssertionError(
+                    "the price-correction detector read the outbox on a run with nothing resent; it must "
+                    "establish that a request has more than one Bronze version first")
+
+        def exists(self, schema, table):
+            self._check(schema, table)
+            return self._inner.exists(schema, table)
+
+        def read(self, schema, table):
+            self._check(schema, table)
+            return self._inner.read(schema, table)
+
+    lk = Lake(spark, TableLocator("local", lake_run["root"]))
+    assert zatca_land._price_corrections(Tripwire(lk), ChainStore()) == []
