@@ -1175,7 +1175,7 @@ one.
 
 | | |
 |---|---|
-| Python tests | **442** passed |
+| Python tests | **442** passed (**444** after the price-correction gate tests landed later the same day) |
 | dbt | 99/99 on the local target |
 | App tests | 184 (174 pass, 10 skip until Fabric is re-run) |
 | HONESTY entries | **39** -- 11 Fixed, 23 Stated, 5 Open |
