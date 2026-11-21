@@ -311,6 +311,18 @@ TYPE_MAP = {"varchar": "string", "char": "string", "nvarchar": "string", "int": 
             "datetime2": "dateTime", "float": "double", "real": "double"}
 
 
+# Columns that exist for the pipeline, not for the reader. The model still CARRIES them -- a Direct Lake
+# table is the warehouse table, so omitting one is not an option, and the incremental build depends on it --
+# but they are hidden from the field list.
+#
+# `last_source_arrival_at` (ADR-015) is the incremental watermark: the newest Bronze arrival behind a row.
+# Left visible it would sit in the field list of three fact tables next to "Bank Paid SAR", and eventually
+# somebody drops a wall-clock timestamp onto a finance page and reads it as a business date. The model has
+# three different meanings of "date" already (capture day, the day a bank line settles for, posting day);
+# a fourth that is not a business date at all does not belong in the same list. Hiding it costs nothing.
+INTERNAL_COLUMNS = frozenset({"last_source_arrival_at"})
+
+
 def warehouse_columns() -> dict[str, list[tuple[str, str]]]:
     import pyodbc
     e = os.environ
@@ -365,6 +377,8 @@ def model_parts(cols: dict[str, list[tuple[str, str]]]) -> dict[str, str]:
         for c, dt in cols[t]:
             lines += [f"\tcolumn {c}", f"\t\tdataType: {dt}", f"\t\tlineageTag: {tag(t, c)}",
                       "\t\tsummarizeBy: none", f"\t\tsourceColumn: {c}", ""]
+            if c in INTERNAL_COLUMNS:
+                lines.insert(-1, "\t\tisHidden")
             if dt == "decimal":
                 lines.insert(-1, "\t\tformatString: #,0.00")
         lines += [f"\tpartition {t} = entity", "\t\tmode: directLake", "\t\tsource",

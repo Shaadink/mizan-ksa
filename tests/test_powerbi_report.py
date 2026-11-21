@@ -174,3 +174,35 @@ def test_report_registers_the_mizan_night_theme():
     theme = json.loads(parts[f"StaticResources/RegisteredResources/{PB.THEME_FILE}"])
     assert theme["background"] == PB.PANEL and theme["dataColors"][0] == PB.EMERALD
 
+
+def test_internal_columns_are_hidden_from_the_field_list():
+    """The incremental watermark must not be browsable next to the money fields.
+
+    `last_source_arrival_at` (ADR-015) is the newest Bronze arrival behind a row -- pipeline bookkeeping,
+    not a business date. The model has to CARRY it (a Direct Lake table is the warehouse table, and the
+    incremental build depends on the column), so the only control is whether a reader is offered it.
+
+    This guards something that fails no other test: an unhidden operational column does not break a report,
+    it just sits in the field list of three fact tables until somebody puts a wall-clock timestamp on a
+    finance page. The model already has three meanings of "date" -- capture day, the day a bank line settles
+    for, posting day -- and a fourth that is not a business date at all is a misreading waiting to happen.
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import fabric_powerbi as fp
+
+    assert "last_source_arrival_at" in fp.INTERNAL_COLUMNS
+
+    # Build one table's TMDL with the watermark present and check it comes out hidden.
+    table = next(iter(fp.TABLES))
+    cols = {t: [("merchant_id", "string"), ("last_source_arrival_at", "dateTime")] for t in fp.TABLES}
+    import os
+    os.environ.setdefault("FABRIC_SQL_ENDPOINT", "endpoint.example")
+    os.environ.setdefault("WH_MIZAN_ID", "wh-id")
+    tmdl = fp.model_parts(cols)[f"definition/tables/{table}.tmdl"]
+
+    watermark = tmdl.split("column last_source_arrival_at", 1)[1].split("column ", 1)[0]
+    assert "isHidden" in watermark, "the watermark column is browsable in the report field list"
+    business = tmdl.split("column merchant_id", 1)[1].split("column ", 1)[0]
+    assert "isHidden" not in business, "a business column was hidden; the rule is too broad"

@@ -1,137 +1,117 @@
 {
-  "run_date": "2026-11-19",
-  "capacity": "Fabric FTL64, UAE North",
-  "workspace": "mizan-ksa-dev",
-  "note": "Re-run of the 2026-11-14 deployment after six item prices were corrected locally. Bronze is append-only, so every source file re-landed as corrections rather than duplicates: the landed_rows below are the rows whose payload actually changed, not the file sizes. This run also exposed a real defect -- see zatca_chain.defect_found.",
-  "notebook_jobs": {
-    "bronze_land": {
-      "status": "Completed",
-      "seconds": 714,
-      "files_sha_match": "all",
-      "resend": "ALL_DUPLICATE",
-      "landed_as_corrections": {
-        "zatca_requests": 25000,
-        "commerce_events": 7981,
-        "payment_events": 4692,
-        "erp_gl": 7803,
-        "settlement_total": 4650
-      },
-      "unchanged_all_duplicate": [
-        "crm_pos_cp1256.csv",
-        "crm_ecom_utf8.csv",
-        "spl_address_observations.csv",
-        "NAJDACQ_SETTLEMENT_20260220_RESEND.csv"
-      ]
-    },
-    "silver_build": {
-      "status": "Completed",
-      "seconds": 163
-    },
-    "mdm_resolve": {
-      "status": "Completed",
-      "seconds": 82,
-      "records": 3985,
-      "goldens": 2552,
-      "anchored_records": 3616,
-      "idless_attached": 248,
-      "open_conflicts": 1,
-      "address_observations": 1000,
-      "addresses_unresolved": 2
-    },
-    "zatca_chain": {
-      "status": "Completed",
-      "seconds": 82,
-      "documents": 25001,
-      "new_documents": 0,
-      "violations": 0,
-      "restarts": 0,
-      "defect_found": "The first run of this step on corrected data doubled slv.zatca_invoice_documents to 50,002 rows: zatca_land joined ctl.invoice_outbox to brz.zatca_invoices_raw on request_id, and Bronze held two versions of every request, so each outbox row fanned into two. dbt's source_unique test caught it (25,001 duplicate invoice_uuid) and refused to publish Gold. Fixed by reading Bronze through _latest(), as every other Bronze reader already did; pinned by test_a_corrected_zatca_resend_does_not_double_the_silver_documents, which was verified to fail without the fix. The seconds and counts above are the re-run with the fix applied."
-    },
-    "ai_index": {
-      "status": "Completed",
-      "seconds": 61,
-      "policy_chunks": 11,
-      "case_note_chunks": 1552
-    },
-    "ndmo_catalog": {
-      "status": "Completed",
-      "seconds": 61,
-      "columns": 350,
-      "tables": 27,
-      "secret_or_higher_tables": 9,
-      "over_classified_columns": 276
-    }
+ "run_date": "2026-11-21",
+ "capacity": "Fabric FTL64, UAE North",
+ "workspace": "mizan-ksa-dev",
+ "note": "Full six-step pipeline plus dbt on the current code (ADR-015 incremental Gold, ADR-016 price corrections, rejection reasons). dbt reached 99/99 on WH_MIZAN, and a SECOND run took the incremental delete+insert path and stayed 99/99 -- so incremental Gold is now executed on Fabric rather than only compiled. Price-correction ISSUANCE is gated off: the detector found 7,746 invoices whose signed total differs from their current Bronze payload, which would have published 15,492 documents to correct SAR 2,217.05 of halala rounding from this project's own 2026-11-16 price fix. The document type itself is unreviewed (HONESTY row 38), so nothing was issued. See HONESTY row 40.",
+ "notebook_jobs": {
+  "bronze_land": {
+   "status": "Completed",
+   "seconds": 469,
+   "landed_rows": 0,
+   "note": "every source file ALL_DUPLICATE: Bronze already held this exact data, so nothing re-landed"
   },
-  "dbt_build_WH_MIZAN": {
-    "pass": 91,
-    "warn": 0,
-    "error": 0,
-    "skip": 0,
-    "note": "Full parity with the local DuckDB target for the first time; the 2026-11-14 run predated three models and stood at 65."
+  "silver_build": {
+   "status": "Completed",
+   "seconds": 163
   },
-  "gold_checks_WH_MIZAN": {
-    "queried_over": "the WH_MIZAN SQL endpoint with the service principal, after the dbt build",
-    "fact_merchant_settlement_recon": {
-      "rows": 2233,
-      "gross_captures_sar": "22391236.23",
-      "bank_paid_sar": "19503614.17",
-      "in_transit_sar": "1125209.07",
-      "sum_abs_bank_variance_sar": "0.00",
-      "sum_abs_gl_variance_sar": "0.00"
-    },
-    "fact_zatca_clearance_ledger": {
-      "rows": 25001,
-      "CLEARED": 1087,
-      "REPORTED": 23913,
-      "CONFIRMED_REJECTION": 1
-    },
-    "fact_merchant_dispute_monitor": {
-      "merchants": 121,
-      "breaches_ratio_only": 71,
-      "in_monitoring_programme": 1
-    },
-    "dim_party_golden": {
-      "rows": 2552,
-      "max_member_count": 5
-    },
-    "mart_ndmo_scorecard": {
-      "ACCURACY": "100.00",
-      "COMPLETENESS": "100.00",
-      "CONSISTENCY": "100.00",
-      "TIMELINESS": "94.44",
-      "UNIQUENESS": "100.00",
-      "VALIDITY": "100.00"
-    }
+  "mdm_resolve": {
+   "status": "Completed",
+   "seconds": 82,
+   "records": 3985,
+   "goldens": 2552,
+   "open_conflicts": 1,
+   "address_observations": 1000
   },
-  "lakehouse_checks_LH_MIZAN": {
-    "slv.zatca_invoice_documents": {
-      "rows": 25001,
-      "distinct_invoice_uuid": 25001
-    },
-    "ctl.invoice_outbox": {
-      "rows": 25001,
-      "distinct_invoice_uuid": 25001
-    },
-    "brz.zatca_invoices_raw": {
-      "rows": 50000,
-      "distinct_request_id": 25000,
-      "note": "Two versions of every request: the original and the price-corrected re-send. Bronze is append-only by design; Silver takes the latest."
-    }
+  "zatca_chain": {
+   "status": "Completed",
+   "seconds": 82,
+   "documents": 25001,
+   "new_documents": 0,
+   "violations": 0,
+   "restarts": 0,
+   "price_corrections_issued": 0
   },
-  "streaming": {
-    "events_sent_to_ES_MIZAN": 91513,
-    "from_run": "2026-11-14, not re-run on 2026-11-19"
+  "ai_index": {
+   "status": "Completed",
+   "seconds": 61,
+   "policy_chunks": 11,
+   "case_note_chunks": 1552
   },
-  "known_platform_behaviour": {
-    "lakehouse_sql_endpoint_lag": "After the ZATCA step rewrote slv.zatca_invoice_documents, the first dbt build still failed on the pre-rewrite snapshot: the Lakehouse SQL analytics endpoint syncs asynchronously behind the Delta tables. The identical build a minute later passed 91/91. Worth knowing before trusting a dbt result taken immediately after a Spark write."
-  },
-  "zatca_chain_predates_the_price_correction": {
-    "fabric_zatca_total_sar": "30919828.86",
-    "local_gold_zatca_total_sar": "30920225.04",
-    "gap_sar": "396.18",
-    "counts_states_icvs_and_flows": "identical",
-    "why": "run_zatca skips every request_id already in ctl.invoice_outbox, so a signed invoice is never re-priced. The chain on Fabric still carries the prices it was signed with on 2026-11-14, and the Fabric figure is exactly the local total from before the 2026-11-16 BR-KSA-50 price correction. Making the two agree would mean re-signing a cleared tax document, which a ZATCA chain must not do.",
-    "gap_it_exposes": "The correction moved Silver, Gold and the bank reconciliation, and left the tax ledger on the old amount with no credit note raised. See HONESTY.md row 29.",
-    "test": "apps/command-center/src/command-center/shape.spec.ts compares the chain's full shape exactly and bounds only the money; the exact comparison resumes when the totals meet again."
+  "ndmo_catalog": {
+   "status": "Completed",
+   "seconds": 61,
+   "columns": 354,
+   "tables": 27
   }
+ },
+ "dbt_build_WH_MIZAN": {
+  "target": "fabric",
+  "total": 99,
+  "pass": 99,
+  "error": 0,
+  "skipped": 0,
+  "by_status": {
+   "pass": 89,
+   "success": 10
+  }
+ },
+ "warehouse_checks_WH_MIZAN": {
+  "fact_merchant_settlement_recon": {
+   "rows": 2233,
+   "merchants": 121,
+   "gross_captures_sar": "22391236.23",
+   "bank_paid_sar": "19503614.17",
+   "in_transit_sar": "1125209.07",
+   "sum_abs_bank_variance_sar": "0.00",
+   "sum_abs_gl_variance_sar": "0.00"
+  },
+  "fact_zatca_clearance_ledger": {
+   "rows": 25001,
+   "total_incl_vat_sar": "30919828.86",
+   "CLEARED": 1087,
+   "REPORTED": 23913,
+   "ACCEPTED_WITH_WARNINGS": 0,
+   "CONFIRMED_REJECTION": 1
+  },
+  "fact_merchant_dispute_monitor": {
+   "merchants": 121,
+   "breaches_ratio_only": 71,
+   "in_monitoring_programme": 1
+  },
+  "dim_party_golden": {
+   "rows": 2552,
+   "max_member_count": 5
+  },
+  "gold_tables": 10
+ },
+ "lakehouse_checks_LH_MIZAN": {
+  "slv.zatca_invoice_documents": {
+   "rows": 25001,
+   "distinct_invoice_uuid": 25001
+  },
+  "ctl.invoice_outbox": {
+   "rows": 25001,
+   "distinct_invoice_uuid": 25001
+  },
+  "brz.zatca_invoices_raw": {
+   "rows": 50000,
+   "distinct_request_id": 25000,
+   "note": "Append-only: two versions of every request since the 2026-11-16 price correction."
+  },
+  "slv.golden_party_scd2": {
+   "rows": 2552
+  },
+  "meta.column_classification": {
+   "columns": 354,
+   "tables": 27
+  },
+  "price_corrections": {
+   "documents_issued": 0,
+   "detector": "enabled",
+   "issuance": "gated off (MIZAN_ISSUE_PRICE_CORRECTIONS unset)",
+   "would_issue_if_enabled": 15492,
+   "why": "The document TYPE is unreviewed (HONESTY row 38) and the differences are halala rounding from this project's own 2026-11-16 price fix, not a business event (row 40)."
+  }
+ },
+ "generated_by": "scripts/fabric_evidence.py (read back from the tenant, not typed)"
 }

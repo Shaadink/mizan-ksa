@@ -121,9 +121,9 @@ def test_bug8_egs05_is_the_ecommerce_merchant_mid900001(data):
 
 def test_bug9_published_and_candidate_runs_are_exposed(data):
     r = data["runs"]
-    # 91, not 65: the 2026-11-19 re-run brought the Fabric target to full parity with the local one. The
-    # earlier figure predated three Gold models, so quoting it alongside a local 91 implied a gap that no
-    # longer exists.
-    assert r["published"]["status"] == "PASS" and r["published"]["fabric"]["dbt_pass"] == 91
+    # 99, not 91, and not the 65 before that. Each step is a re-run that brought the Fabric target back to
+    # parity with the local one; the figure is pinned rather than derived precisely so that a Fabric number
+    # cannot quietly go stale while the local one moves. It has caught exactly that twice.
+    assert r["published"]["status"] == "PASS" and r["published"]["fabric"]["dbt_pass"] == 99
     assert r["candidate"]["status"] == "FAIL" and r["candidate"]["published"] is False
     assert "circuit breaker" in r["candidate"]["reason"] and re.fullmatch(r"[0-9a-f]{12}|unknown", r["git_sha"])

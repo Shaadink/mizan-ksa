@@ -43,10 +43,9 @@ Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage
 Actions as the control plane.
 
 **Tests, counted separately because they measure different things:** **Python tests** (`pytest`), **99 dbt
-tests** on the local DuckDB target, and **184 Fabric App tests (174 pass, 10 skipped)**. WH_MIZAN last
-ran at **91/91** on 2026-11-19, full parity at the time; it has not been re-run since Gold became
-incremental on 2026-11-20, so no Fabric figure is claimed for the current models, and the 10 app tests that
-cross-check live Fabric results against exported Gold skip themselves until it is (HONESTY.md row 36). CI runs the full PySpark and dbt suites and the app tests on every push.
+tests** on the local DuckDB target, **99/99 on WH_MIZAN** (re-run 2026-11-21, full parity), and **184
+Fabric App tests (183 pass, 1 skipped)**. The second Fabric run took the incremental `delete+insert` path
+and stayed 99/99, so incremental Gold is executed there and not merely compiled (HONESTY.md row 36). CI runs the full PySpark and dbt suites and the app tests on every push.
 
 > Every number above is generated, never typed: see the [proof manifest](docs/PROOF_MANIFEST.md), which names the
 > proof run behind each claim and its SHA-256. Scope and limits are stated in [HONESTY.md](HONESTY.md). This is a
@@ -212,7 +211,7 @@ Workspace `mizan-ksa-dev`, Fabric trial capacity (UAE North). Evidence: [docs/ar
 |---|---|
 | Notebook jobs (Bronze, Silver, MDM, ZATCA, AI index, NDMO catalog) via REST + service principal | all Completed |
 | Source-to-Bronze hash reconciliation | every file sha256 matches; duplicate bank resend = ALL_DUPLICATE |
-| `dbt build` on WH_MIZAN (dbt-fabric, Gold as tables, reads `LH_MIZAN.slv.*`) | **91/91 PASS** on 2026-11-19 - full parity with the local target *at that time*. Not re-run since Gold became incremental on 2026-11-20; the local target is now 99/99 (HONESTY.md row 36) |
+| `dbt build` on WH_MIZAN (dbt-fabric, Gold as physical tables, reads `LH_MIZAN.slv.*`) | **99/99 PASS**, 2026-11-21 - full parity with the local target. A second run took the incremental `delete+insert` path on T-SQL and stayed 99/99 |
 | `gld.fact_merchant_settlement_recon` | 2,233 MID-days, SAR 22,391,236.23 captured, bank + GL variance 0.00 - identical to local Gold |
 | ZATCA chain | 25,001 documents, 0 chain violations, 1 worker restart recovered |
 | MDM | 3,985 records into 2,552 golden profiles, 1 steward conflict |

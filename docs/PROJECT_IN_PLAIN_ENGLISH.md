@@ -167,6 +167,16 @@ code**. I had the database table being created on first use, so when two writers
 chain, both tried to create it and the loser crashed instead of politely losing. That is the test doing
 precisely its job on the day it was written.
 
+**And the ending, on 2026-11-21.** Before running the correction engine against the real cloud tenant, the
+runbook says to count how many documents it will create. The count came back **15,492** — because the price
+fix had touched 7,746 invoices, each by a few halalas. Correcting SAR 2,217 of rounding with fifteen
+thousand official tax documents is not a correction, it is an incident.
+
+So it was not run. The engine is built, tested and switched **off** by default, because the paperwork it
+would file is of a type no Saudi tax specialist has yet reviewed. The real gap it exposed is that the
+system has no **materiality threshold** — no floor below which a difference is too small to be worth a
+document. Every real correction process has one. That is written down as open rather than guessed at.
+
 That is the shape of the expensive bugs. Every component doing its job, and the system still wrong.
 
 **For Saudi employers:** this is the single most relevant thing in the project. Every company in the Kingdom
@@ -394,8 +404,8 @@ back to a source column.
 ZATCA table to double to 50,002 rows. The uniqueness test failed, the build stopped, and **Gold was never
 published**. I found out from a test, not from a dashboard being wrong.
 
-**The number:** **99 tests, all passing** on the local engine. The Fabric warehouse last ran 91/91 on
-2026-11-19 and has not been re-run since Gold became incremental, so it is not claimed as current.
+**The number:** **99 tests, all passing** — on the local engine *and* on the Fabric warehouse, re-run
+2026-11-21. A second Fabric run took the incremental path and stayed 99/99.
 
 ---
 
@@ -511,8 +521,8 @@ tested whether anyone says so or not.
 
 ### 15. Testing and the honesty ledger
 
-**What it is.** **442 automated tests** on the data side and **184** on the app side (174 passing; 10 skip
-themselves until the Fabric pipeline is re-run), running on every push.
+**What it is.** **442 automated tests** on the data side and **184** on the app side (183 passing, 1
+skipped), running on every push.
 
 **And `HONESTY.md`** — a document listing everything this project does *not* do, everything that is
 approximate, and everything that broke.
@@ -520,7 +530,7 @@ approximate, and everything that broke.
 **Why that document exists.** Portfolio projects overclaim. A reviewer's instinct is to go looking for what
 you are hiding. If you hand them the list yourself, they stop looking and start trusting.
 
-**It currently has 39 numbered entries**, including three found in the last two days. That is not weakness —
+**It currently has 40 numbered entries**, including three found in the last two days. That is not weakness —
 every entry is something I measured rather than assumed.
 
 ---
@@ -625,12 +635,12 @@ Keep this open while filming.
 | Golden customer records | 2,552 from 3,967 (precision 1.0000, recall 0.9625) |
 | Columns classified | 354 across 27 tables |
 | Gold columns traced | 94 of 94 |
-| dbt tests | 99 passing locally; Fabric last ran 91/91 on 2026-11-19 and has not been re-run since |
+| dbt tests | **99/99 on both** the local target and WH_MIZAN (2026-11-21) |
 | Stream events | 91,513 |
 | Skew benchmark | 20,000,000 rows |
-| Tests | 442 Python + 184 app (174 pass, 10 skip until Fabric is re-run) |
+| Tests | 442 Python + 184 app (183 pass, 1 skip) |
 | Airflow in Fabric | 6 jobs, 15 minutes |
-| Documented limitations | 39 (23 deliberate scope decisions, 11 fixed, 5 open) |
+| Documented limitations | 40 (deliberate scope decisions, fixed findings, and 5 still open) |
 | Gold tables rebuilt incrementally | 3 of 7; a re-run takes 2.2 s and changes nothing |
 
 ---
@@ -760,7 +770,7 @@ like.
 > would have failed. The number would just have been quietly wrong. Caught only by a test that delivers
 > data out of order on purpose.
 >
-> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 39 things it does not do.
+> Synthetic data, deliberately planted defects, and a HONESTY.md listing all 40 things it does not do.
 >
 > Built on Microsoft Fabric with Airflow, dbt, PySpark and OpenLineage.
 >

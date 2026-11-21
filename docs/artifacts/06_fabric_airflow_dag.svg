@@ -11,7 +11,7 @@
 <path d="M1192,183 C1220.0,183 1220.0,139 1240,139" fill="none" stroke="#8fa3b8" stroke-width="1.6" marker-end="url(#a)"/>
 <rect x="28" y="108" width="188" height="62" rx="9" fill="#e8eef5" stroke="#2f6f8f" stroke-width="1.4"/>
 <text x="42" y="134" font-size="14" font-weight="600" fill="#0f5c7a" font-family="Consolas, monospace">bronze_land</text>
-<text x="42" y="153" font-size="11.5" fill="#5b6b7c">nb_mizan_step &#183; 11m 54s</text>
+<text x="42" y="153" font-size="11.5" fill="#5b6b7c">nb_mizan_step &#183; 7m 49s</text>
 <rect x="272" y="108" width="188" height="62" rx="9" fill="#e8eef5" stroke="#2f6f8f" stroke-width="1.4"/>
 <text x="286" y="134" font-size="14" font-weight="600" fill="#0f5c7a" font-family="Consolas, monospace">silver_build</text>
 <text x="286" y="153" font-size="11.5" fill="#5b6b7c">nb_mizan_step &#183; 2m 43s</text>
@@ -30,5 +30,5 @@
 <rect x="1248" y="108" width="188" height="62" rx="9" fill="#e8eef5" stroke="#2f6f8f" stroke-width="1.4"/>
 <text x="1262" y="134" font-size="14" font-weight="600" fill="#0f5c7a" font-family="Consolas, monospace">dbt_build_gold</text>
 <text x="1262" y="153" font-size="11.5" fill="#5b6b7c">dbt build --target fabric</text>
-<text x="28" y="240" font-size="11.5" fill="#5b6b7c">Drawn from the DAG's own edges() and the 2026-11-19 run (19m 23s across 6 notebook jobs, then dbt on WH_MIZAN). Not a screenshot: 06_airflow_dag.png is the real Airflow UI.</text>
+<text x="28" y="240" font-size="11.5" fill="#5b6b7c">Drawn from the DAG's own edges() and the 2026-11-19 run (15m 18s across 6 notebook jobs, then dbt on WH_MIZAN). Not a screenshot: 06_airflow_dag.png is the real Airflow UI.</text>
 </svg>

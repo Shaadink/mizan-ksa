@@ -324,7 +324,7 @@ def test_a_corrected_zatca_resend_does_not_double_the_silver_documents(lake_run,
 
 
 def test_a_price_corrected_after_signing_reaches_the_tax_chain_as_a_credit_note(lake_run, spark, test_keys,
-                                                                                tmp_path):
+                                                                                tmp_path, monkeypatch):
     """HONESTY row 29, closed. Correcting a price upstream moved Silver, Gold and the bank reconciliation and
     left the signed tax chain on the OLD amount, with no credit note raised -- the exact condition this
     project exists to detect, happening inside the project.
@@ -343,6 +343,10 @@ def test_a_price_corrected_after_signing_reaches_the_tax_chain_as_a_credit_note(
     from mizan.spark.lake import Lake
     from mizan.spark.session import TableLocator
     from mizan.spark.zatca_land import run_zatca
+
+    # Issuance is gated off by default (HONESTY rows 38 and 40): a feature whose document-type
+    # correctness is still open does not write to a tax chain unless somebody says so. This test says so.
+    monkeypatch.setenv(zatca_land_flag(), "1")
 
     root = tmp_path / "repriced"
     shutil.copytree(lake_run["root"], root, dirs_exist_ok=True)
@@ -477,3 +481,65 @@ def test_the_price_correction_detector_reads_nothing_when_no_request_was_resent(
 
     lk = Lake(spark, TableLocator("local", lake_run["root"]))
     assert zatca_land._price_corrections(Tripwire(lk), ChainStore()) == []
+
+
+def zatca_land_flag() -> str:
+    from mizan.spark.zatca_land import PRICE_CORRECTION_FLAG
+    return PRICE_CORRECTION_FLAG
+
+
+def test_price_corrections_are_not_issued_unless_explicitly_enabled(lake_run, spark, test_keys, tmp_path,
+                                                                    monkeypatch):
+    """The gate, proven in the direction that matters: OFF by default, with a correction genuinely pending.
+
+    Measured against the live Fabric tenant on 2026-11-21, one unguarded run would have published **15,492**
+    tax documents -- a credit note and a replacement for each of 7,746 invoices -- to correct SAR 2,217.05
+    of halala rounding left by this project's own price fix. Whether cancel-and-reissue is even the right
+    document type is open (HONESTY row 38), so the default has to be "do not write to the tax chain".
+
+    This is the same lake setup as the test above, with the flag left alone. Nothing may be issued.
+    """
+    import json as _json
+    import shutil
+    from decimal import Decimal
+
+    from mizan.clearance.engine import ChainStore
+    from mizan.spark.bronze import land_invoice_requests
+    from mizan.spark.lake import Lake
+    from mizan.spark.session import TableLocator
+    from mizan.spark.zatca_land import _price_corrections, run_zatca
+
+    monkeypatch.delenv(zatca_land_flag(), raising=False)
+
+    root = tmp_path / "gated"
+    shutil.copytree(lake_run["root"], root, dirs_exist_ok=True)
+    lk = Lake(spark, TableLocator("local", root))
+    before = lk.read("slv", "zatca_invoice_documents").count()
+
+    outbox = lk.read("ctl", "invoice_outbox").filter("document_type = 'INVOICE'")
+    original = outbox.orderBy("request_id").limit(1).collect()[0].asDict()
+    payload = next(_json.loads(r["payload_json"])
+                   for r in lk.read("brz", "zatca_invoices_raw").collect()
+                   if r["request_id"] == original["request_id"])
+    ln = payload["lines"][0]
+    net = (Decimal(ln["line_net_sar"]) * Decimal("0.70")).quantize(Decimal("0.01"))
+    ln.update({"line_net_sar": f"{net:.2f}", "unit_price_sar": f"{net / Decimal(ln['qty']):.2f}",
+               "line_vat_sar": f"{(net * Decimal('0.15')).quantize(Decimal('0.01')):.2f}"})
+    tn = sum((Decimal(x["line_net_sar"]) for x in payload["lines"]), Decimal("0"))
+    tv = sum((Decimal(x["line_vat_sar"]) for x in payload["lines"]), Decimal("0"))
+    payload.update({"total_excl_vat_sar": f"{tn:.2f}", "vat_total_sar": f"{tv:.2f}",
+                    "total_incl_vat_sar": f"{tn + tv:.2f}"})
+
+    send = tmp_path / "gatedsend" / "zatca" / "invoice_requests.jsonl"
+    send.parent.mkdir(parents=True, exist_ok=True)
+    send.write_text(_json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+    assert land_invoice_requests(lk, test_keys, send, send.parent.parent)["landed_rows"] == 1
+
+    # Detection still works and is still worth running -- it is issuance that is gated.
+    assert _price_corrections(lk, ChainStore()) != [], (
+        "the fixture did not actually create a pending correction, so this test proves nothing")
+
+    run_zatca(lk, None)
+    assert lk.read("slv", "zatca_invoice_documents").count() == before, (
+        "price-correction documents were issued with the flag unset; the default must never write to the "
+        "tax chain, because the document type itself is still unreviewed (HONESTY row 38)")

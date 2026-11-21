@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from decimal import Decimal
 from pathlib import Path
 
@@ -47,6 +48,34 @@ def _hydrate(lake: Lake) -> ChainStore:
         for r in lake.read("ctl", "invoice_outbox").select("request_id", "invoice_uuid").collect():
             store.by_request_id[r["request_id"]] = r["invoice_uuid"]
     return store
+
+
+PRICE_CORRECTION_FLAG = "MIZAN_ISSUE_PRICE_CORRECTIONS"
+
+
+def issuing_price_corrections() -> bool:
+    """Is this run allowed to ISSUE price-correction documents? Default: no.
+
+    **Why this exists, and why the default is off.** `price_correction_documents()` emits a credit note and
+    a replacement invoice whenever a signed invoice's price has changed. The arithmetic is right and it is
+    covered by eight tests. What is NOT settled is whether cancel-and-reissue is the correct document type
+    for a given business event -- undercharge, overcharge, corrected information, genuine cancellation are
+    four different treatments in Saudi VAT, and ZATCA documents a debit note (383) for an undercharge.
+    HONESTY row 38 records that as open, pending a specialist.
+
+    Issuing tax documents of a type nobody has validated is not a thing to do by default, and the scale
+    makes it concrete rather than theoretical: measured against the live Fabric tenant on 2026-11-21,
+    **7,746** invoices differ from what was signed, so a single unguarded run would publish **15,492**
+    documents -- to correct SAR 2,217.05 of halala rounding left by this project's own 2026-11-16 price
+    fix. The code has no materiality threshold, which every real correction process has. See HONESTY row 40.
+
+    So the gate is not a workaround to keep a demo tidy. It is the required consequence of a limitation
+    already recorded: a feature whose correctness is explicitly open does not get to write to a tax chain
+    unless somebody turns it on deliberately.
+
+    Detection still runs and is still tested. Only issuance is gated.
+    """
+    return os.environ.get(PRICE_CORRECTION_FLAG, "").strip().lower() in ("1", "true", "yes")
 
 
 def _outbox_index(lake: Lake) -> dict[str, dict]:
@@ -148,7 +177,7 @@ def run_zatca(lake: Lake, plan_path: Path | None) -> dict:
                   key=lambda q: q["request_id"])
     # HONESTY row 29: a price corrected after signing must reach the tax chain as DOCUMENTS, because the
     # signed one can never be re-priced. Appended after the new requests so the pair gets the later ICVs.
-    corrections = _price_corrections(lake, store)
+    corrections = _price_corrections(lake, store) if issuing_price_corrections() else []
     run = process_requests([*reqs, *corrections], MockFatoora(plan), store=store)
     new = [r for r in run.store.invoice_outbox.values()]
     if new:

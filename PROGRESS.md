@@ -1207,3 +1207,89 @@ going stale. That was the wrong way round: every document regenerates from `buil
 minutes, so the real rule is simply **film last**. Do the Fabric re-run and the first real `dbt_build_gold`
 first, regenerate the documents from the result, then record -- that way the video shows the strongest true
 state of the project and nothing disagrees with it.
+
+### 2026-11-21 (morning) — the prediction step earned its place
+
+The owner asked for everything to be brought up to date before filming, and went to sleep. Everything
+reversible was done. The one irreversible action was not, and the reason is the most useful thing to come
+out of the session.
+
+**The runbook said to predict the document count before causing it. The prediction changed the decision.**
+
+Measured against the live tenant: **7,746** invoices have a signed total that differs from their current
+Bronze payload, so the price-correction detector would emit **15,492** documents and take the ZATCA chain
+from 25,001 to **40,493**.
+
+The estimate given to the owner the evening before was *"tens of new documents, not thousands"*. Wrong by
+three orders of magnitude. It was reasoned from the net money gap (SAR 396.18, which is small) without
+checking how many invoices that gap was spread across. Nothing but running the query would have caught it.
+
+**What the differences actually are.** Halala-level, per invoice: +0.11, +0.34, +0.23, +0.46. SAR 2,217.05
+absolute across all 7,746, netting to the 396.18 of HONESTY row 29. They come from the 2026-11-16 change
+that made six item prices multiples of 0.20 SAR so 15% VAT lands exactly on the halala -- a fix to this
+project's own synthetic data, not a business event.
+
+**So the code is right and the outcome would be wrong.** `price_correction_documents()` does exactly what
+it was built to do. What the design has no concept of is a **materiality threshold**, which every real
+correction process has. Issuing 15,492 tax documents to fix SAR 2,217.05 of rounding is not a tax
+correction, it is a tax incident. HONESTY row 40, Open, with both options stated.
+
+**Done instead, all reversible:** Command Center and its data regenerated from local Gold; proof manifest
+rebuilt (13 claims, each with its file's SHA-256); the Airflow DAG diagram re-rendered from `edges()`; the
+public snapshot site rebuilt; and the Power BI semantic model and report redeployed to the tenant.
+
+**One prep fix went in first, deliberately.** `last_source_arrival_at` (ADR-015) would have appeared in the
+Power BI field list on three fact tables, next to "Bank Paid SAR". It is the incremental watermark -- a
+wall-clock reading, not a business date -- and this model already carries three meanings of "date" (the day
+of the sale, the day a bank line settles for, the day the ledger posted). A fourth that is not a business
+date at all, browsable in the same list, is a misreading waiting to happen. Now hidden, with a test,
+because an unhidden operational column breaks nothing and is therefore invisible until somebody uses it.
+
+### 2026-11-21 (morning) — Fabric brought fully current, with the gate holding
+
+The owner asked for everything to be up to date before filming and went to sleep. This is what ran.
+
+**The gate was built first, and it is the reason the rest was safe to do.** Issuance of price-correction
+documents is now off unless `MIZAN_ISSUE_PRICE_CORRECTIONS` says otherwise. Not caution for its own sake:
+HONESTY row 38 already records that the document TYPE is unreviewed, so a feature whose correctness is
+explicitly open should not be able to write to a tax chain by accident -- and row 40 measured what "by
+accident" would have cost, which is 15,492 documents. Detection still runs and is still tested; only
+issuance is gated. Two tests prove both directions, and the off-test first asserts that a correction really
+was pending, so it cannot pass by proving nothing.
+
+**The full pipeline then ran on Fabric, all six steps Completed:** bronze_land 469s (every file
+ALL_DUPLICATE -- Bronze already held this exact data), silver_build 163s, mdm_resolve 82s, zatca_chain 82s,
+ai_index 61s, ndmo_catalog 61s. `zatca_chain` reported **`new_documents: 0`**: the gate held against the
+real tenant and the chain stayed at 25,001.
+
+**dbt on WH_MIZAN reached 99/99, and then did it again incrementally.** The second run took the
+`delete+insert` path on T-SQL and stayed 99/99. That closes the caveat row 36 had carried since the
+incremental work landed -- it is executed now, not merely compiled. The Fabric target was 91/91 and stale.
+
+**The 10 dormant app tests are awake.** `scripts/record_app_dax.py` re-recorded the live DAX fixtures and
+the suite went from 174 pass / 10 skip to **183 pass / 1 skip**: live Fabric results agree with exported
+Gold again, which is what those cross-checks exist to say.
+
+**`scripts/fabric_evidence.py` (new).** `docs/artifacts/10_fabric_run_evidence.json` was the last
+hand-maintained figure in the project, and it is the file the Command Center, the README and the video all
+read for "what happened on Fabric". A hand-kept number in the one document describing a cloud run is the
+number most likely to drift from the cloud -- and it had, sitting on 2026-11-14 figures for five days. It
+is now read back from the tenant over the SQL endpoints; only the run date, the note and the per-step
+timings are passed in, because only the run knows those.
+
+**Regenerated from the new reality:** Command Center and its data, the public snapshot site, the proof
+manifest, the Airflow DAG diagram, and the Power BI semantic model and report. Marquez was brought up and
+re-seeded -- 14 events, 7 Gold models, **94 columns, 100% with lineage**.
+
+**Three tests failed on the regenerated artefacts, and all three were right to.** The DAG diagram embeds
+the recorded run timings and was stale the moment the new run finished; `test_bug1` wanted
+`zatca_chain.documents`, which the first version of the evidence generator dropped; and `test_bug9` pinned
+the Fabric dbt figure at 91, which is now 99. That last one is pinned rather than derived on purpose --
+precisely so a Fabric number cannot go stale while the local one moves. It has now caught exactly that
+twice.
+
+**One self-inflicted failure worth recording.** A PDPL test failed in the full suite with
+`SparkFileNotFoundException: tmp/staging/.../rows.csv does not exist`. Not a product defect: the Fabric
+deploy and the test suite were running at once, and `tmp/staging` is a fixed shared path, so one process
+cleaned it under the other. The same contention mistake as earlier in this project. Nothing was run
+concurrently with the final suite.
