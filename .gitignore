@@ -69,3 +69,7 @@ public_site/
 
 # A lake moved aside before a rebuild (data/lake.stale and friends): generated, never committed.
 data/lake.*/
+
+# Third-party datasets pulled for testing (Kaggle etc). Never committed: the licence is somebody
+# else's to grant, and the point of these files is that this project did not author them.
+data/external/
