@@ -1,5 +1,9 @@
 # MIZAN-KSA demo video: shot list (2:30)
 
+> **Superseded by [VIDEO_PLAN.md](VIDEO_PLAN.md).** That document argues the duration, the opening
+> and the caption approach, and carries the shot lists for both cuts. This file is the earlier
+> single-cut list, kept only until the video is recorded. Do not follow both.
+
 Record at 1920x1080, 30 fps, browser zoom 100%, dark mode. Close other tabs and notifications. Sign in to Fabric and
 to the app before recording so no login screen appears. Captions go on screen (bottom third, short, white on dark);
 no voice-over is needed. Every number on screen comes from the real (synthetic-data) run.

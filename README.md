@@ -42,7 +42,7 @@ moment it lands and can be erased under PDPL without touching signed tax evidenc
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
 Actions as the control plane.
 
-**Tests, counted separately because they measure different things:** **Python tests** (`pytest`), **99 dbt
+**Tests, counted separately because they measure different things:** **444 Python tests** (`pytest`), **99 dbt
 tests** on the local DuckDB target, **99/99 on WH_MIZAN** (re-run 2026-11-21, full parity), and **184
 Fabric App tests (183 pass, 1 skipped)**. The second Fabric run took the incremental `delete+insert` path
 and stayed 99/99, so incremental Gold is executed there and not merely compiled (HONESTY.md row 36). CI runs the full PySpark and dbt suites and the app tests on every push.
@@ -53,7 +53,7 @@ and stayed 99/99, so incremental Gold is executed there and not merely compiled 
 
 ## Demo
 
-> Video: `docs/linkedin/demo.mp4` (2:30, recorded from [docs/linkedin/VIDEO_SHOT_LIST.md](docs/linkedin/VIDEO_SHOT_LIST.md)) - add when recorded.
+> Video: `docs/linkedin/demo.mp4` (2:30, planned in [docs/linkedin/VIDEO_PLAN.md](docs/linkedin/VIDEO_PLAN.md)) - add when recorded.
 
 The **MIZAN Command Center** runs as a **Fabric App** in workspace `mizan-ksa-dev` (protected: Fabric sign-in plus
 app permission; viewers also need Build on the semantic model). Every figure is a live DAX query on

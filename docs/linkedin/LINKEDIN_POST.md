@@ -17,7 +17,7 @@ What it does:
 - Resolves five Arabic spellings of one customer without merging two brothers.
 
 Stack: Fabric Lakehouse, Warehouse and Eventhouse, PySpark, dbt, Airflow, OpenLineage, and a live Fabric App
-(Rayfin) that queries the semantic model with DAX, in English and Arabic. 302 Python tests and 184 app tests run on
+(Rayfin) that queries the semantic model with DAX, in English and Arabic. 444 Python tests and 184 app tests run on
 every push.
 
 All data is synthetic; this is an engineering reference, not a certified tax product.
