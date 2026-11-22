@@ -621,6 +621,28 @@ def dbt_lineage() -> None:
     s.save("06_dbt_lineage.svg")
 
 
+def rasterise() -> None:
+    """Also emit PNG. SVG is right for the README; a Fabric notebook displays a PNG, and so does a
+    video editor. Skipped silently if Playwright is not installed -- the SVGs are the deliverable."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("  (no PNG: pip install playwright)")
+        return
+    png = OUT / "png"
+    png.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        for svg in sorted(OUT.glob("*.svg")):
+            pg = b.new_page(viewport={"width": 1700, "height": 1060}, device_scale_factor=1.5)
+            pg.set_content(f'<body style="margin:0;background:{NIGHT}">' + svg.read_text(encoding="utf-8"))
+            pg.wait_for_timeout(450)
+            pg.locator("svg").screenshot(path=str(png / (svg.stem + ".png")))
+            pg.close()
+            print(f"  docs/diagrams/png/{svg.stem}.png")
+        b.close()
+
+
 def main() -> None:
     print("building docs/diagrams/")
     architecture()
@@ -629,6 +651,7 @@ def main() -> None:
     zatca_state_machine()
     reconciliation_spine()
     dbt_lineage()
+    rasterise()
 
 
 if __name__ == "__main__":
