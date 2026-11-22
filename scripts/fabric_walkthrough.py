@@ -303,12 +303,16 @@ fall out of the result set and take its money with it.
 # WH_MIZAN query editor, and a traceback on camera teaches a viewer nothing.
 from pyspark.sql import functions as F
 def gold(table):
-    """Read a Gold table. A Fabric Warehouse keeps its tables as Delta in OneLake, so Spark can open
-    them read-only at the warehouse's own path -- no connector, no SQL endpoint, no second credential."""
-    try:
-        return spark.read.synapsesql(f"WH_MIZAN.gld.{table}")
-    except Exception:
-        return spark.read.format("delta").load(f"{WH_ROOT}/Tables/gld/{table}")
+    """Read a Gold table.
+
+    A Fabric Warehouse keeps its tables as Delta in OneLake, so Spark opens them read-only at the
+    warehouse's own path. No connector, no SQL endpoint, no second credential.
+
+    spark.read.synapsesql() is the documented route and is deliberately NOT used: it is unavailable in
+    this runtime, and its failure surfaces on the Java side, which Fabric counts as a failed statement
+    and cancels the whole session over -- catching it in Python is too late. Measured: cells 1-17 pass,
+    the session dies at the cell that calls it, and the Python traceback log stays empty."""
+    return spark.read.format("delta").load(f"{WH_ROOT}/Tables/gld/{table}")
 
 try:
     R = gold("fact_merchant_settlement_recon")
@@ -339,11 +343,9 @@ if R is not None:
           == round(float(agg["bank_paid"]) + float(agg["in_transit"]) + float(agg["quarantined"]), 2))
     print("  bank variance 0.00 :", round(float(agg["bank_variance"]), 2) == 0)
     print("  GL   variance 0.00 :", round(float(agg["gl_variance"]), 2) == 0)
-    assessed = R.where("in_transit_sar = 0").count()
-    waiting = R.where("in_transit_sar > 0").count()
-    print(f"
-  merchant-days assessed (bank file arrived) : {assessed:,}")
-    print(f"  merchant-days still in transit            : {waiting:,}")
+    print()
+    print("  merchant-days with a bank file     :", R.where("in_transit_sar = 0").count())
+    print("  merchant-days still in transit     :", R.where("in_transit_sar > 0").count())
 
 print("IN_TRANSIT is the honest state: the bank file for that merchant-day has not arrived, so the day")
 print("is counted separately and is never reported as balanced.")
@@ -406,7 +408,7 @@ try:
               "dim_party_golden", "dim_date_saudi", "mart_ndmo_scorecard"):
         print(f"  {t:<34}{gold(t).count():>12,} rows")
 except Exception as e:
-    print(f"Gold unreadable from Spark here ({type(e).__name__}).")
+    print(f"Gold unreadable from Spark here ({type(e).__name__}: {e}).")
     print("The seven Gold tables are listed under WH_MIZAN -> Schemas -> gld in the workspace.")
 '''),
 

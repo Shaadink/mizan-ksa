@@ -1331,3 +1331,74 @@ broken and least likely to be checked.
 text *and* the packing edge of the flex items. I wanted the first and got the second for free, in the one
 language direction nobody tests."
 
+## 2026-11-22 (afternoon) -- diagrams, and moving the explanation into Fabric
+
+**The gap the owner named.** The video plan I wrote first was a product demo: open the app, tour the
+scenes. The owner's answer was that a recruiter hiring for Fabric work needs to see the machinery --
+Airflow, Docker, Marquez, dbt, the schemas, the code -- and then, separately, that it should all be shown
+**inside Fabric**, not from a local repository. Both are right, and the second is the sharper point: a
+screen recording of VS Code proves the engineering but puts it in the wrong building.
+
+**Six diagrams, because the repo had none.** No architecture diagram, no dataflow, no schema map, no
+lineage picture -- not one `.svg` outside the Airflow DAG render. `scripts/build_diagrams.py` builds them
+from declarative specs, in the Command Center's palette so they cut into the demo footage without looking
+borrowed. Two are derived rather than drawn: `06_dbt_lineage` reads nodes and edges out of
+`dbt/target/manifest.json`, and `03_schema_map`'s table names are checked against what
+`src/mizan/spark/*.py` actually writes. `tests/test_diagrams.py` enforces both directions -- a drawn table
+that does not exist, and a real table missing from the map, each fail the build.
+
+**Two figures were wrong on the front pages, and drawing the pictures found both.**
+
+The draft LinkedIn post claimed **302 Python tests**. The suite collects **444**. The README had the words
+"Python tests" with no number at all.
+
+Every front page said **"99 dbt tests"**. A dbt build here runs **99 nodes: 7 models, 89 tests, 3 seeds**.
+The 99/99 claim stands; the word "tests" did not. Corrected in README, PROJECT_IN_PLAIN_ENGLISH and
+MASTER_BRIEF, and `test_diagrams.py` now pins the three counts to the manifest so it cannot drift again.
+
+And the first draft of the dataflow diagram drew `brz.commerce_events_raw` feeding
+`slv.payment_lifecycle`. It does not. The order is not a leg of the money spine -- it stays in Bronze and
+is read by the PDPL right-of-access path and the AI index. The diagram says so now, which is a more
+interesting fact than the join I had assumed.
+
+**`nb_mizan_walkthrough`, published into the workspace.** `scripts/fabric_walkthrough.py` uploads the
+diagrams to `LH_MIZAN/Files/diagrams/` and builds a notebook with eight sections: each diagram displayed
+from OneLake, and under it a cell that queries `LH_MIZAN` and `WH_MIZAN` live. It imports `mizan` from
+`Files/code/src` and reads through the pipeline's own `Lake` and `TableLocator`, so it cannot drift from
+the code and reads tables by the same Delta paths they were written to. Measured by the run: 28 tables,
+439,192 rows, 25,001 ZATCA documents, 0 ICV gaps, 0 PIH breaks, 354 classified columns.
+
+**Four things that cost real time, all worth recording.**
+
+A `# MARKDOWN ****` cell in a `notebook-content.py` definition uploaded over `updateDefinition` makes the
+**whole notebook a no-op**: the job reports Completed in about thirty seconds, no cell runs and nothing is
+written. Caught only because the last cell writes a receipt and the receipt never appeared. Confirmed with
+two probe notebooks identical but for one markdown cell -- the one without it wrote its file, the one with
+it did not, in either cell order. Narration is now `displayHTML` from python cells.
+
+`traceback.print_exc()` writes to stderr, and Fabric reads a statement that wrote to stderr as a **failed
+statement**, which cancels the session. Catching the exception in Python was not enough; the handler now
+prints to stdout and appends the traceback to `Files/_logs/walkthrough.txt`.
+
+`spark.read.synapsesql()` is the documented way to read a Fabric Warehouse from Spark and is unavailable
+in this runtime. Its failure surfaces Java-side, which again cancels the session before Python can catch
+it. A Warehouse keeps its tables as Delta in OneLake, so the Gold cells read the warehouse's own path
+instead -- no connector, no SQL endpoint, no second credential.
+
+Every cell now writes a breadcrumb before and after itself. When a session is cancelled by something that
+never reaches Python, the traceback log is empty and every cell looks equally guilty; the last breadcrumb
+names the cell. That is how cell 18 was identified.
+
+**Three schema mistakes it caught, all mine:** `slv.settlement_lines` uses `PAID_BANK`, not the Gold-level
+`ASSESSED`; `meta.column_classification` has `classification`, not `sensitivity`; and the Gold recon fact
+carries the in-transit split as money, not as a `settlement_status` label.
+
+**What cannot move into Fabric.** Docker, Marquez and GitHub Actions do not run there. The notebook's last
+section says so, and the video gives them eight seconds as "the half that does not run in Fabric" rather
+than hiding them. Pretending otherwise would be the one lie in the video, and a viewer who knows Fabric
+would catch it.
+
+**Interview point.** "A notebook that nobody has executed is indistinguishable from a screenshot. Mine
+writes a receipt of what it actually read, and a breadcrumb per cell -- which is the only reason I found
+out that a markdown cell was silently turning the whole thing into a no-op."
+
