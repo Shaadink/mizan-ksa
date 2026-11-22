@@ -1,236 +1,223 @@
 # MIZAN-KSA launch video - the plan
 
-This supersedes `VIDEO_SHOT_LIST.md`. One recording session, two exports.
+**2:30, engineering-first, shot inside Microsoft Fabric.** Supersedes `VIDEO_SHOT_LIST.md`.
+
+The audience is people hiring for Fabric work. So the rule for every shot is: *if it can be shown in the
+tenant, it is shown in the tenant.* A screen recording of a local repository proves the engineering but
+puts it in the wrong building.
 
 ---
 
-## Part 0. The three decisions, argued
+## Part 0. The four decisions, argued
 
-Everything below follows from these. If you disagree with one, the shot list changes.
+### 1. Everything that can be in Fabric, is in Fabric.
 
-### Decision 1 - two cuts, not one. Master 2:30, LinkedIn cut 1:10.
+Six architecture diagrams and eight sections of narrative now live in **`nb_mizan_walkthrough`**, a
+notebook in workspace `mizan-ksa-dev`. Each section shows its diagram from OneLake and then queries
+`LH_MIZAN` and `WH_MIZAN` live underneath it. That notebook is the spine of the video.
 
-A 2:30 video is the right thing to **own** and the wrong thing to **post**.
+Here is the honest split, because a viewer who knows Fabric will work it out anyway:
 
-The research baseline in `MASTER_BRIEF.md` puts organic LinkedIn video at 30-90 seconds with completion
-above 60% in that band, and reads a retention cliff at 8-12 seconds as a body-content failure. A 2:30 cut
-posted cold to a feed asks for 150 seconds of attention from someone scrolling between meetings with the
-sound off. Most will leave at 20 seconds, and LinkedIn reads a 13% completion rate as a weak video and
-stops showing it.
+| Shown in Fabric | Cannot be in Fabric |
+|---|---|
+| Workspace items: `LH_MIZAN`, `WH_MIZAN`, `EH_MIZAN`, `ES_MIZAN`, semantic model, report, app | **Docker** - `docker-compose.airflow.yml`, `.skew.yml` |
+| **`AF_MIZAN`** - Apache Airflow, running *as a Fabric item* | **Marquez** - the OpenLineage viewer, a container |
+| Monitoring hub: six PySpark notebook runs | **GitHub Actions** - CI runs on GitHub's runners |
+| **`nb_mizan_walkthrough`** - diagrams + live queries | |
+| Lakehouse explorer: the eight schemas, browsable | |
+| **`WH_MIZAN` SQL query editor** - Gold, in T-SQL | |
+| **Spark UI**, opened from a notebook run | |
+| Direct Lake semantic model and the Power BI report | |
+| **Command Center** - a Fabric App, live DAX | |
 
-But a 2:30 **is** the right asset for the three places that matter after the post lands: the repo README,
-the portfolio site, and the recruiter or hiring manager who clicked through because the short one worked.
-Those people have already opted in. They want the long version.
+The three on the right get **eight seconds total**, in one honest beat near the end. They are real, they
+matter, and pretending they run in Fabric would be the one lie in the video.
 
-So: record once, export twice.
+### 2. Open on the failure, not on the platform.
 
-| | **The LinkedIn cut** | **The master** |
-|---|---|---|
-| Length | **1:10** | **2:30** |
-| Aspect | **1:1 square** (fills more of a phone feed) | **16:9** |
-| Where | the LinkedIn post, native upload | README, portfolio, the link in the post's first comment |
-| Job | earn the click | survive the scrutiny |
+Seconds 0-3 are the only ones you are guaranteed. An item list is a screenshot of a filing cabinet.
 
-The master is a superset. Every shot in the short cut is a shot in the long one, so the short is an edit,
-not a second shoot.
+Open on the planted **0.01 SAR** error and the build refusing to publish. It states the problem, shows the
+stakes, proves the system is adversarial rather than decorative, and sets up a callback. And it happens
+inside the Command Center, which is a Fabric App - so even the hook is a Fabric shot.
 
-### Decision 2 - open on the failure, not on the platform.
+The Airflow DAG is the strongest argument you have and the second-weakest hook you have. It is beat two.
 
-The current shot list opens with six seconds of scrolling a Fabric workspace item list. That is the single
-weakest opening available to this project. An item list is a screenshot of a filing cabinet. Nobody has
-ever stopped scrolling for one, and seconds 0-3 are the only ones you are guaranteed to get.
+### 3. Captions, no voice-over.
 
-Open instead on the one thing in this project that is impossible to fake and takes two seconds to
-understand: **a 0.01 SAR error, planted on purpose, and a build that refuses to publish because of it.**
+Sound-off is the majority case, so the captions carry it regardless. A voice-over then adds retakes and
+pacing risk and reaches nobody the captions do not. Quiet music bed, nothing with a drop.
 
-That hook does four jobs at once. It states the problem (money that does not add up), it shows the stakes
-(it is one halala out of twenty-two million riyals), it proves the system is adversarial rather than
-decorative, and it sets up a callback you can pay off at 1:30 when you press `B` live on camera.
+### 4. One extra export, free.
 
-The platform credibility shot - Airflow, six green tasks, nothing on my laptop - is the **second** beat,
-not the first. It is the strongest argument you have and the second-weakest hook you have, because a viewer
-has to already care before a DAG graph means anything.
-
-### Decision 3 - captions only. No voice-over.
-
-Most LinkedIn video is watched with the sound off, so the captions have to carry the whole thing anyway.
-Once they do, a voice-over adds risk (retakes, pacing, a self-conscious read) and adds nothing a silent
-viewer receives. It also doubles your edit time on the day you are least patient.
-
-Add a quiet music bed at about -24 LUFS, something without a drop or a build. Its only job is to stop the
-video feeling broken when someone does have sound on.
-
-A voice-over version is a cheap later export if you want one for YouTube. It is not the launch asset.
+Record once in 16:9. Export the **2:30 master** for the README and the portfolio, and a **1:10 square**
+cut for the feed itself - the first six seconds, Airflow, the warehouse query, the Arabic flip and the end
+card. The short earns the click; the long survives the interview panel.
 
 ---
 
-## Part 1. The master, 2:30, shot by shot
+## Part 1. The 2:30, shot by shot
 
-Five acts. Each act has one job, written next to it. If a shot does not serve its act's job, it is cut -
-that rule is what keeps a 2:30 from becoming a 4:00.
+Eight acts. Each has one job. If a shot does not serve its act's job, cut it - that rule is what keeps a
+2:30 from becoming a 5:00.
 
-### Act 0 - The hook (0:00 - 0:08). Job: buy the next ten seconds.
-
-No logo. No title. No "hi, I'm Shadin". Branding at the front costs retention; it goes at 2:15.
+### Act 0 - The hook (0:00 - 0:08) - Fabric App
 
 | Time | On screen | Caption |
 |---|---|---|
-| 0:00 - 0:03 | The Command Center hero, full frame, gold scale **level**. Then it tilts and the stamp flips red. Capture this by pressing `B` and starting the clip one second before the tilt. | I hid a 0.01 SAR error in 22 million rows. |
-| 0:03 - 0:08 | Hard cut to the breaker line, filling the frame: `dbt circuit breaker - FAIL - 2 unexplained MID-days - build halted`, and `Candidate run x FAIL - not published`. Hold still. | It found it, and refused to publish the day. |
+| 0:00 - 0:03 | Command Center (Fabric App), hero, gold scale **level**, then press `B`: it tilts, the stamp reddens | I hid a 0.01 SAR error in 22 million rows. |
+| 0:03 - 0:08 | The breaker line filling frame: `dbt circuit breaker - FAIL - 2 unexplained MID-days - build halted` and `Candidate run x FAIL - not published` | It found it, and refused to publish the day. |
 
-The second caption is the thesis of the entire project. Everything after it is evidence.
+### Act 1 - It orchestrates itself, in Fabric (0:08 - 0:40) - Airflow + monitoring hub
 
-### Act 1 - What it is (0:08 - 0:25). Job: make the problem legible to a non-specialist.
-
-| Time | On screen | Caption |
-|---|---|---|
-| 0:08 - 0:13 | Scene 9, the life cycle: sources to Gold to the Control Tower. Slow push in. | MIZAN: one Saudi retail sale, followed end to end. |
-| 0:13 - 0:19 | Hold on the four source boxes, highlight each as the caption names it | The till, ZATCA, the bank, the ledger. Four systems that disagree. |
-| 0:19 - 0:25 | Cut to the hero, scale level, SAR 22,391,236.23 and the 0.00 tile both visible | SAR 22.39M reconciled to exactly 0.00. |
-
-### Act 2 - It runs itself, in the cloud (0:25 - 0:58). Job: separate this from every portfolio project.
-
-This act is the one a data engineer is actually judging you on. Do not rush it; four shots, eight seconds
-each, mouse still.
+The act a data engineer is actually judging. Four shots, eight seconds each, mouse still.
 
 | Time | On screen | Caption |
 |---|---|---|
-| 0:25 - 0:33 | **AF_MIZAN -> Monitor DAG -> Graph**: `mizan_fabric_daily`, six green tasks, the fan-out from `zatca_chain`. Hover `bronze_land` so the duration tooltip appears | Apache Airflow, running inside Microsoft Fabric. |
-| 0:33 - 0:41 | Fabric Monitoring hub, filtered to today: the same six notebook runs, all **Succeeded**, timestamps seconds after the DAG tasks | Six real Fabric notebook runs. Nothing runs on my laptop. |
-| 0:41 - 0:50 | Terminal, `dbt build --target fabric` scrolling to **PASS=99 ERROR=0**. Let it actually run; do not cut to a finished screen | dbt builds and tests the Gold layer in the warehouse: 99 of 99. |
-| 0:50 - 0:58 | GitHub Actions, newest run, three green jobs | And the whole suite runs on every push. 444 tests. |
+| 0:08 - 0:16 | **`AF_MIZAN` -> Monitor DAG -> Graph**: `mizan_fabric_daily`, six green tasks, the fan-out from `zatca_chain`. Hover `bronze_land` for the duration | Apache Airflow, running as a Fabric item. |
+| 0:16 - 0:24 | Fabric **Monitoring hub** filtered to today: the same six notebook runs, all **Succeeded**, timestamps seconds after the DAG tasks | It starts six PySpark notebooks over the REST API. |
+| 0:24 - 0:32 | Click into `silver_build` -> **Spark UI** -> Stages. Show the skew: 20M rows, 62:1, the salted join | 20M rows at 62:1 skew, salted to 16. Same checksum three ways. |
+| 0:32 - 0:40 | Back to the workspace item list, slow scroll: lakehouse, warehouse, eventhouse, eventstream, semantic model, report, app, notebooks | One workspace. Nothing runs on my laptop. |
 
-Use `--target fabric`, not the local DuckDB target. Both are 99/99 now, so the Fabric one is free and says
-"a warehouse in the cloud" instead of "a file on my laptop".
-
-### Act 3 - The proof, in the app (0:58 - 1:58). Job: show that it is interrogable, not a dashboard.
+### Act 2 - The architecture, from inside the tenant (0:40 - 1:00) - `nb_mizan_walkthrough`
 
 | Time | On screen | Caption |
 |---|---|---|
-| 0:58 - 1:04 | Open the app from the workspace. Hero settles. Mouse rests on the green **Live** label, bottom left | Live DAX against the semantic model. |
-| 1:04 - 1:11 | Mouse to the amber chip: `112 MID-days not assessed (bank file pending)` | 112 days have no bank file yet. They are never called balanced. |
-| 1:11 - 1:19 | Filter bar: **City = Jeddah**. Scroll to Reconciliation; the heatmap redraws | Every filter re-queries the model. |
-| 1:19 - 1:29 | Click one bright heatmap cell. The drill panel opens | One merchant, one day: captures, fees, bank paid, GL, both variances. |
-| 1:29 - 1:38 | **Clear**. Press `B`. Scroll up; the scale tilts, the stamp reddens, the candidate run is flagged | This is the error from the first three seconds. |
-| 1:38 - 1:41 | Press `B` again. The scale settles | |
-| 1:41 - 1:50 | Menu: **ZATCA**. Hover the EGS cards, then the outcome bar. Type `102` in search, Enter | 25,001 e-invoices. Zero chain breaks. |
-| 1:50 - 1:58 | Hold on ICV 102's history row, then press `L` for Arabic, hold two seconds | A timeout and a worker crash. Retried with the identical signed bytes. |
+| 0:40 - 0:48 | Open `nb_mizan_walkthrough`. Section 1: the architecture diagram, full width | Five columns of data plane. One band of control plane. |
+| 0:48 - 1:00 | Scroll to section 2, **run the cell**: 28 tables, 439,192 rows printed live | Eight schemas. Read live, through the same code the jobs run. |
 
-The `L` press is where the RTL layout gets its three seconds. It is also a KSA hiring signal that costs you
-nothing: the page works in Arabic and the numerals still read left to right.
+Run the cell on camera. The output appearing is the whole point; a pre-run notebook looks identical to a
+screenshot, and a viewer cannot tell the difference between the two except by watching it happen.
 
-### Act 4 - The honest part (1:58 - 2:15). Job: convert a skeptic.
-
-This act is the differentiator and most people will cut it. Do not. Every technical viewer watching at 2:00
-is already composing the question "but is any of this real?" Answering it before they ask is worth more
-than another feature.
+### Act 3 - One sale, five systems (1:00 - 1:20) - notebook + lakehouse explorer
 
 | Time | On screen | Caption |
 |---|---|---|
-| 1:58 - 2:07 | `HONESTY.md` on GitHub, scrolling slowly through the table. Let the row count be visible | I also wrote down everything it is not. |
-| 2:07 - 2:15 | Cut to the proof manifest, a SHA-256 per claim | Synthetic data. Not certified by ZATCA. One engineer, no second reviewer. Every number generated, never typed. |
+| 1:00 - 1:08 | Section 3: the dataflow diagram | Five systems record the same sale. None of them agree. |
+| 1:08 - 1:20 | Run the trace cell: one `payment_event_id` printed from `slv.payment_lifecycle` and `slv.settlement_lines` side by side | The MDR fee is read from the bank file. Never recomputed. |
 
-### Act 5 - End card (2:15 - 2:30). Job: one action, not five.
+### Act 4 - Reconciliation (1:20 - 1:45) - notebook + `WH_MIZAN` query editor
 
 | Time | On screen | Caption |
 |---|---|---|
-| 2:15 - 2:30 | Static card: **MIZAN-KSA**, your name, `github.com/Shaadink/mizan-ksa`. Nothing animated | Built by Shadin K. Repo in the comments. |
+| 1:20 - 1:28 | Section 4: the key-spine diagram | A LEFT JOIN answers what matched. Finance needs what is missing. |
+| 1:28 - 1:37 | Run the Gold cell: both variances `0.00`, and the assessed / in-transit split | SAR 22.39M reconciled to exactly 0.00. |
+| 1:37 - 1:45 | **`WH_MIZAN` -> New SQL query**, type and run: `SELECT SUM(unexplained_bank_variance_sar), SUM(unexplained_gl_variance_sar) FROM gld.fact_merchant_settlement_recon;` | And again in T-SQL, straight against the warehouse. |
+
+Typing that query live is the most convincing eight seconds available. It cannot be faked, it is the
+claim the whole project rests on, and it is a Fabric surface.
+
+### Act 5 - The ZATCA chain (1:45 - 2:03) - notebook
+
+| Time | On screen | Caption |
+|---|---|---|
+| 1:45 - 1:53 | Section 5: the state machine diagram. Rest on `SUBMITTING -> UNKNOWN_OUTCOME` | SUBMITTING is persisted before the HTTP call. |
+| 1:53 - 2:03 | Run the chain cell: 25,001 documents, **0 ICV gaps, 0 PIH breaks** | A timeout and a worker crash. Retried with the identical signed bytes. |
+
+### Act 6 - dbt, lineage, and the honest gap (2:03 - 2:18)
+
+| Time | On screen | Caption |
+|---|---|---|
+| 2:03 - 2:10 | Section 6: the dbt lineage diagram, generated from the manifest | dbt build: 99 nodes. 7 models, 89 tests, 3 seeds. |
+| 2:10 - 2:18 | Fast cut, three shots, ~2.5s each: **Marquez** column lineage 94/94, `docker compose up` in a terminal, **GitHub Actions** green | OpenLineage, Marquez and CI. The half that does not run in Fabric. |
+
+Naming that gap out loud costs eight seconds and buys more credibility than any feature in the video.
+
+### Act 7 - What it is not, and the end card (2:18 - 2:30)
+
+| Time | On screen | Caption |
+|---|---|---|
+| 2:18 - 2:25 | Section 8 of the notebook, and `HONESTY.md` on GitHub scrolling | Synthetic data. Not ZATCA-certified. One engineer, no second reviewer. |
+| 2:25 - 2:30 | Static card: **MIZAN-KSA**, your name, `github.com/Shaadink/mizan-ksa` | Built by Shadin K. Repo in the comments. |
 
 One call to action. Not "follow, like, connect, DM and star".
 
 ---
 
-## Part 2. The LinkedIn cut, 1:10, square
+## Part 2. Before you record
 
-Same footage, harder edit. Nothing new is recorded for this.
+### Get the tenant into the right state
 
-| Time | From the master | Caption |
-|---|---|---|
-| 0:00 - 0:06 | Act 0, both shots, trimmed | I hid a 0.01 SAR error in 22 million rows. / It found it, and refused to publish. |
-| 0:06 - 0:12 | Act 1, the hero with 22.39M and 0.00 | One Saudi retail sale, end to end. SAR 22.39M to exactly 0.00. |
-| 0:12 - 0:26 | Act 2: Airflow (5s), dbt PASS=99 (5s), CI green (4s) | Airflow inside Microsoft Fabric. dbt 99/99 in the warehouse. 444 tests on every push. |
-| 0:26 - 0:40 | Act 3: Live label (4s), Jeddah filter (5s), the drill (5s) | Live DAX. Filter a city, everything recomputes. Drill one merchant-day. |
-| 0:40 - 0:50 | Act 3: ZATCA + ICV 102 | 25,001 e-invoices, zero chain breaks - through a timeout and a worker crash. |
-| 0:50 - 0:54 | Act 3: the `L` flip | Arabic, right to left. |
-| 0:54 - 1:02 | Act 4, compressed to one card over the HONESTY scroll | Synthetic data. Not ZATCA-certified. Every number generated, never typed. |
-| 1:02 - 1:10 | Act 5 | Built by Shadin K. Repo in the comments. |
+```
+.\.venv\Scripts\python.exe scripts\build_diagrams.py          # SVG + PNG
+.\.venv\Scripts\python.exe scripts\fabric_walkthrough.py      # upload + publish + RUN it
+```
 
-Crop to 1:1 from the 1920x1080 source. Record at 1920x1080 and crop in the edit - do not record square, or the
-app's right-hand rail will be cut off at capture time and you cannot get it back.
+The second one publishes `nb_mizan_walkthrough`, uploads the six diagrams to
+`LH_MIZAN/Files/diagrams/`, and executes the notebook end to end. It writes
+`Files/_logs/walkthrough_receipt.json`, so you can confirm it really ran before you point a camera at it.
+If a cell fails, the traceback is in `Files/_logs/walkthrough.txt` and nothing else is affected - cells
+are wrapped so one failure cannot cancel the Spark session.
 
----
+Then, in order:
 
-## Part 3. How to actually record it
-
-### Record in blocks, not in timeline order
-
-Four sittings. Within each block, record each shot **three times** and keep the best. Retaking a shot an
-hour later means re-signing in, re-warming the pool and re-matching the window size.
-
-| Block | What | Watch out for |
-|---|---|---|
-| **A. Fabric browser** | workspace, Airflow DAG graph, Monitoring hub | Sign in first. Run the DAG **before** you record so the six boxes are already green. |
-| **B. Terminal** | `dbt build --target fabric`, `pytest -q` | Run them for real on camera. A cut to a finished screen looks exactly like what it is. |
-| **C. The app** | everything in Act 3 | Press `P` for presenter mode where the chrome is noise. Check the label says **Live** in green, not amber. |
-| **D. GitHub** | Actions, HONESTY.md, the proof manifest | Light mode or dark mode - pick one and keep it for all four shots. |
+1. **Warm the Spark pool.** Run any notebook once. A cold starter pool sits on "Queued" for minutes and
+   there is no way to edit that out that does not look like an edit.
+2. **Run `AF_MIZAN`** so the DAG graph is already six green boxes when you film it.
+3. **Check the Command Center says `Live` in green**, not amber `Snapshot`. Amber means your Fabric
+   session expired; sign in again.
+4. **Give the SQL endpoint a few minutes** after any write. It lags the lakehouse, and a freshly written
+   table can read empty.
 
 ### Settings
 
-- **Capture:** OBS Studio (free), display capture, 1920x1080, 30 fps, CQP 18. Windows Game Bar works too but
-  gives you less control over the cursor.
-- **Browser:** zoom 100%, dark mode, full screen (`F11`), bookmarks bar hidden, one window, no second monitor
-  bleeding in.
-- **Notifications off.** Windows Focus Assist on. Close Teams, Outlook, Slack, the lot. One toast ruins a take.
-- **Cursor:** enlarge it slightly in Windows mouse settings. At 1080p scaled into a phone feed, the default
-  pointer disappears.
-- **Edit:** DaVinci Resolve (free) or CapCut. Both do square crops and burned-in captions.
-- **Export:** MP4, H.264, 1080p for the master; 1080x1080 for the cut. Burn the captions in - do not rely on
-  LinkedIn's auto-captions, which will mangle "halala", "ZATCA" and "mada".
+- **Capture:** OBS Studio (free), display capture, 1920x1080, 30 fps, CQP 18.
+- **Browser:** zoom 100%, dark mode, full screen (`F11`), bookmarks bar hidden, one window.
+- **Notifications off.** Focus Assist on, Teams and Outlook closed. One toast ruins a take.
+- **Enlarge the mouse cursor** in Windows settings. At 1080p scaled into a phone feed the default pointer
+  disappears, and half these shots are "watch where I click".
+- **Edit:** DaVinci Resolve or CapCut. Both crop square and burn in captions.
+- **Export:** MP4 / H.264. 1080p for the master, 1080x1080 for the cut. **Burn the captions in** - do not
+  trust LinkedIn's auto-captions with "halala", "ZATCA" or "mada".
 
 ### Caption rules
 
-- Seven words a line, two lines maximum.
-- On screen at least 1.2 seconds, however short the line.
-- Bottom third, white text, 55-65% black scrim behind it so it survives a bright heatmap.
-- One idea per caption. If a caption needs an "and", it is two captions.
-- Never caption a replay or a proof-run scene as "live". The stream, PDPL, MDM and Spark scenes are replays
-  and their provenance line says so on screen - do not contradict your own page.
+Seven words a line, two lines maximum, on screen at least 1.2 seconds. Bottom third, white, 55-65% black
+scrim so it survives a bright heatmap. One idea per caption; if it needs an "and", it is two captions.
 
-### What will go wrong
+**Never caption a replay as live.** The stream, PDPL, MDM and Spark scenes are proof runs and their
+provenance line says so on screen. Do not contradict your own page.
 
-- **The Fabric starter pool is cold** and the first notebook sits "Queued" for minutes. Warm it before Block A
-  by running anything trivial.
-- **The SQL analytics endpoint lags** behind the lakehouse, so a freshly written table can read empty. Give it
-  a few minutes before you film a figure.
-- **The app shows an amber "Snapshot" label** if your Fabric session expired. Sign in again; do not film it.
-- **The scale is mid-swing.** It physically settles over several seconds. Start the clip after it stops, or
-  you have filmed an UNBALANCED scale while the caption claims balance.
+### Recording order
+
+Four sittings, three takes each, keep the best. Retaking an hour later means re-signing in and
+re-matching the window size.
+
+| Block | What | Watch for |
+|---|---|---|
+| A. Fabric orchestration | workspace, `AF_MIZAN`, monitoring hub, Spark UI | run the DAG first |
+| B. The notebook | all six sections, cells run live | clear old output first, so the run is visible |
+| C. Warehouse + app | `WH_MIZAN` query editor, Command Center, Arabic | check the green `Live` label |
+| D. Outside Fabric | Marquez, `docker compose up`, GitHub Actions | pick one theme and keep it |
 
 ### If a live capture fails
 
-`docs/artifacts/demo/` holds the eight screenshots at 2400x1500, taken from the standalone page. They are a
-legitimate fallback for any app shot, and they are also the carousel if you post stills alongside the video.
-They label themselves *exported Gold snapshot* rather than *Live* - so if you use one, do not caption it
-"live DAX". Everything else about them is the same code and the same figures.
+`docs/artifacts/demo/` holds eight screenshots at 2400x1500 and `docs/diagrams/png/` holds the six
+diagrams. Both are legitimate fallbacks, and the screenshots double as a stills carousel. The demo shots
+come from the **standalone** page, which labels itself *exported Gold snapshot* rather than *Live* - so if
+you use one, do not caption it "live DAX".
 
 ---
 
-## Part 4. The numbers you are allowed to say
+## Part 3. The numbers you are allowed to say
 
-Every figure in the captions above traces to a generated artifact. These are the current ones; re-check
-them against `docs/PROOF_MANIFEST.md` on the day you record, because this project's whole argument is that
-its numbers are derived rather than typed.
+Re-check these against `docs/PROOF_MANIFEST.md` on the day. This project's whole argument is that its
+figures are derived rather than typed, so a stale caption costs more than it saves.
 
 | | |
 |---|---|
 | Reconciled | SAR 22,391,236.23 across 2,233 merchant-days |
 | Variance | 0.00, on the 2,121 merchant-days whose bank file has arrived |
 | Held back | 112 merchant-days, in transit, never counted as balanced |
-| ZATCA | 25,001 documents, 0 chain breaks |
+| ZATCA | 25,001 documents, 0 ICV gaps, 0 PIH breaks |
 | Lineage | 94 of 94 Gold columns |
-| Scale test | 20M rows at 62:1 skew, same checksum three ways |
-| dbt | 99/99 on WH_MIZAN and 99/99 on the local target |
+| Scale | 20M rows at 62:1 skew, same checksum three ways |
+| dbt | a 99-node build, green on WH_MIZAN and on the local target. 99 = 7 models + 89 tests + 3 seeds |
 | Tests | 444 Python, 184 Fabric App (183 pass, 1 skipped) |
+| Lakehouse | 28 tables, 439,192 rows (from the walkthrough receipt) |
 
-And the four you must not leave out: **synthetic data**, **not certified by ZATCA or any regulator**,
-**one engineer with no second reviewer**, **standards-informed reference architecture, not a product**.
+Say **"99-node dbt build"**, not "99 dbt tests". There are 89 tests. The front pages said otherwise until
+2026-11-22 and it was wrong.
+
+And the four that must not be left out: **synthetic data**, **not certified by ZATCA or any regulator**,
+**one engineer with no second reviewer**, **a reference architecture, not a product**.

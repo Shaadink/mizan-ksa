@@ -98,6 +98,8 @@ def _md(text: str) -> tuple[str, str]:
 
 
 LOG = "/lakehouse/default/Files/_logs/walkthrough.txt"
+PROGRESS = "/lakehouse/default/Files/_logs/walkthrough_progress.txt"
+_N = 0
 
 
 def _py(code: str) -> tuple[str, str]:
@@ -106,15 +108,22 @@ def _py(code: str) -> tuple[str, str]:
     A notebook meant to be shown must not stop halfway: a reader needs the sections after the broken
     one, and whoever has to fix it needs the traceback. Both are served by catching here and appending
     to a log in OneLake, which can be read back without opening the workspace."""
+    global _N
+    _N += 1
     body = "\n".join("    " + ln if ln.strip() else "" for ln in code.strip("\n").splitlines())
+    # The breadcrumb matters as much as the traceback. A Spark session can be cancelled by something
+    # that never reaches Python -- an executor dying, a statement the service decides has failed -- and
+    # then the log is empty and every cell looks equally guilty. The last breadcrumb names the cell.
     return ("python", f"""import os, traceback
 os.makedirs(os.path.dirname({LOG!r}), exist_ok=True)
+open({PROGRESS!r}, "a", encoding="utf-8").write("cell {_N:02d} start\\n")
 try:
 {body}
-except Exception:
-    traceback.print_exc()
+    open({PROGRESS!r}, "a", encoding="utf-8").write("cell {_N:02d} ok\\n")
+except Exception as _e:
+    print(f"[cell failed] {{type(_e).__name__}}: {{_e}}")
     with open({LOG!r}, "a", encoding="utf-8") as _fh:
-        _fh.write(traceback.format_exc() + "\\n" + "-" * 70 + "\\n")
+        _fh.write("cell {_N:02d}\\n" + traceback.format_exc() + "\\n" + "-" * 70 + "\\n")
 """)
 
 
@@ -268,8 +277,9 @@ print("-- slv.payment_lifecycle  (what the till captured)")
 pay.select("payment_event_id", "event_type", "payment_scheme", "amount_sar",
            "merchant_id", "business_date_ksa").show(truncate=False)
 print("-- slv.settlement_lines  (what the bank paid, and what it kept)")
-set_.select("payment_event_id", "txn_type", "gross_amount", "mdr_fee", "vat_on_fee",
-            "net_amount", "settlement_for_date_ksa", "settlement_status").show(truncate=False)
+set_.select("payment_event_id", "event_type", "gross_amount_sar", "acquirer_mdr_fee_sar",
+            "acquirer_vat_sar", "net_settled_sar", "settlement_for_date_ksa",
+            "settlement_status", "is_estimate").show(truncate=False)
 print("The fee is READ from the bank file at the bank's grain. It is never recomputed per line --")
 print("an acquirer rounds and nets on its own terms, and a recomputed fee is a fabricated number.")
 '''),

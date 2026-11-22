@@ -268,6 +268,27 @@ Direct Lake Control Tower (CFO Settlement | Tax ZATCA Health | CDO Data Trust) |
 Design decisions are in [docs/adr/](docs/adr/) (ADR-001 to ADR-016); the 14 invariants are in
 [invariants.md](invariants.md).
 
+### The diagrams
+
+Six, in [docs/diagrams/](docs/diagrams/), built by `scripts/build_diagrams.py`. Two of them are derived
+rather than drawn: the dbt lineage is read out of `dbt/target/manifest.json`, and the schema map's table
+names come from what `src/mizan/spark/*.py` actually writes. Neither can describe a shape the code does
+not have.
+
+![MIZAN-KSA architecture: sources, Bronze, Silver, Gold, consumption, and the control plane beneath](docs/diagrams/png/01_architecture.png)
+
+| | |
+|---|---|
+| [One sale, five systems](docs/diagrams/png/02_dataflow_one_sale.png) | the same SAR 138.00 purchase as the till, the card, the tax authority, the bank and the ledger each record it |
+| [The schema map](docs/diagrams/png/03_schema_map.png) | eight lakehouse schemas, `gld`, and the rules that are not negotiable |
+| [The ZATCA state machine](docs/diagrams/png/04_zatca_state_machine.png) | every edge labelled with its HTTP status, and what a non-definitive answer forces |
+| [The reconciliation spine](docs/diagrams/png/05_reconciliation_spine.png) | why it is a UNION spine and not a LEFT JOIN |
+| [dbt lineage](docs/diagrams/png/06_dbt_lineage.png) | 7 models over their inputs, generated from the manifest |
+
+The same six are published into Fabric by `scripts/fabric_walkthrough.py`, which builds
+**`nb_mizan_walkthrough`** in the workspace: each diagram sits above a cell that queries `LH_MIZAN` and
+`WH_MIZAN` live, so the picture and the evidence for it are on one screen inside the tenant.
+
 ### Operating it, and how far it is from production
 
 | | |
