@@ -1293,3 +1293,41 @@ twice.
 deploy and the test suite were running at once, and `tmp/staging` is a fixed shared path, so one process
 cleaned it under the other. The same contention mistake as earlier in this project. Nothing was run
 concurrently with the final suite.
+
+## 2026-11-22 — demo screenshots, and an Arabic layout bug they caught
+
+**What was built.** `scripts/demo_shots.py` drives the standalone Command Center with Playwright and
+captures the eight screenshots the README's Demo section describes, into `docs/artifacts/demo/`. Each shot
+gets a fresh browser page, because sharing one would leak a filter set in shot 2 into shot 4 and the images
+would quietly disagree with each other. Every shot waits for the 3D scale to stop swinging -- a photograph
+taken mid-swing shows an UNBALANCED scale, which is a picture of the opposite of the claim.
+
+**What it cannot do, stated plainly.** These are the **standalone** page, not the Fabric App. The Fabric
+App is behind a tenant sign-in, and a script has no business holding one. The standalone labels itself
+*exported Gold snapshot* where the Fabric App says *Live*; that label is the honest difference and is left
+in the images. Same code, same scenes, same figures. A shot that must evidence live DAX has to be taken by
+hand from the Fabric App, over the same filename.
+
+**The screenshots found a real bug, which is the whole argument for taking them.** Shot 7 is the Arabic
+right-to-left view. In it, the SAR 22,391,236.23 counter was sitting on top of the 3D scale, unreadable.
+
+The cause: `[dir="rtl"] .counter { direction: ltr }`. That rule exists for a good reason -- Arabic text
+flips, but a number must still read left to right, so `22,391,236.23` does not become `32.632,193,22`. The
+trouble is that `.counter` is a **flex row**, and `direction` on a flex container decides which edge its
+items pack against. Setting it to `ltr` packed the whole row against the **left** edge of a full-width
+container, which in the mirrored layout is the far side of the hero -- directly over the scale.
+
+Fixed with `justify-content: flex-end`, which puts the group back under the Arabic copy without touching
+the order of the numerals. `.prov` got `text-align: right` for the same reason. `template.html` is the
+source of truth, so the edit went there and `index.html` plus the three generated app files were rebuilt
+from it; nothing else in the diff.
+
+**What it proves.** No test was going to catch this. There is no assertion for "the number is on top of the
+picture". It took a human-shaped look at a rendered page -- which is exactly what the eight shots are for,
+and it paid for itself on the first run. Bilingual RTL is the part of a Saudi front end most likely to be
+broken and least likely to be checked.
+
+**Interview point.** "`direction: ltr` on a flex container does two jobs: it sets the reading order of the
+text *and* the packing edge of the flex items. I wanted the first and got the second for free, in the one
+language direction nobody tests."
+

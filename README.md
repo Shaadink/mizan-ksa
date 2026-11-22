@@ -60,16 +60,22 @@ app permission; viewers also need Build on the semantic model). Every figure is 
 "MIZAN Control Tower Model"; filters, clicks, search and the map all re-query it. A standalone copy
 (`command_center/index.html`) shows the same scenes from an exported snapshot.
 
-What to look at, in the order it makes sense:
+![The MIZAN Command Center hero: the scale settles at SAR 0.00](docs/artifacts/demo/01_hero.png)
 
-1. **The hero** - the scale settles at SAR 0.00 across 2,121 assessed merchant-days, with 112 held back as in transit.
-2. **City = Jeddah** - the heatmap and every KPI recompute from the semantic model.
-3. **One merchant-day, drilled** - every leg at once: captures, fees, bank paid, GL, both variances.
-4. **Press `B`** - a planted halala break tilts the scale and the candidate run refuses to publish.
-5. **ZATCA** - EGS cards, the outcome bar with the one rejection kept in the chain, the 24 h reporting window.
-6. **The map** - stores by city, coloured by reconciliation status, routed to the acquirer and the bank.
-7. **Press `L`** - Arabic, right to left, while charts, IDs and numbers stay left to right.
-8. **The life cycle** - sources to Gold to the Control Tower, each box linked to its proof.
+What to look at, in the order it makes sense. Each one links to a screenshot:
+
+1. **The hero** - the scale settles at SAR 0.00 across 2,121 assessed merchant-days, with 112 held back as in transit. ([shot](docs/artifacts/demo/01_hero.png))
+2. **City = Jeddah** - the heatmap and every KPI recompute from the semantic model. ([shot](docs/artifacts/demo/02_city_jeddah.png))
+3. **One merchant-day, drilled** - every leg at once: captures, fees, bank paid, GL, both variances. ([shot](docs/artifacts/demo/03_merchant_day_drill.png))
+4. **Press `B`** - a planted halala break tilts the scale and the candidate run refuses to publish. ([shot](docs/artifacts/demo/04_break_a_halala.png))
+5. **ZATCA** - EGS cards, the outcome bar with the one rejection kept in the chain, the 24 h reporting window. ([shot](docs/artifacts/demo/05_zatca_chain.png))
+6. **The map** - stores by city, coloured by reconciliation status, routed to the acquirer and the bank. ([shot](docs/artifacts/demo/06_store_map.png))
+7. **Press `L`** - Arabic, right to left, while charts, IDs and numbers stay left to right. ([shot](docs/artifacts/demo/07_arabic_rtl.png))
+8. **The life cycle** - sources to Gold to the Control Tower, each box linked to its proof. ([shot](docs/artifacts/demo/08_life_cycle.png))
+
+The screenshots are captured by `scripts/demo_shots.py` from the **standalone** page, which labels itself
+*exported Gold snapshot* where the Fabric App says *Live*. Same code, same scenes, same figures; the label is
+the honest difference and is left in the images.
 
 Keys: `P` presenter mode, `1`-`9` scenes, `T` trace one riyal, `B` break a halala, `L` Arabic, `Ctrl K` jump.
 

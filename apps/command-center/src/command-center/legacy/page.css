@@ -68,6 +68,11 @@ body.presenter { --chrome: 0px; --rail: 0px } body.presenter .topbar, body.prese
 [dir="rtl"] .stamp { right: auto; left: max(5vw, 16px); transform: rotate(6deg) }
 [dir="rtl"] .hero::after { background: linear-gradient(270deg, rgba(6,11,22,.92) 0%, rgba(6,11,22,.7) 34%, rgba(6,11,22,0) 58%) }
 [dir="rtl"] svg, [dir="rtl"] canvas, [dir="rtl"] .chain, [dir="rtl"] .mono, [dir="rtl"] .num, [dir="rtl"] table.t, [dir="rtl"] .counter, [dir="rtl"] .identity, [dir="rtl"] .prov { direction: ltr }
+/* direction:ltr keeps the digits reading left-to-right, but it also packs these flex rows against the
+   LEFT edge of a full-width container -- which in RTL is the far side of the hero, on top of the 3D scale.
+   flex-end puts the group back under the Arabic copy without touching the order of the numerals. */
+[dir="rtl"] .counter, [dir="rtl"] .identity { justify-content: flex-end }
+[dir="rtl"] .prov { text-align: right }
 [dir="rtl"] main p, [dir="rtl"] .row, [dir="rtl"] .breaker, [dir="rtl"] .sub, [dir="rtl"] .k-note, [dir="rtl"] .step, [dir="rtl"] .legend, [dir="rtl"] .kpi .k-lbl { direction: ltr }
 [lang="ar"] .scene-head h2, [lang="ar"] .scene-head .tag, [lang="ar"] .rail a span, [lang="ar"] .hero h1, [lang="ar"] .hero .lede, [lang="ar"] .btn { font-family: var(--f-ar); letter-spacing: 0 }
 body.rail-collapsed { --rail: 64px } body.rail-collapsed .rail a span, body.rail-collapsed .rail .rail-foot { display: none }
