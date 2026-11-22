@@ -102,7 +102,7 @@ The project's own rule is that **every figure is derived and never typed**, enfo
 | | |
 |---|---|
 | Python tests | 444 |
-| dbt tests | 99/99 — **local and on the Fabric warehouse** |
+| dbt build | 99/99 nodes - **local and on the Fabric warehouse**. 99 = 7 models + 89 tests + 3 seeds |
 | Fabric App tests | 184 (183 pass, 1 skip) |
 | Gold columns with traced lineage | 94 of 94, and the build fails without it |
 | Columns classified (NDMO 4-tier) | 354 across 27 tables |

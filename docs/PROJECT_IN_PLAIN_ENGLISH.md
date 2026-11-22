@@ -635,7 +635,7 @@ Keep this open while filming.
 | Golden customer records | 2,552 from 3,967 (precision 1.0000, recall 0.9625) |
 | Columns classified | 354 across 27 tables |
 | Gold columns traced | 94 of 94 |
-| dbt tests | **99/99 on both** the local target and WH_MIZAN (2026-11-21) |
+| dbt build | **99/99 nodes on both** the local target and WH_MIZAN (2026-11-21). 99 = 7 models + 89 tests + 3 seeds |
 | Stream events | 91,513 |
 | Skew benchmark | 20,000,000 rows |
 | Tests | 444 Python + 184 app (183 pass, 1 skip) |
