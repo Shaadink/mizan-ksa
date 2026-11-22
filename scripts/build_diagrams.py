@@ -288,32 +288,37 @@ def dataflow_one_sale() -> None:
     s.save("02_dataflow_one_sale.svg")
 
 
+# The eight lakehouse schemas and their tables, at module level so tests/test_diagrams.py can
+# check every name against what src/mizan/spark/*.py actually writes.
+LAKEHOUSE_TABLES = [
+    ("brz", GOLD, "raw, append-only",
+     ["commerce_events_raw", "payment_events_raw", "settlement_batches_raw", "erp_gl_raw",
+      "crm_party_raw", "spl_address_raw", "zatca_invoices_raw"]),
+    ("ctl", CYAN, "control, idempotency",
+     ["applied_event_ledger", "ingestion_watermarks", "invoice_outbox", "egs_chain_state",
+      "deletion_tombstones"]),
+    ("slv", CYAN, "typed, conformed",
+     ["payment_lifecycle", "settlement_lines", "erp_gl_journal_lines", "zatca_invoice_documents",
+      "golden_party_scd2", "identifier_registry", "entity_merge_ledger", "address_observations"]),
+    ("quarantine", CRIT, "never an else branch",
+     ["schema_rejections", "settlement_breaks", "zatca_chain_violations", "mdm_match_conflicts"]),
+    ("security", CRIT, "PDPL, zero retention",
+     ["subject_token_map", "pii_vault_metadata"]),
+    ("audit", WARN, "write-once evidence",
+     ["zatca_chain_journal", "benchmarks"]),
+    ("meta", VIOLET, "catalogue",
+     ["column_classification"]),
+    ("ai", VIOLET, "governed retrieval",
+     ["policy_chunks", "agent_audit_log"]),
+]
+
+
 # ----------------------------------------------------------------------------- 03 schema map
 def schema_map() -> None:
     s = Svg(1680, 880, "LH_MIZAN and WH_MIZAN: the schemas, and what guards each one",
             "Eight schemas in the lakehouse, one in the warehouse. Names are frozen by the blueprint; "
             "these are the tables the Spark layer actually writes.")
-    schemas = [
-        ("brz", GOLD, "raw, append-only",
-         ["commerce_events_raw", "payment_events_raw", "settlement_batches_raw", "erp_gl_raw",
-          "crm_party_raw", "spl_address_raw", "zatca_invoices_raw"]),
-        ("ctl", CYAN, "control, idempotency",
-         ["applied_event_ledger", "ingestion_watermarks", "invoice_outbox", "egs_chain_state",
-          "deletion_tombstones"]),
-        ("slv", CYAN, "typed, conformed",
-         ["payment_lifecycle", "settlement_lines", "erp_gl_journal_lines", "zatca_invoice_documents",
-          "golden_party_scd2", "identifier_registry", "entity_merge_ledger", "address_observations"]),
-        ("quarantine", CRIT, "never an else branch",
-         ["schema_rejections", "settlement_breaks", "zatca_chain_violations", "mdm_match_conflicts"]),
-        ("security", CRIT, "PDPL, zero retention",
-         ["subject_token_map", "pii_vault_metadata"]),
-        ("audit", WARN, "write-once evidence",
-         ["zatca_chain_journal", "benchmarks"]),
-        ("meta", VIOLET, "catalogue",
-         ["column_classification"]),
-        ("ai", VIOLET, "governed retrieval",
-         ["policy_chunks", "agent_audit_log"]),
-    ]
+    schemas = LAKEHOUSE_TABLES
     x, y = 40, 132
     cols, cw, ch = 4, 384, 186
     s.text(40, 112, "LH_MIZAN   (OneLake Delta lakehouse)", size=13, weight=700, fill=INK, mono=True)
