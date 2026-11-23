@@ -206,3 +206,35 @@ def test_internal_columns_are_hidden_from_the_field_list():
     assert "isHidden" in watermark, "the watermark column is browsable in the report field list"
     business = tmdl.split("column merchant_id", 1)[1].split("column ", 1)[0]
     assert "isHidden" not in business, "a business column was hidden; the rule is too broad"
+
+
+def test_no_fact_table_floats_unconnected():
+    """Fabric's model view draws exactly what the model says, so a floating table is visible to anyone.
+
+    It is also a real defect, not a cosmetic one: a table with no relationship cannot be sliced by date,
+    city or channel, which is the first thing a reader of the report will try. Found on 2026-11-23 --
+    fact_merchant_dispute_monitor had no relationship at all.
+
+    A table may be standalone only if it says why in UNRELATED_BY_DESIGN.
+    """
+    joined = set()
+    for _name, from_col, to_col in PB.RELATIONSHIPS:
+        joined.add(from_col.split(".")[0])
+        joined.add(to_col.split(".")[0])
+    floating = set(PB.TABLES) - joined - set(PB.UNRELATED_BY_DESIGN)
+    assert not floating, f"these tables hang off nothing and no reason is recorded: {sorted(floating)}"
+
+
+def test_every_relationship_points_at_a_table_in_the_model():
+    """A relationship to a table that is not shipped would break the model refresh, not just the picture."""
+    for name, from_col, to_col in PB.RELATIONSHIPS:
+        for col in (from_col, to_col):
+            table, _, column = col.partition(".")
+            assert table in PB.TABLES, f"{name}: {table} is not in TABLES"
+            assert column, f"{name}: {col} names no column"
+
+
+def test_relationship_names_are_unique():
+    """lineageTag is derived from the name, so a duplicate would silently overwrite a relationship."""
+    names = [n for n, _f, _t in PB.RELATIONSHIPS]
+    assert len(names) == len(set(names))

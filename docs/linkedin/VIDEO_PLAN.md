@@ -33,6 +33,35 @@ Here is the honest split, because a viewer who knows Fabric will work it out any
 The three on the right get **eight seconds total**, in one honest beat near the end. They are real, they
 matter, and pretending they run in Fabric would be the one lie in the video.
 
+### 1b. The diagrams in the video are Fabric's own, not pictures of Fabric.
+
+`docs/diagrams/` holds six SVGs this project draws. They are good for the README and for a thumbnail, and
+they are **not** what the video should lead with, because a picture of an architecture proves nothing
+about whether that architecture exists.
+
+Fabric draws five diagrams itself, from the real items. Those are the ones to film. Each is a live view
+of the tenant: if an item were missing or disconnected, the diagram would show it.
+
+| Fabric's own diagram | Where | What it proves that a drawing cannot |
+|---|---|---|
+| **Task flow** | across the top of the workspace | the whole platform as seven labelled tasks with real items clipped to each. Seven tasks, five connectors, named *MIZAN platform*. Imported from `docs/fabric/mizan_task_flow.json` |
+| **Lineage view** | workspace -> **Lineage** (top right) | Fabric traced it, not me: lakehouse -> SQL endpoint -> warehouse -> semantic model -> report -> app. Impact analysis from any node |
+| **Model view** | `MIZAN Control Tower Model` -> **Model** | the star schema, drawn from the real relationships: two dimensions, four facts, six relationships |
+| **Eventstream canvas** | `ES_MIZAN` | source -> transform -> destination, as a live flow with throughput on it |
+| **Airflow DAG graph** | `AF_MIZAN` -> Monitor DAG -> Graph | six tasks with real durations and a real fan-out |
+
+A sixth, if you want it: the **Spark UI DAG** for a notebook run, which draws the actual query plan - the
+salted skew join is visible in it as the stage that fans out to 16.
+
+**The honest note about the task flow.** It is a label layer: it creates nothing, moves nothing and runs
+nothing. There is also no REST API for it - probed on 2026-11-19, `GET /v1/workspaces/{ws}/taskFlow` and
+its variants all return 404 while `/items` returns 200 - so it is the one part of MIZAN that was
+assembled by hand in the portal. Worth saying in an interview rather than implying it was scripted.
+
+**Where my six SVGs still belong.** In the README, where there is no tenant to open; as the thumbnail;
+and inside `nb_mizan_walkthrough`, where each one sits above the query that proves it. In the video they
+are a cutaway, not the main evidence.
+
 ### 2. Open on the failure, not on the platform.
 
 Seconds 0-3 are the only ones you are guaranteed. An item list is a screenshot of a filing cabinet.
@@ -79,21 +108,27 @@ The act a data engineer is actually judging. Four shots, eight seconds each, mou
 | 0:24 - 0:32 | Click into `silver_build` -> **Spark UI** -> Stages. Show the skew: 20M rows, 62:1, the salted join | 20M rows at 62:1 skew, salted to 16. Same checksum three ways. |
 | 0:32 - 0:40 | Back to the workspace item list, slow scroll: lakehouse, warehouse, eventhouse, eventstream, semantic model, report, app, notebooks | One workspace. Nothing runs on my laptop. |
 
-### Act 2 - The architecture, from inside the tenant (0:40 - 1:00) - `nb_mizan_walkthrough`
+### Act 2 - The architecture, drawn by Fabric (0:40 - 1:00) - task flow, lineage, model view
+
+Three of Fabric's own diagrams, back to back. None of them is a picture I drew; each is rendered from the
+items that exist, which is why they are worth more than the SVGs.
 
 | Time | On screen | Caption |
 |---|---|---|
-| 0:40 - 0:48 | Open `nb_mizan_walkthrough`. Section 1: the architecture diagram, full width | Five columns of data plane. One band of control plane. |
-| 0:48 - 1:00 | Scroll to section 2, **run the cell**: 28 tables, 439,192 rows printed live | Eight schemas. Read live, through the same code the jobs run. |
+| 0:40 - 0:47 | The workspace **task flow** across the top: seven tasks, five connectors, items clipped to each. Click **Store** so the pane shows its items | Seven tasks. Every item in the workspace belongs to exactly one. |
+| 0:47 - 0:54 | Workspace -> **Lineage**. Let the graph draw: lakehouse -> SQL endpoint -> warehouse -> semantic model -> report -> app. Hover one node for impact analysis | Fabric traced this, not me. |
+| 0:54 - 1:00 | `MIZAN Control Tower Model` -> **Model** view: the star schema, six relationships | Two dimensions, four facts, six relationships. |
 
-Run the cell on camera. The output appearing is the whole point; a pre-run notebook looks identical to a
-screenshot, and a viewer cannot tell the difference between the two except by watching it happen.
+If you want the SVG architecture diagram in the video at all, it belongs here as a two-second cutaway
+between the task flow and the lineage view - as a legend for what Fabric is about to show, not as the
+evidence itself.
 
 ### Act 3 - One sale, five systems (1:00 - 1:20) - notebook + lakehouse explorer
 
 | Time | On screen | Caption |
 |---|---|---|
-| 1:00 - 1:08 | Section 3: the dataflow diagram | Five systems record the same sale. None of them agree. |
+| 1:00 - 1:04 | `nb_mizan_walkthrough`, section 2, **run the cell**: 28 tables, 439,192 rows printed live | Eight schemas, read live through the same code the jobs run. |
+| 1:04 - 1:08 | Section 3: the dataflow diagram | Five systems record the same sale. None of them agree. |
 | 1:08 - 1:20 | Run the trace cell: one `payment_event_id` printed from `slv.payment_lifecycle` and `slv.settlement_lines` side by side | The MDR fee is read from the bank file. Never recomputed. |
 
 ### Act 4 - Reconciliation (1:20 - 1:45) - notebook + `WH_MIZAN` query editor

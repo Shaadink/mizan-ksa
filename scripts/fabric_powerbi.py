@@ -343,6 +343,29 @@ def tag(*parts: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "mizan-ksa/" + "/".join(parts)))
 
 
+# Every relationship in the semantic model, at module level so tests/test_powerbi_report.py can check
+# that no fact table is left floating. A table with no relationship is not just untidy in Fabric's model
+# view -- it cannot be sliced by anything, which is the first thing a reader of the report will try.
+RELATIONSHIPS = (
+    ("rel-recon-date", "fact_merchant_settlement_recon.business_date_ksa", "dim_date_saudi.calendar_date"),
+    ("rel-zatca-date", "fact_zatca_clearance_ledger.issue_date_ksa", "dim_date_saudi.calendar_date"),
+    ("rel-recon-store", "fact_merchant_settlement_recon.merchant_id",
+     "merchant_store_reference.merchant_id"),
+    ("rel-paymethod-store", "fact_payment_method_daily.merchant_id",
+     "merchant_store_reference.merchant_id"),
+    ("rel-paymethod-date", "fact_payment_method_daily.business_date_ksa", "dim_date_saudi.calendar_date"),
+    # The dispute monitor's grain is one row per merchant over the whole window, so it has a merchant key
+    # and no date key. merchant_store_reference is one row per merchant (121 rows, 121 distinct ids), so
+    # it is a valid one side. Added 2026-11-23; without it this fact floated unattached.
+    ("rel-dispute-store", "fact_merchant_dispute_monitor.merchant_id",
+     "merchant_store_reference.merchant_id"),
+)
+
+# Deliberately connected to nothing, with the reason. mart_ndmo_scorecard is a governance scorecard whose
+# grain is the catalogue, not a merchant or a day: there is no honest key to join it on.
+UNRELATED_BY_DESIGN = {"mart_ndmo_scorecard": "governance scorecard; no merchant or date grain"}
+
+
 def model_parts(cols: dict[str, list[tuple[str, str]]]) -> dict[str, str]:
     endpoint, wh = os.environ["FABRIC_SQL_ENDPOINT"], os.environ["WH_MIZAN_ID"]
     parts = {"definition.pbism": json.dumps({"version": "4.0", "settings": {}}),
@@ -354,21 +377,8 @@ def model_parts(cols: dict[str, list[tuple[str, str]]]) -> dict[str, str]:
     model = ["model Model", "\tculture: en-US", "\tdefaultPowerBIDataSourceVersion: powerBI_V3",
              "\tsourceQueryCulture: en-US", ""]
     model += [f"ref table {t}" for t in TABLES]
-    model += ["", "relationship " + tag("rel-recon-date"),
-              "\tfromColumn: fact_merchant_settlement_recon.business_date_ksa",
-              "\ttoColumn: dim_date_saudi.calendar_date", "",
-              "relationship " + tag("rel-zatca-date"),
-              "\tfromColumn: fact_zatca_clearance_ledger.issue_date_ksa",
-              "\ttoColumn: dim_date_saudi.calendar_date", "",
-              "relationship " + tag("rel-recon-store"),
-              "\tfromColumn: fact_merchant_settlement_recon.merchant_id",
-              "\ttoColumn: merchant_store_reference.merchant_id", "",
-              "relationship " + tag("rel-paymethod-store"),
-              "\tfromColumn: fact_payment_method_daily.merchant_id",
-              "\ttoColumn: merchant_store_reference.merchant_id", "",
-              "relationship " + tag("rel-paymethod-date"),
-              "\tfromColumn: fact_payment_method_daily.business_date_ksa",
-              "\ttoColumn: dim_date_saudi.calendar_date", ""]
+    for name, from_col, to_col in RELATIONSHIPS:
+        model += ["", "relationship " + tag(name), f"	fromColumn: {from_col}", f"	toColumn: {to_col}", ""]
     parts["definition/model.tmdl"] = "\n".join(model) + "\n"
     for t in TABLES:
         lines = [f"table {t}", f"\tlineageTag: {tag(t)}", ""]
