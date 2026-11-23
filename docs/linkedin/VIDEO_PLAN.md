@@ -1,13 +1,13 @@
 # MIZAN-KSA launch video - the recording plan
 
-**2:30. Shot inside Microsoft Fabric. Seven short clips, recorded separately, then joined.**
+**2:30. Shot inside Microsoft Fabric. Eight short clips, recorded separately, then joined.**
 
 Read Part 1, do Part 2, then record Part 3 clip by clip. Everything after that is background and can wait
 until you have the footage. Supersedes `VIDEO_SHOT_LIST.md`.
 
 ---
 
-## Part 1. The seven things you must show
+## Part 1. The nine things you must show
 
 Nothing else earns a place. If a shot does not make one of these points, cut it.
 
@@ -20,6 +20,8 @@ Nothing else earns a place. If a shot does not make one of these points, cut it.
 | 5 | **The money actually reconciles** | A T-SQL query in the warehouse returning 0.00 |
 | 6 | **The tax chain survives a crash** | 25,001 invoices, 0 ICV gaps, 0 PIH breaks |
 | 7 | **It works in Arabic** | Press `L`; the page mirrors, numerals stay left to right |
+| 8 | **dbt builds and tests the Gold layer** | `dbt build --target fabric` -> `PASS=99 ERROR=0` |
+| 9 | **Lineage is tracked to the column** | Marquez: click a Gold column, trace it back to Bronze |
 
 Then one closing beat: **what it is not** (synthetic data, not certified, one engineer), and your name.
 
@@ -55,7 +57,7 @@ Four of these need **you**, because they need your sign-in or they cost capacity
 
 ---
 
-## Part 3. The seven clips
+## Part 3. The eight clips
 
 Record each one **separately**. Three takes each, keep the best. Do not attempt one continuous take - you
 will fail at minute four and start again, five times.
@@ -113,10 +115,24 @@ with its output already in it looks exactly like a screenshot.
 
 Captions: *"Read live, through the same code the jobs run."* then *"25,001 e-invoices. Zero chain breaks."*
 
-### Clip 5 - The money reconciles (25 s) - the warehouse
+### Clip 5 - dbt built it, and the money reconciles (32 s) - terminal + warehouse
 
-**Type the query. Do not paste it.** Watching someone type a query and get 0.00 is the most convincing
-thing in this video, and pasting throws that away.
+Two halves. The first names dbt, which otherwise only appears in this video as a word inside a red error
+line - and dbt-fabric is one of the most valuable things on the CV this video supports.
+
+**Part A, the build (8 s on screen).** Start it before you record; it takes minutes.
+
+1. Terminal, full screen, large font:
+   `cd dbt; ..\.venv\Scripts\dbt.exe build --profiles-dir . --target fabric; cd ..`
+   (the same line README.md gives, so there is one command for this and not two)
+2. Record the tail of the run and let it land on **`PASS=99 ERROR=0`**. Hold 3 seconds.
+3. In the edit, speed this to 8x. A time-lapsed build is normal and reads as honest; a cut straight to a
+   finished screen looks exactly like what it would be.
+
+Caption: *"dbt builds and tests the Gold layer in the warehouse. 99 nodes, all green."*
+
+**Part B, the query (24 s).** **Type it. Do not paste.** Watching someone type a query and get 0.00 is
+the most convincing thing in this video, and pasting throws that away.
 
 1. Workspace -> click **`WH_MIZAN`**.
 2. Click **New SQL query**.
@@ -129,6 +145,32 @@ thing in this video, and pasting throws that away.
 4. Click **Run**. Two zeros come back. Hold 4 seconds.
 
 Caption: *"SAR 22.39M across 2,233 merchant-days. Both variances: zero."*
+
+### Clip 5b - The half that does not run in Fabric (12 s) - Marquez and CI
+
+Optional in the sense that the video works without it. Recommended, because column-level lineage is rare
+in a portfolio project and this is the clip that reads as senior.
+
+Set up first (about 10 minutes):
+
+```
+docker compose -f docker/docker-compose.airflow.yml up -d
+.\.venv\Scripts\python.exe -m mizan.lineage.openlineage --marquez http://localhost:5000/api/v1/lineage
+```
+
+1. **`localhost:3000`** - Marquez. The lineage graph draws. Hold 2 seconds.
+2. **Click one Gold column.** It traces back through Silver to Bronze. Hold 4 seconds.
+3. Cut to **GitHub Actions**, newest run, three green jobs. Hold 3 seconds.
+
+Caption: *"OpenLineage and CI: 94 of 94 Gold columns traced. The half that does not run in Fabric."*
+
+Saying out loud that part of the stack is not in Fabric costs four seconds and buys more credibility than
+any feature would. A viewer who knows Fabric will work it out anyway; better that they hear it from you.
+
+**Docker is deliberately not a shot of its own.** Everyone has run `docker compose up`, so a terminal of
+containers starting proves nothing a reviewer did not already assume - and it is how Marquez is running
+here anyway, so the container stack is shown implicitly. It belongs in the post text and the README,
+where listing it is free.
 
 ### Clip 6 - Interrogable, and bilingual (30 s) - Command Center
 
@@ -172,7 +214,7 @@ The part most technical demos get wrong.
 
 ## Part 5. Editing and export
 
-1. Join the seven clips in order.
+1. Join the clips in order: 1, 2, 3, 4, 5, 5b, 6, 7.
 2. Trim dead air at the start and end of each. Aim for **2:30**; if you are over, take it out of Clips 2
    and 6, never Clip 1 or Clip 7.
 3. **Burn the captions in.** Do not rely on LinkedIn's auto-captions - they will mangle "halala", "ZATCA"
