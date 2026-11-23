@@ -101,7 +101,7 @@ The project's own rule is that **every figure is derived and never typed**, enfo
 
 | | |
 |---|---|
-| Python tests | 444 |
+| Python tests | 461 |
 | dbt build | 99/99 nodes - **local and on the Fabric warehouse**. 99 = 7 models + 89 tests + 3 seeds |
 | Fabric App tests | 184 (183 pass, 1 skip) |
 | Gold columns with traced lineage | 94 of 94, and the build fails without it |
@@ -216,7 +216,7 @@ production in 12–18 months with a team of 3–4.
   Apache Airflow job.
 - **Marquez** lineage graph, 94 columns.
 - **Airflow DAG** graph, and a generated SVG of the same shape.
-- Terminal output: 444 Python tests, dbt 99/99 on Fabric.
+- Terminal output: 461 Python tests, dbt 99/99 on Fabric.
 - A **public live site**, no login.
 - Public GitHub repository with ADRs and HONESTY.md.
 

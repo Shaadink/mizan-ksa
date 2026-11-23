@@ -14,6 +14,7 @@ this. The canonical values come from scripts/facts.py, which reads Gold.
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -104,3 +105,44 @@ def test_variances_are_zero_or_the_headline_is_false(f):
     assert f["bank_variance_sar"] == "0.00"
     assert f["gl_variance_sar"] == "0.00"
     assert f["unclassified_events"] == 0
+
+
+def test_claimed_python_test_count_matches_the_suite() -> None:
+    """Every front page states a Python test count. Collect the suite and check they are telling the truth.
+
+    This number drifted twice. The LinkedIn draft said 302 when the suite collected 444, and once that was
+    corrected the docs said 444 while the suite had grown to 460 -- exactly the sixteen tests added that
+    week. Both times the number was wrong on the README a recruiter reads, and both times only a human
+    noticed. A count that is asserted nowhere is a count that rots.
+
+    Collection, not execution: `--collect-only` imports the test modules and counts, so this costs about a
+    second and cannot recurse, because collecting never runs a test body.
+    """
+    out = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"],
+        cwd=REPO, capture_output=True, text=True, timeout=600)
+    match = re.search(r"(\d+)\s+tests? collected", out.stdout)
+    assert match, f"could not read a collected count from pytest:\n{out.stdout[-2000:]}"
+    collected = int(match.group(1))
+
+    claimed_in: dict[str, set[int]] = {}
+    for rel in ("README.md", "docs/ONE_PAGER.md", "docs/PROJECT_IN_PLAIN_ENGLISH.md",
+                "docs/linkedin/LINKEDIN_POST.md", "docs/linkedin/MASTER_BRIEF.md",
+                "docs/linkedin/VIDEO_PLAN.md"):
+        text = _text(rel)
+        # Four phrasings are in use across the front pages, and the first version of this test only knew
+        # two of them -- so ONE_PAGER and PROJECT_IN_PLAIN_ENGLISH would have rotted silently while the
+        # test stayed green. A guard that checks some of the places is worse than no guard, because it
+        # reads as coverage.
+        found = {int(n) for n in re.findall(r"(\d{3,4})\s*(?:\*\*)?\s*Python tests", text)}
+        found |= {int(n) for n in re.findall(r"\|\s*Python tests\s*\|\s*(\d{3,4})", text)}
+        found |= {int(n) for n in re.findall(r"(\d{3,4})\s*(?:\*\*)?\s*Python\s*[,+]", text)}
+        found |= {int(n) for n in re.findall(r"(\d{3,4})\s*(?:\*\*)?\s*automated tests", text)}
+        if found:
+            claimed_in[rel] = found
+
+    assert claimed_in, "no front page states a Python test count any more -- the claim was dropped, not fixed"
+    wrong = {rel: sorted(v) for rel, v in claimed_in.items() if v != {collected}}
+    assert not wrong, (
+        f"the suite collects {collected} Python tests, but these pages claim otherwise: {wrong}. "
+        f"Update the pages (not this test) -- the number is on the README recruiters read.")

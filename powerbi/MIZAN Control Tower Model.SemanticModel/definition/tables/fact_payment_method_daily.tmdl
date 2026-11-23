@@ -100,6 +100,13 @@ table fact_payment_method_daily
 		sourceColumn: quarantined_sar
 		formatString: #,0.00
 
+	column last_source_arrival_at
+		dataType: dateTime
+		lineageTag: 05207a6d-9daa-54b3-b6e2-b8883833ded9
+		summarizeBy: none
+		sourceColumn: last_source_arrival_at
+		isHidden
+
 	partition fact_payment_method_daily = entity
 		mode: directLake
 		source

@@ -15,19 +15,28 @@ relationship e1ac79b0-8d85-59f9-85f2-95c2b97ed4df
 	fromColumn: fact_merchant_settlement_recon.business_date_ksa
 	toColumn: dim_date_saudi.calendar_date
 
+
 relationship 042db782-c5aa-5c33-bb30-bc6ba435a5fe
 	fromColumn: fact_zatca_clearance_ledger.issue_date_ksa
 	toColumn: dim_date_saudi.calendar_date
+
 
 relationship cdb1b283-3a09-5dc7-b0e3-aba436f51ac9
 	fromColumn: fact_merchant_settlement_recon.merchant_id
 	toColumn: merchant_store_reference.merchant_id
 
+
 relationship e8e149b7-44fb-5b44-9e2c-af3dc261cec0
 	fromColumn: fact_payment_method_daily.merchant_id
 	toColumn: merchant_store_reference.merchant_id
 
+
 relationship fe497ea2-6c4e-5eaf-84ce-da7f5e3a8b0b
 	fromColumn: fact_payment_method_daily.business_date_ksa
 	toColumn: dim_date_saudi.calendar_date
+
+
+relationship 85eb2da6-bc58-5a29-923d-a3f25890b7f2
+	fromColumn: fact_merchant_dispute_monitor.merchant_id
+	toColumn: merchant_store_reference.merchant_id
 

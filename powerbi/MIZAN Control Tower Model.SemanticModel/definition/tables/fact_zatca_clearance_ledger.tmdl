@@ -120,6 +120,13 @@ table fact_zatca_clearance_ledger
 		sourceColumn: total_incl_vat_sar
 		formatString: #,0.00
 
+	column last_source_arrival_at
+		dataType: dateTime
+		lineageTag: 55f81fe8-af07-51bf-b10d-db9caf09ceca
+		summarizeBy: none
+		sourceColumn: last_source_arrival_at
+		isHidden
+
 	partition fact_zatca_clearance_ledger = entity
 		mode: directLake
 		source

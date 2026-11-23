@@ -153,6 +153,13 @@ table fact_merchant_settlement_recon
 		summarizeBy: none
 		sourceColumn: unclassified_events
 
+	column last_source_arrival_at
+		dataType: dateTime
+		lineageTag: cc5aeeeb-6a10-5869-89b9-7c76f86c1228
+		summarizeBy: none
+		sourceColumn: last_source_arrival_at
+		isHidden
+
 	partition fact_merchant_settlement_recon = entity
 		mode: directLake
 		source
