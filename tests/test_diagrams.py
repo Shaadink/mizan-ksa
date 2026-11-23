@@ -98,3 +98,53 @@ def test_the_generator_is_the_only_author(builder) -> None:
     for stem in EXPECTED:
         assert "do not edit the SVG by hand" in (DIAGRAMS / f"{stem}.svg").read_text(encoding="utf-8")
     assert builder.STAMP.startswith("MIZAN-KSA")
+
+
+def test_exported_dataflow_spec_matches_the_module_it_came_from(builder) -> None:
+    """The JSON the Remotion animation reads must still be what the SVG is drawn from.
+
+    The animation lives outside this repository, in d:/mizan-video, because Remotion drags in a Chromium
+    and several hundred megabytes of node_modules. The spec crosses that boundary as one JSON file. The
+    failure this guards is quiet: rename a Silver table, rebuild the diagram, and the README picture
+    updates while the video still shows the old name -- and nothing compares a picture to a video.
+    """
+    import json
+
+    BRZ, SLV, SLVSUB, SPINE = builder.BRZ, builder.SLV, builder.SLVSUB, builder.SPINE
+    LANES, DATAFLOW_TITLE, DATAFLOW_SUB = builder.LANES, builder.DATAFLOW_TITLE, builder.DATAFLOW_SUB
+
+    exported = REPO / "docs" / "diagrams" / "dataflow_spec.json"
+    assert exported.exists(), (
+        "docs/diagrams/dataflow_spec.json is missing -- run scripts/export_diagram_spec.py")
+    data = json.loads(exported.read_text(encoding="utf-8"))
+
+    assert data["title"] == DATAFLOW_TITLE
+    assert data["subtitle"] == DATAFLOW_SUB
+    assert len(data["lanes"]) == len(LANES) == len(BRZ) == len(SLV) == len(SLVSUB)
+    for i, (lane, (name, src, accent, facts)) in enumerate(zip(data["lanes"], LANES, strict=True)):
+        assert lane["name"] == name
+        assert lane["source"] == src
+        assert lane["accent"] == accent
+        assert lane["facts"] == list(facts)
+        assert lane["bronze"] == BRZ[i]
+        assert lane["silver"] == SLV[i]
+        assert lane["silver_note"] == SLVSUB[i]
+    assert [(r["label"], r["value"], r["accent"]) for r in data["spine"]] == [tuple(r) for r in SPINE]
+
+
+def test_the_order_lane_never_reaches_the_spine_in_the_export() -> None:
+    """`reaches_spine` is data, so the animation cannot draw an arrow the pipeline does not perform.
+
+    brz.commerce_events_raw does NOT feed slv.payment_lifecycle. The order stays in Bronze and is read
+    by the PDPL right-of-access path and the governed AI index. The first draft of the SVG drew that
+    arrow anyway, because it is the join a reader expects; `src/mizan/spark/silver.py` does not do it.
+    An animation is a worse place to find that out than a diagram, so it is asserted here too.
+    """
+    import json
+
+    data = json.loads((REPO / "docs" / "diagrams" / "dataflow_spec.json").read_text(encoding="utf-8"))
+    by_name = {lane["name"]: lane for lane in data["lanes"]}
+    assert by_name["THE TILL"]["reaches_spine"] is False, (
+        "the order lane must not be drawn into the money spine")
+    for other in ("THE CARD", "THE TAX AUTHORITY", "THE BANK", "THE LEDGER"):
+        assert by_name[other]["reaches_spine"] is True, f"{other} is a leg of the spine and must reach it"

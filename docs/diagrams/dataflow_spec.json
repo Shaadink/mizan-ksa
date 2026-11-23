@@ -1,0 +1,137 @@
+{
+  "_generated_by": "scripts/export_diagram_spec.py -- do not edit by hand",
+  "title": "One sale, five systems, one answer",
+  "subtitle": "The same SAR 138.00 purchase as each system records it -- and the three legs that must agree to the halala.",
+  "palette": {
+    "night": "#060b16",
+    "panel": "#0a1324",
+    "line": "#1e2b45",
+    "ink": "#e8eef7",
+    "muted": "#a9b6c9",
+    "dim": "#6b7a90",
+    "gold": "#d9b25f",
+    "emerald": "#2fbf8f",
+    "cyan": "#5cc8ff",
+    "violet": "#9b8cff",
+    "crit": "#ff5d63",
+    "warn": "#f0a73c"
+  },
+  "lanes": [
+    {
+      "name": "THE TILL",
+      "source": "commerce_events.csv",
+      "accent": "#d9b25f",
+      "facts": [
+        "ORDER_PLACED",
+        "order_id ORD-004112",
+        "amount_sar 138.00",
+        "event_ts_utc 09:14:22Z"
+      ],
+      "bronze": "brz.commerce_events_raw",
+      "silver": "(stays in Bronze: PDPL subject access + ai index)",
+      "silver_note": "not a leg of the money spine",
+      "reaches_spine": false
+    },
+    {
+      "name": "THE CARD",
+      "source": "payment_events.csv",
+      "accent": "#5cc8ff",
+      "facts": [
+        "CAPTURE  MADA",
+        "payment_event_id PE-88301",
+        "amount_sar 138.00",
+        "positive; sign is the type"
+      ],
+      "bronze": "brz.payment_events_raw",
+      "silver": "slv.payment_lifecycle",
+      "silver_note": "typed, deduped, conformed",
+      "reaches_spine": true
+    },
+    {
+      "name": "THE TAX AUTHORITY",
+      "source": "zatca/invoice_requests.jsonl",
+      "accent": "#9b8cff",
+      "facts": [
+        "REPORTING (simplified)",
+        "invoice_uuid 0ec9539b...",
+        "ICV 103, PIH = prev hash",
+        "total_incl_vat 138.00"
+      ],
+      "bronze": "brz.zatca_invoices_raw",
+      "silver": "slv.zatca_invoice_documents",
+      "silver_note": "typed, deduped, conformed",
+      "reaches_spine": true
+    },
+    {
+      "name": "THE BANK",
+      "source": "NAJDACQ_SETTLEMENT_20260215.csv",
+      "accent": "#2fbf8f",
+      "facts": [
+        "PURCHASE  CR",
+        "payment_event_id PE-88301",
+        "gross 138.00  mdr 0.83",
+        "vat_on_fee 0.12  net 137.05"
+      ],
+      "bronze": "brz.settlement_batches_raw",
+      "silver": "slv.settlement_lines",
+      "silver_note": "typed, deduped, conformed",
+      "reaches_spine": true
+    },
+    {
+      "name": "THE LEDGER",
+      "source": "erp_gl_acdoca.csv",
+      "accent": "#f0a73c",
+      "facts": [
+        "BELNR 4900031881",
+        "RACCT card clearing  DRCRK S",
+        "HSL 138.00",
+        "BUDAT 20260213"
+      ],
+      "bronze": "brz.erp_gl_raw",
+      "silver": "slv.erp_gl_journal_lines",
+      "silver_note": "typed, deduped, conformed",
+      "reaches_spine": true
+    }
+  ],
+  "spine": [
+    {
+      "label": "payments",
+      "value": "138.00",
+      "accent": "#5cc8ff"
+    },
+    {
+      "label": "- fees from the bank file",
+      "value": "0.95",
+      "accent": "#2fbf8f"
+    },
+    {
+      "label": "= expected net payable",
+      "value": "137.05",
+      "accent": "#e8eef7"
+    },
+    {
+      "label": "bank paid",
+      "value": "137.05",
+      "accent": "#2fbf8f"
+    },
+    {
+      "label": "GL card clearing",
+      "value": "138.00",
+      "accent": "#f0a73c"
+    }
+  ],
+  "verdicts": [
+    {
+      "label": "unexplained_bank_variance",
+      "value": "0.00"
+    },
+    {
+      "label": "unexplained_gl_variance",
+      "value": "0.00"
+    },
+    {
+      "label": "unclassified_events",
+      "value": "0"
+    }
+  ]
+}

@@ -196,22 +196,44 @@ def _wrap(text: str, width: int) -> list[str]:
 
 
 # ----------------------------------------------------------------------------- 02 one sale
+# Lifted to module level 2026-11-23 so the Remotion animation reads the SAME five lanes this SVG is
+# drawn from, rather than a hand-copied duplicate that would drift the first time a table is renamed.
+# The order lane is deliberately NOT a leg of the money spine: it stays in Bronze and is read by the
+# PDPL right-of-access path and the governed AI index. Drawing it into payment_lifecycle would be a
+# picture of a join the code does not do.
+DATAFLOW_TITLE = "One sale, five systems, one answer"
+DATAFLOW_SUB = ("The same SAR 138.00 purchase as each system records it -- and the three legs that must "
+                "agree to the halala.")
+
+LANES = [("THE TILL", "commerce_events.csv", GOLD,
+          ["ORDER_PLACED", "order_id ORD-004112", "amount_sar 138.00", "event_ts_utc 09:14:22Z"]),
+         ("THE CARD", "payment_events.csv", CYAN,
+          ["CAPTURE  MADA", "payment_event_id PE-88301", "amount_sar 138.00", "positive; sign is the type"]),
+         ("THE TAX AUTHORITY", "zatca/invoice_requests.jsonl", VIOLET,
+          ["REPORTING (simplified)", "invoice_uuid 0ec9539b...", "ICV 103, PIH = prev hash",
+           "total_incl_vat 138.00"]),
+         ("THE BANK", "NAJDACQ_SETTLEMENT_20260215.csv", EMERALD,
+          ["PURCHASE  CR", "payment_event_id PE-88301", "gross 138.00  mdr 0.83",
+           "vat_on_fee 0.12  net 137.05"]),
+         ("THE LEDGER", "erp_gl_acdoca.csv", WARN,
+          ["BELNR 4900031881", "RACCT card clearing  DRCRK S", "HSL 138.00", "BUDAT 20260213"])]
+
+BRZ = ["brz.commerce_events_raw", "brz.payment_events_raw", "brz.zatca_invoices_raw",
+       "brz.settlement_batches_raw", "brz.erp_gl_raw"]
+SLV = ["(stays in Bronze: PDPL subject access + ai index)", "slv.payment_lifecycle",
+       "slv.zatca_invoice_documents", "slv.settlement_lines", "slv.erp_gl_journal_lines"]
+SLVSUB = ["not a leg of the money spine", "typed, deduped, conformed", "typed, deduped, conformed",
+          "typed, deduped, conformed", "typed, deduped, conformed"]
+
+# The spine arithmetic, in halalas of the one SAR 138.00 sale.
+SPINE = [("payments", "138.00", CYAN), ("- fees from the bank file", "0.95", EMERALD),
+         ("= expected net payable", "137.05", INK), ("bank paid", "137.05", EMERALD),
+         ("GL card clearing", "138.00", WARN)]
+
+
 def dataflow_one_sale() -> None:
-    s = Svg(1680, 960, "One sale, five systems, one answer",
-            "The same SAR 138.00 purchase as each system records it -- and the three legs that must agree "
-            "to the halala.")
-    lanes = [("THE TILL", "commerce_events.csv", GOLD,
-              ["ORDER_PLACED", "order_id ORD-004112", "amount_sar 138.00", "event_ts_utc 09:14:22Z"]),
-             ("THE CARD", "payment_events.csv", CYAN,
-              ["CAPTURE  MADA", "payment_event_id PE-88301", "amount_sar 138.00", "positive; sign is the type"]),
-             ("THE TAX AUTHORITY", "zatca/invoice_requests.jsonl", VIOLET,
-              ["REPORTING (simplified)", "invoice_uuid 0ec9539b...", "ICV 103, PIH = prev hash",
-               "total_incl_vat 138.00"]),
-             ("THE BANK", "NAJDACQ_SETTLEMENT_20260215.csv", EMERALD,
-              ["PURCHASE  CR", "payment_event_id PE-88301", "gross 138.00  mdr 0.83",
-               "vat_on_fee 0.12  net 137.05"]),
-             ("THE LEDGER", "erp_gl_acdoca.csv", WARN,
-              ["BELNR 4900031881", "RACCT card clearing  DRCRK S", "HSL 138.00", "BUDAT 20260213"])]
+    s = Svg(1680, 960, DATAFLOW_TITLE, DATAFLOW_SUB)
+    lanes = LANES
     y = 130
     lx, lw = 40, 300
     bx, bw = 372, 270
@@ -225,15 +247,7 @@ def dataflow_one_sale() -> None:
         y += 140
 
     y = 130
-    brz = ["brz.commerce_events_raw", "brz.payment_events_raw", "brz.zatca_invoices_raw",
-           "brz.settlement_batches_raw", "brz.erp_gl_raw"]
-    # The order is NOT a leg of the money spine. It stays in Bronze and is read by the PDPL
-    # right-of-access path and the governed AI index. Drawing it into payment_lifecycle would be a
-    # picture of a join the code does not do.
-    slv = ["(stays in Bronze: PDPL subject access + ai index)", "slv.payment_lifecycle",
-           "slv.zatca_invoice_documents", "slv.settlement_lines", "slv.erp_gl_journal_lines"]
-    slvsub = ["not a leg of the money spine", "typed, deduped, conformed", "typed, deduped, conformed",
-              "typed, deduped, conformed", "typed, deduped, conformed"]
+    brz, slv, slvsub = BRZ, SLV, SLVSUB
     for i, (_name, _src, c, _f) in enumerate(lanes):
         s.line(lx + lw + 4, y + 59, bx - 6, y + 59, stroke=c, head="a")
         s.node(bx, y + 34, bw, 50, brz[i], "append-only, PII encrypted here", accent=c)
@@ -249,9 +263,7 @@ def dataflow_one_sale() -> None:
     s.text(gx + 14, gy + 46, "gld.fact_merchant_settlement_recon", size=10.5, fill=EMERALD, mono=True)
     s.text(gx + 14, gy + 70, "UNION of keys from all three legs.", size=10.5, fill=MUTED, mono=True)
     s.text(gx + 14, gy + 85, "No LEFT JOIN can drop a row.", size=10.5, fill=MUTED, mono=True)
-    eq = [("payments", "138.00", CYAN), ("- fees from the bank file", "0.95", EMERALD),
-          ("= expected net payable", "137.05", INK), ("bank paid", "137.05", EMERALD),
-          ("GL card clearing", "138.00", WARN)]
+    eq = SPINE
     yy = gy + 112
     for lbl, val, c in eq:
         s.text(gx + 14, yy, lbl, size=10.5, fill=c, mono=True)
