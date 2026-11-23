@@ -73,3 +73,6 @@ data/lake.*/
 # Third-party datasets pulled for testing (Kaggle etc). Never committed: the licence is somebody
 # else's to grant, and the point of these files is that this project did not author them.
 data/external/
+
+# Azure CLI credential cache (MIZAN_AZ_PROFILE). Holds access and refresh tokens after `az login`.
+.azure-college/

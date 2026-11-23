@@ -207,7 +207,18 @@ def settings(token: str) -> None:
 
 def start(token: str) -> None:
     status, _, body = req("POST", job_url(token, "/environment/start", beta=True), token)
-    print(f"  environment start requested ({status}) {body if status >= 400 else ''}".rstrip())
+    if status >= 400:
+        # Measured 2026-11-23 on FTL64/UAE North: /environment/start answers the same 401 "does not have
+        # Write permissions" as its sibling /environment/updateSettings, to the service principal that
+        # created this very item and uploaded its DAG through the beta file API. The whole /environment/
+        # beta surface appears to be user-identity only. Exiting 0 on that 401 made a refusal look like a
+        # success, so say what to click instead.
+        print(f"  environment start refused ({status}): {body}")
+        print("  Fabric's environment API does not accept this service principal. Start it by hand:")
+        print("      Fabric portal > workspace MIZAN > AF_MIZAN > Start (top toolbar)")
+        print("  First run takes roughly 10 minutes and holds capacity until you stop it again.")
+        raise SystemExit(1)
+    print(f"  environment start requested ({status})")
 
 
 def status_cmd(token: str) -> None:

@@ -151,12 +151,18 @@ Caption: *"SAR 22.39M across 2,233 merchant-days. Both variances: zero."*
 Optional in the sense that the video works without it. Recommended, because column-level lineage is rare
 in a portfolio project and this is the clip that reads as senior.
 
-Set up first (about 10 minutes):
+Set up first - ALREADY DONE on 2026-11-23, containers are up and Marquez is loaded. Only re-run these
+if you have restarted the machine:
 
 ```
 docker compose -f docker/docker-compose.airflow.yml up -d
-.\.venv\Scripts\python.exe -m mizan.lineage.openlineage --marquez http://localhost:5000/api/v1/lineage
+.\.venv\Scripts\python.exe -m mizan.lineage.openlineage --manifest dbt\target\manifest.json --duckdb tmp\mizan_gold.duckdb --lake data\lake --out data\out\lineage\gold_column_lineage.json --marquez http://localhost:5000/api/v1/lineage
 ```
+
+It prints `7 Gold models, 94 columns, 100% with lineage` and `posted 14 events`. The four arguments are
+all required: the manifest says which columns exist, the DuckDB file and `data/lake` supply the Delta
+snapshot versions that make the run reproducible, and `--out` writes the JSON the Command Center reads.
+Marquez then holds 9 Gold datasets with their fields - verified, not assumed.
 
 1. **`localhost:3000`** - Marquez. The lineage graph draws. Hold 2 seconds.
 2. **Click one Gold column.** It traces back through Silver to Bronze. Hold 4 seconds.

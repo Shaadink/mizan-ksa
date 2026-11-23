@@ -223,3 +223,19 @@ def test_the_client_secret_goes_to_dbt_by_environment_never_by_file(dag_module, 
     profiles = (REPO / "dbt" / "profiles.yml").read_text(encoding="utf-8")
     assert "env_var('FABRIC_CLIENT_SECRET'" in profiles, "the profile must read the secret from the env"
     assert "shh" not in profiles and "client_secret: \"{{ env_var" in profiles
+
+
+def test_start_does_not_report_success_when_fabric_refuses() -> None:
+    """A 401 from /environment/start must exit non-zero and say what to click.
+
+    Measured 2026-11-23: Fabric answered 401 "does not have Write permissions" to the same service
+    principal that had just created AF_MIZAN and uploaded its DAG. The old start() printed the refusal
+    and returned, so the process exited 0 and a failed start looked like a successful one. This pins the
+    exit, because a silent failure here means arriving at a recording session with a Stopped environment.
+    """
+    source = (Path(__file__).resolve().parents[1] / "scripts" / "fabric_airflow.py").read_text(
+        encoding="utf-8")
+    start = source.split("def start(")[1].split("\ndef ")[0]
+    assert "raise SystemExit(1)" in start, "start() must exit non-zero when Fabric refuses"
+    assert "status >= 400" in start, "start() must branch on the HTTP status"
+    assert "AF_MIZAN > Start" in start, "start() must name the portal click that works instead"
