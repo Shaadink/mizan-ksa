@@ -267,7 +267,7 @@ are derived rather than typed, so a stale caption costs more than it saves.
 | Lineage | 94 of 94 Gold columns |
 | Scale | 20M rows at 62:1 skew, same checksum three ways |
 | dbt | a 99-node build, green on WH_MIZAN and locally. 99 = 7 models + 89 tests + 3 seeds |
-| Tests | 463 Python, 184 Fabric App (183 pass, 1 skipped) |
+| Tests | 464 Python, 184 Fabric App (183 pass, 1 skipped) |
 | Lakehouse | 28 tables, 439,192 rows |
 
 Say **"99-node dbt build"**, not "99 dbt tests". There are 89 tests.

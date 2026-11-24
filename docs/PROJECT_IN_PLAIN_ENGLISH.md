@@ -521,7 +521,7 @@ tested whether anyone says so or not.
 
 ### 15. Testing and the honesty ledger
 
-**What it is.** **463 automated tests** on the data side and **184** on the app side (183 passing, 1
+**What it is.** **464 automated tests** on the data side and **184** on the app side (183 passing, 1
 skipped), running on every push.
 
 **And `HONESTY.md`** — a document listing everything this project does *not* do, everything that is
@@ -638,7 +638,7 @@ Keep this open while filming.
 | dbt build | **99/99 nodes on both** the local target and WH_MIZAN (2026-11-21). 99 = 7 models + 89 tests + 3 seeds |
 | Stream events | 91,513 |
 | Skew benchmark | 20,000,000 rows |
-| Tests | 463 Python + 184 app (183 pass, 1 skip) |
+| Tests | 464 Python + 184 app (183 pass, 1 skip) |
 | Airflow in Fabric | 6 jobs, 15 minutes |
 | Documented limitations | 40 (deliberate scope decisions, fixed findings, and 5 still open) |
 | Gold tables rebuilt incrementally | 3 of 7; a re-run takes 2.2 s and changes nothing |

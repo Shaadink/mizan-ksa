@@ -240,9 +240,47 @@ def validate(cmd: list[str], xml: Path, sdk: Path) -> tuple[bool, str]:
     return False, (first or f"exit {proc.returncode}")[:160]
 
 
+HASH_RE = re.compile(r"INVOICE HASH\s*=\s*([A-Za-z0-9+/]{43}=)")
+
+
+def sdk_hash(cmd: list[str], xml: Path, sdk: Path) -> str | None:
+    """Ask ZATCA's own SDK for the invoice hash of one signed XML.
+
+    The SDK writes it to the log at INFO as `*** INVOICE HASH = <base64>`, and exits 0 either way, so the
+    verdict is the parsed value and not the exit code.
+    """
+    proc = subprocess.run([*cmd, "-generateHash", "-invoice", str(xml)],  # noqa: S603 (fixed argv; ours)
+                          capture_output=True, text=True, cwd=str(sdk), timeout=300, check=False)
+    found = HASH_RE.search((proc.stdout or "") + (proc.stderr or ""))
+    return found.group(1) if found else None
+
+
+def compare_hashes(cmd: list[str], sdk: Path, invoices: list[tuple[str, Path]]) -> list[tuple[str, str, str]]:
+    """The strongest single claim this project can make about its ZATCA implementation.
+
+    `invoice_hash` is the anchor of the whole chain: it becomes the next document's PIH whatever ZATCA
+    later answers, so if it is computed even slightly differently from ZATCA -- one wrong element removed
+    before canonicalisation, C14N 1.1 instead of 1.0 -- every document after it is wrong and the error is
+    unrecoverable. Agreement cannot be proven by reading the specification; it is proven by handing the
+    same bytes to ZATCA's own tool and comparing.
+
+    Note what is NOT done here: ZATCA's SDK ships no sample invoices (15 .xsd schemas, zero .xml), so
+    there is nothing of theirs to hash. These are MIZAN's own signed invoices, hashed by ZATCA's jar.
+    That is the stronger test in any case -- an agreed hash on our bytes is what the chain depends on.
+    """
+    from mizan.clearance.tlv_qr_and_state_machine import zatca_invoice_hash
+    rows = []
+    for label, xml in invoices:
+        theirs = sdk_hash(cmd, xml, sdk)
+        rows.append((label, zatca_invoice_hash(xml.read_bytes()), theirs or "(not returned)"))
+    return rows
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sdk", help=r"path to the unzipped ZATCA SDK (default: $ZATCA_SDK_HOME or vendor\zatca-sdk)")
+    ap.add_argument("--hash", action="store_true",
+                    help="compare ZATCA's own -generateHash against MIZAN's zatca_invoice_hash")
     ap.add_argument("--limit", type=int, default=20, help="how many invoices to validate (default 20)")
     ap.add_argument("--keep", action="store_true", help="keep the exported XML instead of deleting it")
     ap.add_argument("--report", action="store_true",
@@ -262,6 +300,18 @@ def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="mizan_zatca_sdk_"))
     try:
         invoices = export_invoices(args.limit, tmp)
+        if args.hash:
+            rows = compare_hashes(cmd, sdk, invoices)
+            print(f"ZATCA SDK {sdk.name} -generateHash  vs  mizan.clearance.zatca_invoice_hash\n")
+            bad = 0
+            for label, mine, theirs in rows:
+                same = mine == theirs
+                bad += 0 if same else 1
+                print(f"  {'MATCH   ' if same else 'MISMATCH'} {label}")
+                print(f"    ZATCA  {theirs}")
+                print(f"    MIZAN  {mine}")
+            print(f"\n{len(rows) - bad}/{len(rows)} hashes identical")
+            return 1 if bad else 0
         print(f"Validating {len(invoices)} signed invoices with the ZATCA SDK at {sdk}\n")
         if args.report:
             rep = build_report(cmd, sdk, invoices)

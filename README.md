@@ -42,7 +42,7 @@ moment it lands and can be erased under PDPL without touching signed tax evidenc
 Direct Lake Power BI) as the data plane; Apache Airflow, dbt-fabric, OpenLineage + Marquez, pytest, Docker and GitHub
 Actions as the control plane.
 
-**Tests, counted separately because they measure different things:** **463 Python tests** (`pytest`), **a 99-node dbt
+**Tests, counted separately because they measure different things:** **464 Python tests** (`pytest`), **a 99-node dbt
 build** on the local DuckDB target (7 models, 89 tests, 3 seeds), **99/99 on WH_MIZAN** (re-run 2026-11-21, full parity), and **184
 Fabric App tests (183 pass, 1 skipped)**. The second Fabric run took the incremental `delete+insert` path
 and stayed 99/99, so incremental Gold is executed there and not merely compiled (HONESTY.md row 36). CI runs the full PySpark and dbt suites and the app tests on every push.

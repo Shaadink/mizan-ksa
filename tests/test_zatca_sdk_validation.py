@@ -118,3 +118,32 @@ def test_exported_invoice_is_well_formed_xml(gen_dir):
             text = xml.read_bytes()
             assert b"UBLExtensions" in text, f"{label}: signed invoice has no ext:UBLExtensions"
             assert b"AdditionalDocumentReference" in text, f"{label}: no QR/PIH document reference"
+
+
+def test_zatca_computes_the_same_invoice_hash_as_mizan(sdk, invoices):
+    """ZATCA's own SDK and MIZAN must agree on `invoice_hash`, byte for byte.
+
+    This is the single most consequential agreement in the project. `invoice_hash` is not just a
+    checksum -- it becomes the NEXT document's PIH whatever ZATCA later answers, so it is the link that
+    holds the chain together. Compute it even slightly differently from ZATCA (remove one element too
+    many before canonicalising, use C14N 1.1 instead of 1.0, canonicalise after attaching the QR instead
+    of before) and every subsequent document in that EGS chain is wrong, with no way to withdraw them.
+
+    No amount of reading the specification proves agreement. Handing the same bytes to ZATCA's jar and
+    comparing does.
+
+    Worth stating what this is NOT: ZATCA's SDK 3.0.8 ships **no sample invoices** -- 15 .xsd schemas and
+    zero .xml -- so there is nothing of ZATCA's to hash. These are MIZAN's own signed invoices, hashed by
+    ZATCA's tool. That is the stronger direction anyway: the chain depends on our bytes, not theirs.
+    """
+    home, cmd = sdk
+    rows = sdk_mod.compare_hashes(cmd, home, invoices[:3])
+    assert rows, "no invoices were hashed"
+    for label, mine, theirs in rows:
+        assert theirs != "(not returned)", (
+            f"{label}: the SDK returned no hash -- its log format may have changed, so the parse in "
+            f"sdk_hash() needs rechecking before this test can be trusted either way")
+        assert mine == theirs, (
+            f"{label}: MIZAN and ZATCA disagree on the invoice hash.\n"
+            f"  ZATCA {theirs}\n  MIZAN {mine}\n"
+            f"Every document after this one in the EGS chain would carry the wrong PIH.")
