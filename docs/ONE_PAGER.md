@@ -46,7 +46,7 @@ This is the part that distinguishes it from an architecture document.
 - **`docs/PROOF_MANIFEST.md`** — 13 claims, each with the proof file behind it and that file's SHA-256.
 - **`HONESTY.md`** — what the project does *not* do, where evidence is stale, and two defects found in ZATCA's own
   validator (a float VAT comparison, and a QR rule made unsatisfiable by two other rules).
-- **464 Python tests and 184 app tests** (183 pass, 1 skipped), and dbt **99/99 on both the local target
+- **468 Python tests and 184 app tests** (183 pass, 1 skipped), and dbt **99/99 on both the local target
   and WH_MIZAN**, run in CI on every push, including the full PySpark and dbt suites.
 - **Disaster recovery drill** — source and lake rebuilt from scratch in 9.8 min, Gold in 18.2 s (RTO 604.7 s).
   All 10 tables, 35,789 rows, fingerprinted by SHA-256 and **identical to the live warehouse**.
